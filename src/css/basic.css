@@ -1,0 +1,12 @@
+html, body {
+  background-color: rgba(0,0,50,1.0);
+  color: rgba(100,255,100,1.0);
+  margin:0;
+  padding:0;
+  font-family: heavy_data;
+}
+
+@font-face {
+    font-family: heavy_data;
+    src: url(../font/pf_tempesta_seven.ttf);
+}

@@ -1,0 +1,1547 @@
+{
+    "n00": {
+        "place_id": 283192254,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "relation",
+        "osm_id": 7499093,
+        "lat": "43.02497915",
+        "lon": "9.406692275",
+        "display_name": "R\u00e9serve naturelle des \u00celes du Cap Corse, Ersa, Bastia, Haute-Corse, Corse, France m\u00e9tropolitaine, 20275, France",
+        "address": {
+            "leisure": "R\u00e9serve naturelle des \u00celes du Cap Corse",
+            "city": "Ersa",
+            "municipality": "Bastia",
+            "county": "Haute-Corse",
+            "state": "Corse",
+            "region": "France m\u00e9tropolitaine",
+            "postcode": "20275",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "42.962485",
+            "43.0277079",
+            "9.340308",
+            "9.471868"
+        ]
+    },
+    "n01": {
+        "place_id": 282136411,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "relation",
+        "osm_id": 1403916,
+        "lat": "46.81892485",
+        "lon": "1.8746296563120708",
+        "display_name": "France m\u00e9tropolitaine, France",
+        "address": {
+            "region": "France m\u00e9tropolitaine",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "41.2611155",
+            "51.3055721",
+            "-5.4517733",
+            "9.8282225"
+        ]
+    },
+    "n02": {
+        "place_id": 82517317,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "node",
+        "osm_id": 8038378516,
+        "lat": "42.8118838",
+        "lon": "9.4889957",
+        "display_name": "Marine de Sisco, Mortola, Sisco, Bastia, Haute-Corse, Corse, France m\u00e9tropolitaine, 20233, France",
+        "address": {
+            "locality": "Marine de Sisco",
+            "hamlet": "Mortola",
+            "village": "Sisco",
+            "city": "Sisco",
+            "municipality": "Bastia",
+            "county": "Haute-Corse",
+            "state": "Corse",
+            "region": "France m\u00e9tropolitaine",
+            "postcode": "20233",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "42.8018838",
+            "42.8218838",
+            "9.4789957",
+            "9.4989957"
+        ]
+    },
+    "n03": {
+        "place_id": 58178813,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "node",
+        "osm_id": 5188780194,
+        "lat": "42.670304",
+        "lon": "9.4450584",
+        "display_name": "Arinella, Bastia, Haute-Corse, Corse, France m\u00e9tropolitaine, 20600, France",
+        "address": {
+            "locality": "Arinella",
+            "city": "Bastia",
+            "municipality": "Bastia",
+            "county": "Haute-Corse",
+            "state": "Corse",
+            "region": "France m\u00e9tropolitaine",
+            "postcode": "20600",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "42.660304",
+            "42.680304",
+            "9.4350584",
+            "9.4550584"
+        ]
+    },
+    "n04": {
+        "place_id": 282136411,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "relation",
+        "osm_id": 1403916,
+        "lat": "46.81892485",
+        "lon": "1.8746296563120708",
+        "display_name": "France m\u00e9tropolitaine, France",
+        "address": {
+            "region": "France m\u00e9tropolitaine",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "41.2611155",
+            "51.3055721",
+            "-5.4517733",
+            "9.8282225"
+        ]
+    },
+    "n05": {
+        "place_id": 282136411,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "relation",
+        "osm_id": 1403916,
+        "lat": "46.81892485",
+        "lon": "1.8746296563120708",
+        "display_name": "France m\u00e9tropolitaine, France",
+        "address": {
+            "region": "France m\u00e9tropolitaine",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "41.2611155",
+            "51.3055721",
+            "-5.4517733",
+            "9.8282225"
+        ]
+    },
+    "n06": {
+        "place_id": 282136411,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "relation",
+        "osm_id": 1403916,
+        "lat": "46.81892485",
+        "lon": "1.8746296563120708",
+        "display_name": "France m\u00e9tropolitaine, France",
+        "address": {
+            "region": "France m\u00e9tropolitaine",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "41.2611155",
+            "51.3055721",
+            "-5.4517733",
+            "9.8282225"
+        ]
+    },
+    "n07": {
+        "place_id": 77042736,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "node",
+        "osm_id": 7245324515,
+        "lat": "41.7216376",
+        "lon": "9.4053038",
+        "display_name": "Ogliastriccione, Conca, Sart\u00e8ne, Corse-du-Sud, Corse, France m\u00e9tropolitaine, 20135, France",
+        "address": {
+            "locality": "Ogliastriccione",
+            "hamlet": "Ogliastriccione",
+            "village": "Conca",
+            "municipality": "Sart\u00e8ne",
+            "county": "Corse-du-Sud",
+            "state": "Corse",
+            "region": "France m\u00e9tropolitaine",
+            "postcode": "20135",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "41.7116376",
+            "41.7316376",
+            "9.3953038",
+            "9.4153038"
+        ]
+    },
+    "n08": {
+        "place_id": 117355191,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "way",
+        "osm_id": 66472890,
+        "lat": "41.595018550000006",
+        "lon": "9.362815416808878",
+        "display_name": "S\u00e9maphore de la Chiappa, Lotissement Rosu Marinu, Porto-Vecchio, Sart\u00e8ne, Corse-du-Sud, Corse, France m\u00e9tropolitaine, 20137, France",
+        "address": {
+            "building": "S\u00e9maphore de la Chiappa",
+            "road": "Lotissement Rosu Marinu",
+            "city": "Porto-Vecchio",
+            "municipality": "Sart\u00e8ne",
+            "county": "Corse-du-Sud",
+            "state": "Corse",
+            "region": "France m\u00e9tropolitaine",
+            "postcode": "20137",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "41.5949278",
+            "41.5951113",
+            "9.3627013",
+            "9.3629573"
+        ]
+    },
+    "n09": {
+        "place_id": 282136411,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "relation",
+        "osm_id": 1403916,
+        "lat": "46.81892485",
+        "lon": "1.8746296563120708",
+        "display_name": "France m\u00e9tropolitaine, France",
+        "address": {
+            "region": "France m\u00e9tropolitaine",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "41.2611155",
+            "51.3055721",
+            "-5.4517733",
+            "9.8282225"
+        ]
+    },
+    "n10": {
+        "place_id": 333343953,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "node",
+        "osm_id": 59860858,
+        "lat": "41.5623047",
+        "lon": "9.3342784",
+        "display_name": "Palombaggia, Porto-Vecchio, Sart\u00e8ne, Corse-du-Sud, Corse, France m\u00e9tropolitaine, 20137, France",
+        "address": {
+            "neighbourhood": "Palombaggia",
+            "city": "Porto-Vecchio",
+            "municipality": "Sart\u00e8ne",
+            "county": "Corse-du-Sud",
+            "state": "Corse",
+            "region": "France m\u00e9tropolitaine",
+            "postcode": "20137",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "41.5523047",
+            "41.5723047",
+            "9.3242784",
+            "9.3442784"
+        ]
+    },
+    "n11": {
+        "place_id": 77397252,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "node",
+        "osm_id": 7304002082,
+        "lat": "41.5179526",
+        "lon": "9.274309",
+        "display_name": "Ghiuncajola, Porto-Vecchio, Sart\u00e8ne, Corse-du-Sud, Corse, France m\u00e9tropolitaine, 20137, France",
+        "address": {
+            "locality": "Ghiuncajola",
+            "city": "Porto-Vecchio",
+            "municipality": "Sart\u00e8ne",
+            "county": "Corse-du-Sud",
+            "state": "Corse",
+            "region": "France m\u00e9tropolitaine",
+            "postcode": "20137",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "41.5079526",
+            "41.5279526",
+            "9.264309",
+            "9.284309"
+        ]
+    },
+    "n12": {
+        "place_id": 157211503,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "way",
+        "osm_id": 225560915,
+        "lat": "41.4157367",
+        "lon": "9.2370048",
+        "display_name": "D 58, Gurgazu, Bonifacio, Sart\u00e8ne, Corse-du-Sud, Corse, France m\u00e9tropolitaine, 20169, France",
+        "address": {
+            "road": "D 58",
+            "hamlet": "Gurgazu",
+            "village": "Bonifacio",
+            "municipality": "Sart\u00e8ne",
+            "county": "Corse-du-Sud",
+            "state": "Corse",
+            "region": "France m\u00e9tropolitaine",
+            "postcode": "20169",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "41.4018801",
+            "41.4158135",
+            "9.2179529",
+            "9.2380189"
+        ]
+    },
+    "n13": {
+        "place_id": 132323386,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "way",
+        "osm_id": 130117314,
+        "lat": "41.3692465",
+        "lon": "9.2728009",
+        "display_name": "Bonifacio, Sart\u00e8ne, Corse-du-Sud, Corse, France m\u00e9tropolitaine, 20169, France",
+        "address": {
+            "village": "Bonifacio",
+            "municipality": "Sart\u00e8ne",
+            "county": "Corse-du-Sud",
+            "state": "Corse",
+            "region": "France m\u00e9tropolitaine",
+            "postcode": "20169",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "41.3676031",
+            "41.3692465",
+            "9.2713598",
+            "9.2728009"
+        ]
+    },
+    "n14": {
+        "place_id": 41661658,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "node",
+        "osm_id": 3253304761,
+        "lat": "41.3744927",
+        "lon": "9.2180008",
+        "display_name": "Piantarella, Bonifacio, Sart\u00e8ne, Corse-du-Sud, Corse, France m\u00e9tropolitaine, 20169, France",
+        "address": {
+            "hamlet": "Piantarella",
+            "village": "Bonifacio",
+            "municipality": "Sart\u00e8ne",
+            "county": "Corse-du-Sud",
+            "state": "Corse",
+            "region": "France m\u00e9tropolitaine",
+            "postcode": "20169",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "41.3544927",
+            "41.3944927",
+            "9.1980008",
+            "9.2380008"
+        ]
+    },
+    "n15": {
+        "place_id": 26050956,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "node",
+        "osm_id": 2719376027,
+        "lat": "41.3919224",
+        "lon": "9.0964041",
+        "display_name": "Capo di Feno, Bonifacio, Sart\u00e8ne, Corse-du-Sud, Corse, France m\u00e9tropolitaine, 20169, France",
+        "address": {
+            "locality": "Capo di Feno",
+            "village": "Bonifacio",
+            "municipality": "Sart\u00e8ne",
+            "county": "Corse-du-Sud",
+            "state": "Corse",
+            "region": "France m\u00e9tropolitaine",
+            "postcode": "20169",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "41.3819224",
+            "41.4019224",
+            "9.0864041",
+            "9.1064041"
+        ]
+    },
+    "n16": {
+        "place_id": 7813599,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "node",
+        "osm_id": 928019828,
+        "lat": "41.4267215",
+        "lon": "9.1063224",
+        "display_name": "La Tonnara, Bonifacio, Sart\u00e8ne, Corse-du-Sud, Corse, France m\u00e9tropolitaine, 20169, France",
+        "address": {
+            "hamlet": "La Tonnara",
+            "village": "Bonifacio",
+            "municipality": "Sart\u00e8ne",
+            "county": "Corse-du-Sud",
+            "state": "Corse",
+            "region": "France m\u00e9tropolitaine",
+            "postcode": "20169",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "41.4067215",
+            "41.4467215",
+            "9.0863224",
+            "9.1263224"
+        ]
+    },
+    "n17": {
+        "place_id": 282136411,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "relation",
+        "osm_id": 1403916,
+        "lat": "46.81892485",
+        "lon": "1.8746296563120708",
+        "display_name": "France m\u00e9tropolitaine, France",
+        "address": {
+            "region": "France m\u00e9tropolitaine",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "41.2611155",
+            "51.3055721",
+            "-5.4517733",
+            "9.8282225"
+        ]
+    },
+    "n18": {
+        "place_id": 282136411,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "relation",
+        "osm_id": 1403916,
+        "lat": "46.81892485",
+        "lon": "1.8746296563120708",
+        "display_name": "France m\u00e9tropolitaine, France",
+        "address": {
+            "region": "France m\u00e9tropolitaine",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "41.2611155",
+            "51.3055721",
+            "-5.4517733",
+            "9.8282225"
+        ]
+    },
+    "n19": {
+        "place_id": 282136411,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "relation",
+        "osm_id": 1403916,
+        "lat": "46.81892485",
+        "lon": "1.8746296563120708",
+        "display_name": "France m\u00e9tropolitaine, France",
+        "address": {
+            "region": "France m\u00e9tropolitaine",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "41.2611155",
+            "51.3055721",
+            "-5.4517733",
+            "9.8282225"
+        ]
+    },
+    "n20": {
+        "place_id": 93853650,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "node",
+        "osm_id": 9005215917,
+        "lat": "41.6328303",
+        "lon": "8.8146355",
+        "display_name": "Ferme aux poissons, D 121, Cala Nova, Campomoro, Belv\u00e9d\u00e8re-Campomoro, Sart\u00e8ne, Corse-du-Sud, Corse, France m\u00e9tropolitaine, 20110, France",
+        "address": {
+            "tourism": "Ferme aux poissons",
+            "road": "D 121",
+            "neighbourhood": "Cala Nova",
+            "village": "Campomoro",
+            "city": "Belv\u00e9d\u00e8re-Campomoro",
+            "municipality": "Sart\u00e8ne",
+            "county": "Corse-du-Sud",
+            "state": "Corse",
+            "region": "France m\u00e9tropolitaine",
+            "postcode": "20110",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "41.6327803",
+            "41.6328803",
+            "8.8145855",
+            "8.8146855"
+        ]
+    },
+    "n21": {
+        "place_id": 217831500,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "way",
+        "osm_id": 551490722,
+        "lat": "41.67738815",
+        "lon": "8.906058889322345",
+        "display_name": "Total, Rue du 9 Septembre, Quatrina, Propriano, Sart\u00e8ne, Corse-du-Sud, Corse, France m\u00e9tropolitaine, 20110, France",
+        "address": {
+            "amenity": "Total",
+            "road": "Rue du 9 Septembre",
+            "neighbourhood": "Quatrina",
+            "city": "Propriano",
+            "municipality": "Sart\u00e8ne",
+            "county": "Corse-du-Sud",
+            "state": "Corse",
+            "region": "France m\u00e9tropolitaine",
+            "postcode": "20110",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "41.6772007",
+            "41.6775141",
+            "8.9059809",
+            "8.9061161"
+        ]
+    },
+    "n22": {
+        "place_id": 15649285,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "node",
+        "osm_id": 1674856360,
+        "lat": "41.7073851",
+        "lon": "8.7946788",
+        "display_name": "Port Jean-Baptiste Tomi, Porto Pollo, Mare e Monti, Porto Pollo / Porti Poddu, Serra-di-Ferro, Ajaccio, Corse-du-Sud, Corse, France m\u00e9tropolitaine, 20140, France",
+        "address": {
+            "leisure": "Port Jean-Baptiste Tomi",
+            "road": "Porto Pollo",
+            "neighbourhood": "Mare e Monti",
+            "village": "Porto Pollo / Porti Poddu",
+            "city": "Serra-di-Ferro",
+            "municipality": "Ajaccio",
+            "county": "Corse-du-Sud",
+            "state": "Corse",
+            "region": "France m\u00e9tropolitaine",
+            "postcode": "20140",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "41.7073351",
+            "41.7074351",
+            "8.7946288",
+            "8.7947288"
+        ]
+    },
+    "n23": {
+        "place_id": 79170086,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "node",
+        "osm_id": 7483957800,
+        "lat": "41.7409282",
+        "lon": "8.7737231",
+        "display_name": "u scoddu di Vintura, France m\u00e9tropolitaine, 20138, France",
+        "address": {
+            "isolated_dwelling": "u scoddu di Vintura",
+            "region": "France m\u00e9tropolitaine",
+            "postcode": "20138",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "41.7408782",
+            "41.7409782",
+            "8.7736731",
+            "8.7737731"
+        ]
+    },
+    "n24": {
+        "place_id": 282136411,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "relation",
+        "osm_id": 1403916,
+        "lat": "46.81892485",
+        "lon": "1.8746296563120708",
+        "display_name": "France m\u00e9tropolitaine, France",
+        "address": {
+            "region": "France m\u00e9tropolitaine",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "41.2611155",
+            "51.3055721",
+            "-5.4517733",
+            "9.8282225"
+        ]
+    },
+    "n25": {
+        "place_id": 79417314,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "node",
+        "osm_id": 7556555711,
+        "lat": "41.791653",
+        "lon": "8.7210669",
+        "display_name": "a Pruniccia, Coti-Chiavari, Ajaccio, Corse-du-Sud, Corse, France m\u00e9tropolitaine, 20138, France",
+        "address": {
+            "isolated_dwelling": "a Pruniccia",
+            "city": "Coti-Chiavari",
+            "municipality": "Ajaccio",
+            "county": "Corse-du-Sud",
+            "state": "Corse",
+            "region": "France m\u00e9tropolitaine",
+            "postcode": "20138",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "41.791603",
+            "41.791703",
+            "8.7210169",
+            "8.7211169"
+        ]
+    },
+    "n26": {
+        "place_id": 79338313,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "node",
+        "osm_id": 7490464804,
+        "lat": "41.7964757",
+        "lon": "8.7118364",
+        "display_name": "u Viculu, Coti-Chiavari, Ajaccio, Corse-du-Sud, Corse, France m\u00e9tropolitaine, 20138, France",
+        "address": {
+            "hamlet": "u Viculu",
+            "city": "Coti-Chiavari",
+            "municipality": "Ajaccio",
+            "county": "Corse-du-Sud",
+            "state": "Corse",
+            "region": "France m\u00e9tropolitaine",
+            "postcode": "20138",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "41.7764757",
+            "41.8164757",
+            "8.6918364",
+            "8.7318364"
+        ]
+    },
+    "n27": {
+        "place_id": 65627016,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "node",
+        "osm_id": 5932450257,
+        "lat": "41.8087826",
+        "lon": "8.7700671",
+        "display_name": "Plein soleil, Verghia / a Verghja, Coti-Chiavari, Ajaccio, Corse-du-Sud, Corse, France m\u00e9tropolitaine, 20138, France",
+        "address": {
+            "hamlet": "Plein soleil",
+            "village": "Verghia / a Verghja",
+            "city": "Coti-Chiavari",
+            "municipality": "Ajaccio",
+            "county": "Corse-du-Sud",
+            "state": "Corse",
+            "region": "France m\u00e9tropolitaine",
+            "postcode": "20138",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "41.7887826",
+            "41.8287826",
+            "8.7500671",
+            "8.7900671"
+        ]
+    },
+    "n28": {
+        "place_id": 117638073,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "way",
+        "osm_id": 70243002,
+        "lat": "41.84440155",
+        "lon": "8.754569207608695",
+        "display_name": "Tour d'Isolella, D 55, Aja Di Petra, Acellasca, Pietrosella, Ajaccio, Corse-du-Sud, Corse, France m\u00e9tropolitaine, 20166, France",
+        "address": {
+            "tourism": "Tour d'Isolella",
+            "road": "D 55",
+            "neighbourhood": "Aja Di Petra",
+            "hamlet": "Acellasca",
+            "village": "Pietrosella",
+            "municipality": "Ajaccio",
+            "county": "Corse-du-Sud",
+            "state": "Corse",
+            "region": "France m\u00e9tropolitaine",
+            "postcode": "20166",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "41.8443685",
+            "41.8444347",
+            "8.754525",
+            "8.7546134"
+        ]
+    },
+    "n29": {
+        "place_id": 3068995,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "node",
+        "osm_id": 387611186,
+        "lat": "41.8893913",
+        "lon": "8.8033271",
+        "display_name": "Porticcio, Grosseto-Prugna, Ajaccio, Corse-du-Sud, Corse, France m\u00e9tropolitaine, 20166, France",
+        "address": {
+            "village": "Porticcio",
+            "city": "Grosseto-Prugna",
+            "municipality": "Ajaccio",
+            "county": "Corse-du-Sud",
+            "state": "Corse",
+            "region": "France m\u00e9tropolitaine",
+            "postcode": "20166",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "41.8693913",
+            "41.9093913",
+            "8.7833271",
+            "8.8233271"
+        ]
+    },
+    "n30": {
+        "place_id": 6843605,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "node",
+        "osm_id": 844525139,
+        "lat": "41.9080125",
+        "lon": "8.6579194",
+        "display_name": "Calanches, Boulevard Tino Rossi, Barbicaja, Ajaccio, Corse-du-Sud, Corse, France m\u00e9tropolitaine, 2000, France",
+        "address": {
+            "highway": "Calanches",
+            "road": "Boulevard Tino Rossi",
+            "neighbourhood": "Barbicaja",
+            "city": "Ajaccio",
+            "municipality": "Ajaccio",
+            "county": "Corse-du-Sud",
+            "state": "Corse",
+            "region": "France m\u00e9tropolitaine",
+            "postcode": "2000",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "41.9079625",
+            "41.9080625",
+            "8.6578694",
+            "8.6579694"
+        ]
+    },
+    "n31": {
+        "place_id": 282136411,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "relation",
+        "osm_id": 1403916,
+        "lat": "46.81892485",
+        "lon": "1.8746296563120708",
+        "display_name": "France m\u00e9tropolitaine, France",
+        "address": {
+            "region": "France m\u00e9tropolitaine",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "41.2611155",
+            "51.3055721",
+            "-5.4517733",
+            "9.8282225"
+        ]
+    },
+    "n32": {
+        "place_id": 117994709,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "way",
+        "osm_id": 66268086,
+        "lat": "41.8953679",
+        "lon": "8.608354834018979",
+        "display_name": "Tour de la Parata, Boulevard Tino Rossi, Ajaccio, Corse-du-Sud, Corse, France m\u00e9tropolitaine, France",
+        "address": {
+            "historic": "Tour de la Parata",
+            "road": "Boulevard Tino Rossi",
+            "city": "Ajaccio",
+            "municipality": "Ajaccio",
+            "county": "Corse-du-Sud",
+            "state": "Corse",
+            "region": "France m\u00e9tropolitaine",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "41.895327",
+            "41.8954109",
+            "8.6082962",
+            "8.6084132"
+        ]
+    },
+    "n33": {
+        "place_id": 334510568,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "way",
+        "osm_id": 60845985,
+        "lat": "41.96223265",
+        "lon": "8.593276090976765",
+        "display_name": "Tour G\u00e9noise de Capo di Feno, D 111B, Stuppielli, Ajaccio, Corse-du-Sud, Corse, France m\u00e9tropolitaine, France",
+        "address": {
+            "man_made": "Tour G\u00e9noise de Capo di Feno",
+            "road": "D 111B",
+            "hamlet": "Stuppielli",
+            "city": "Ajaccio",
+            "municipality": "Ajaccio",
+            "county": "Corse-du-Sud",
+            "state": "Corse",
+            "region": "France m\u00e9tropolitaine",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "41.9621924",
+            "41.9622829",
+            "8.5932147",
+            "8.5933372"
+        ]
+    },
+    "n34": {
+        "place_id": 110616207,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "way",
+        "osm_id": 33790392,
+        "lat": "41.9768991",
+        "lon": "8.6640942",
+        "display_name": "A Calzetta, I Costi di Villanova, Villanova, Ajaccio, Corse-du-Sud, Corse, France m\u00e9tropolitaine, 20167, France",
+        "address": {
+            "road": "A Calzetta",
+            "neighbourhood": "I Costi di Villanova",
+            "village": "Villanova",
+            "municipality": "Ajaccio",
+            "county": "Corse-du-Sud",
+            "state": "Corse",
+            "region": "France m\u00e9tropolitaine",
+            "postcode": "20167",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "41.9767747",
+            "41.9777472",
+            "8.6640689",
+            "8.6663744"
+        ]
+    },
+    "n35": {
+        "place_id": 213130,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "node",
+        "osm_id": 51341115,
+        "lat": "41.9263991",
+        "lon": "8.7376029",
+        "display_name": "Ajaccio, Corse-du-Sud, Corse, France m\u00e9tropolitaine, 20000, France",
+        "address": {
+            "city": "Ajaccio",
+            "municipality": "Ajaccio",
+            "county": "Corse-du-Sud",
+            "state": "Corse",
+            "region": "France m\u00e9tropolitaine",
+            "postcode": "20000",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "41.7663991",
+            "42.0863991",
+            "8.5776029",
+            "8.8976029"
+        ]
+    },
+    "n36": {
+        "place_id": 68689697,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "node",
+        "osm_id": 6308693975,
+        "lat": "42.0507086",
+        "lon": "8.7490476",
+        "display_name": "Masorchia, Calcatoggio, Ajaccio, Corse-du-Sud, Corse, France m\u00e9tropolitaine, 20111, France",
+        "address": {
+            "hamlet": "Masorchia",
+            "city": "Calcatoggio",
+            "municipality": "Ajaccio",
+            "county": "Corse-du-Sud",
+            "state": "Corse",
+            "region": "France m\u00e9tropolitaine",
+            "postcode": "20111",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "42.0307086",
+            "42.0707086",
+            "8.7290476",
+            "8.7690476"
+        ]
+    },
+    "n37": {
+        "place_id": 12337547,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "node",
+        "osm_id": 1243804350,
+        "lat": "42.0932272",
+        "lon": "8.7236815",
+        "display_name": "Sant Erasmu, Coggia, Ajaccio, Corse-du-Sud, Corse, France m\u00e9tropolitaine, 20118, France",
+        "address": {
+            "village": "Sant Erasmu",
+            "city": "Coggia",
+            "municipality": "Ajaccio",
+            "county": "Corse-du-Sud",
+            "state": "Corse",
+            "region": "France m\u00e9tropolitaine",
+            "postcode": "20118",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "42.0732272",
+            "42.1132272",
+            "8.7036815",
+            "8.7436815"
+        ]
+    },
+    "n38": {
+        "place_id": 282136411,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "relation",
+        "osm_id": 1403916,
+        "lat": "46.81892485",
+        "lon": "1.8746296563120708",
+        "display_name": "France m\u00e9tropolitaine, France",
+        "address": {
+            "region": "France m\u00e9tropolitaine",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "41.2611155",
+            "51.3055721",
+            "-5.4517733",
+            "9.8282225"
+        ]
+    },
+    "n39": {
+        "place_id": 160143309,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "way",
+        "osm_id": 239741774,
+        "lat": "42.17558755",
+        "lon": "8.5766323",
+        "display_name": "Tour d'Orchinu, D 81, Carg\u00e8se, Ajaccio, Corse-du-Sud, Corse, France m\u00e9tropolitaine, 20130, France",
+        "address": {
+            "man_made": "Tour d'Orchinu",
+            "road": "D 81",
+            "village": "Carg\u00e8se",
+            "municipality": "Ajaccio",
+            "county": "Corse-du-Sud",
+            "state": "Corse",
+            "region": "France m\u00e9tropolitaine",
+            "postcode": "20130",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "42.1755433",
+            "42.1756141",
+            "8.5765845",
+            "8.5766801"
+        ]
+    },
+    "n40": {
+        "place_id": 282136411,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "relation",
+        "osm_id": 1403916,
+        "lat": "46.81892485",
+        "lon": "1.8746296563120708",
+        "display_name": "France m\u00e9tropolitaine, France",
+        "address": {
+            "region": "France m\u00e9tropolitaine",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "41.2611155",
+            "51.3055721",
+            "-5.4517733",
+            "9.8282225"
+        ]
+    },
+    "n41": {
+        "place_id": 223646164,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "way",
+        "osm_id": 596664036,
+        "lat": "42.26773545",
+        "lon": "8.691529899999999",
+        "display_name": "Tour G\u00e9noise, D 81, Ota, Ajaccio, Corse-du-Sud, Corse, France m\u00e9tropolitaine, 20150, France",
+        "address": {
+            "man_made": "Tour G\u00e9noise",
+            "road": "D 81",
+            "village": "Ota",
+            "municipality": "Ajaccio",
+            "county": "Corse-du-Sud",
+            "state": "Corse",
+            "region": "France m\u00e9tropolitaine",
+            "postcode": "20150",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "42.2676844",
+            "42.2677865",
+            "8.6914603",
+            "8.6915995"
+        ]
+    },
+    "n42": {
+        "place_id": 14271019,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "node",
+        "osm_id": 1431647949,
+        "lat": "42.3496868",
+        "lon": "8.6124546",
+        "display_name": "Girolata, Ajaccio, Corse-du-Sud, Corse, France m\u00e9tropolitaine, 20147, France",
+        "address": {
+            "village": "Girolata",
+            "municipality": "Ajaccio",
+            "county": "Corse-du-Sud",
+            "state": "Corse",
+            "region": "France m\u00e9tropolitaine",
+            "postcode": "20147",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "42.3296868",
+            "42.3696868",
+            "8.5924546",
+            "8.6324546"
+        ]
+    },
+    "n43": {
+        "place_id": 14271019,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "node",
+        "osm_id": 1431647949,
+        "lat": "42.3496868",
+        "lon": "8.6124546",
+        "display_name": "Girolata, Ajaccio, Corse-du-Sud, Corse, France m\u00e9tropolitaine, 20147, France",
+        "address": {
+            "village": "Girolata",
+            "municipality": "Ajaccio",
+            "county": "Corse-du-Sud",
+            "state": "Corse",
+            "region": "France m\u00e9tropolitaine",
+            "postcode": "20147",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "42.3296868",
+            "42.3696868",
+            "8.5924546",
+            "8.6324546"
+        ]
+    },
+    "n44": {
+        "place_id": 128862456,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "way",
+        "osm_id": 118101369,
+        "lat": "42.370577350000005",
+        "lon": "8.539043498633879",
+        "display_name": "Tour G\u00e9noise, Osani, Ajaccio, Corse-du-Sud, Corse, France m\u00e9tropolitaine, 20147, France",
+        "address": {
+            "man_made": "Tour G\u00e9noise",
+            "village": "Osani",
+            "municipality": "Ajaccio",
+            "county": "Corse-du-Sud",
+            "state": "Corse",
+            "region": "France m\u00e9tropolitaine",
+            "postcode": "20147",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "42.3705292",
+            "42.3706254",
+            "8.5389784",
+            "8.5391086"
+        ]
+    },
+    "n45": {
+        "place_id": 6433652,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "node",
+        "osm_id": 801861739,
+        "lat": "42.3987668",
+        "lon": "8.6024243",
+        "display_name": "Punta Validori, Gal\u00e9ria, Calvi, Haute-Corse, Corse, France m\u00e9tropolitaine, 20245, France",
+        "address": {
+            "locality": "Punta Validori",
+            "city": "Gal\u00e9ria",
+            "municipality": "Calvi",
+            "county": "Haute-Corse",
+            "state": "Corse",
+            "region": "France m\u00e9tropolitaine",
+            "postcode": "20245",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "42.3887668",
+            "42.4087668",
+            "8.5924243",
+            "8.6124243"
+        ]
+    },
+    "n46": {
+        "place_id": 95705318,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "node",
+        "osm_id": 9064177650,
+        "lat": "42.4888242",
+        "lon": "8.667545",
+        "display_name": "Truccia, Calenzana, Calvi, Haute-Corse, Corse, France m\u00e9tropolitaine, 20214, France",
+        "address": {
+            "locality": "Truccia",
+            "village": "Calenzana",
+            "municipality": "Calvi",
+            "county": "Haute-Corse",
+            "state": "Corse",
+            "region": "France m\u00e9tropolitaine",
+            "postcode": "20214",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "42.4788242",
+            "42.4988242",
+            "8.657545",
+            "8.677545"
+        ]
+    },
+    "n47": {
+        "place_id": 50178400,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "node",
+        "osm_id": 4347103005,
+        "lat": "42.551809",
+        "lon": "8.719657",
+        "display_name": "Grotte Mughia, D 81b, Calvi, Haute-Corse, Corse, France m\u00e9tropolitaine, 20260, France",
+        "address": {
+            "natural": "Grotte Mughia",
+            "road": "D 81b",
+            "city": "Calvi",
+            "municipality": "Calvi",
+            "county": "Haute-Corse",
+            "state": "Corse",
+            "region": "France m\u00e9tropolitaine",
+            "postcode": "20260",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "42.551759",
+            "42.551859",
+            "8.719607",
+            "8.719707"
+        ]
+    },
+    "n48": {
+        "place_id": 50494673,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "node",
+        "osm_id": 4347103010,
+        "lat": "42.5698543",
+        "lon": "8.7069205",
+        "display_name": "Punta Bianca, Calvi, Haute-Corse, Corse, France m\u00e9tropolitaine, 20260, France",
+        "address": {
+            "locality": "Punta Bianca",
+            "city": "Calvi",
+            "municipality": "Calvi",
+            "county": "Haute-Corse",
+            "state": "Corse",
+            "region": "France m\u00e9tropolitaine",
+            "postcode": "20260",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "42.5598543",
+            "42.5798543",
+            "8.6969205",
+            "8.7169205"
+        ]
+    },
+    "n49": {
+        "place_id": 19902943,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "node",
+        "osm_id": 2223430678,
+        "lat": "42.6005682",
+        "lon": "8.8309609",
+        "display_name": "Sant'Ambroggio, Calvi, Haute-Corse, Corse, France m\u00e9tropolitaine, 20260, France",
+        "address": {
+            "village": "Sant'Ambroggio",
+            "municipality": "Calvi",
+            "county": "Haute-Corse",
+            "state": "Corse",
+            "region": "France m\u00e9tropolitaine",
+            "postcode": "20260",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "42.5805682",
+            "42.6205682",
+            "8.8109609",
+            "8.8509609"
+        ]
+    },
+    "n50": {
+        "place_id": 173754667,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "way",
+        "osm_id": 303102930,
+        "lat": "42.6443207",
+        "lon": "8.9314543",
+        "display_name": "Chemin communal du Phare de la Pietra, L'\u00cele-Rousse, Calvi, Haute-Corse, Corse, France m\u00e9tropolitaine, 20220, France",
+        "address": {
+            "road": "Chemin communal du Phare de la Pietra",
+            "village": "L'\u00cele-Rousse",
+            "city": "L'\u00cele-Rousse",
+            "municipality": "Calvi",
+            "county": "Haute-Corse",
+            "state": "Corse",
+            "region": "France m\u00e9tropolitaine",
+            "postcode": "20220",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "42.6437424",
+            "42.6444138",
+            "8.9314374",
+            "8.9363973"
+        ]
+    },
+    "n51": {
+        "place_id": 65514123,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "node",
+        "osm_id": 5964850833,
+        "lat": "42.6694956",
+        "lon": "9.0568466",
+        "display_name": "Punta di Paraghiola, Palasca, Calvi, Haute-Corse, Corse, France m\u00e9tropolitaine, 20226, France",
+        "address": {
+            "locality": "Punta di Paraghiola",
+            "village": "Palasca",
+            "municipality": "Calvi",
+            "county": "Haute-Corse",
+            "state": "Corse",
+            "region": "France m\u00e9tropolitaine",
+            "postcode": "20226",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "42.6594956",
+            "42.6794956",
+            "9.0468466",
+            "9.0668466"
+        ]
+    },
+    "n52": {
+        "place_id": 282136411,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "relation",
+        "osm_id": 1403916,
+        "lat": "46.81892485",
+        "lon": "1.8746296563120708",
+        "display_name": "France m\u00e9tropolitaine, France",
+        "address": {
+            "region": "France m\u00e9tropolitaine",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "41.2611155",
+            "51.3055721",
+            "-5.4517733",
+            "9.8282225"
+        ]
+    },
+    "n53": {
+        "place_id": 282136411,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "relation",
+        "osm_id": 1403916,
+        "lat": "46.81892485",
+        "lon": "1.8746296563120708",
+        "display_name": "France m\u00e9tropolitaine, France",
+        "address": {
+            "region": "France m\u00e9tropolitaine",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "41.2611155",
+            "51.3055721",
+            "-5.4517733",
+            "9.8282225"
+        ]
+    },
+    "n54": {
+        "place_id": 6761011,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "node",
+        "osm_id": 846649391,
+        "lat": "42.7603185",
+        "lon": "9.3410452",
+        "display_name": "Negru, Olmeta-di-Capocorso, Bastia, Haute-Corse, Corse, France m\u00e9tropolitaine, 20217, France",
+        "address": {
+            "hamlet": "Negru",
+            "city": "Olmeta-di-Capocorso",
+            "municipality": "Bastia",
+            "county": "Haute-Corse",
+            "state": "Corse",
+            "region": "France m\u00e9tropolitaine",
+            "postcode": "20217",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "42.7403185",
+            "42.7803185",
+            "9.3210452",
+            "9.3610452"
+        ]
+    },
+    "n55": {
+        "place_id": 168481608,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "way",
+        "osm_id": 273051095,
+        "lat": "42.7994518",
+        "lon": "9.3411808",
+        "display_name": "Nonza, Bastia, Haute-Corse, Corse, France m\u00e9tropolitaine, 20217, France",
+        "address": {
+            "city": "Nonza",
+            "municipality": "Bastia",
+            "county": "Haute-Corse",
+            "state": "Corse",
+            "region": "France m\u00e9tropolitaine",
+            "postcode": "20217",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "42.7991027",
+            "42.8008922",
+            "9.3410203",
+            "9.3452935"
+        ]
+    },
+    "n56": {
+        "place_id": 127622073,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "way",
+        "osm_id": 117402444,
+        "lat": "42.8309214",
+        "lon": "9.312088",
+        "display_name": "Canari, Bastia, Haute-Corse, Corse, France m\u00e9tropolitaine, 20217, France",
+        "address": {
+            "city": "Canari",
+            "municipality": "Bastia",
+            "county": "Haute-Corse",
+            "state": "Corse",
+            "region": "France m\u00e9tropolitaine",
+            "postcode": "20217",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "42.8282787",
+            "42.8328607",
+            "9.312088",
+            "9.3161531"
+        ]
+    },
+    "n57": {
+        "place_id": 232689389,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "way",
+        "osm_id": 656337854,
+        "lat": "42.8631507",
+        "lon": "9.335449",
+        "display_name": "D 80, Marinca, Canari, Bastia, Haute-Corse, Corse, France m\u00e9tropolitaine, 20217, France",
+        "address": {
+            "road": "D 80",
+            "village": "Marinca",
+            "city": "Canari",
+            "municipality": "Bastia",
+            "county": "Haute-Corse",
+            "state": "Corse",
+            "region": "France m\u00e9tropolitaine",
+            "postcode": "20217",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "42.846451",
+            "42.8652",
+            "9.32557",
+            "9.347555"
+        ]
+    },
+    "n58": {
+        "place_id": 232617714,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "way",
+        "osm_id": 656357069,
+        "lat": "42.8943792",
+        "lon": "9.3230355",
+        "display_name": "D 80, Marine de Giottani, Minervio, Barrettali, Bastia, Haute-Corse, Corse, France m\u00e9tropolitaine, 20228, France",
+        "address": {
+            "road": "D 80",
+            "hamlet": "Marine de Giottani",
+            "village": "Minervio",
+            "city": "Barrettali",
+            "municipality": "Bastia",
+            "county": "Haute-Corse",
+            "state": "Corse",
+            "region": "France m\u00e9tropolitaine",
+            "postcode": "20228",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "42.8694089",
+            "42.898626",
+            "9.3230034",
+            "9.345799"
+        ]
+    },
+    "n59": {
+        "place_id": 53244824,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "node",
+        "osm_id": 4579892827,
+        "lat": "42.9483563",
+        "lon": "9.3640631",
+        "display_name": "Stanti, Morsiglia, Bastia, Haute-Corse, Corse, France m\u00e9tropolitaine, 20238, France",
+        "address": {
+            "hamlet": "Stanti",
+            "city": "Morsiglia",
+            "municipality": "Bastia",
+            "county": "Haute-Corse",
+            "state": "Corse",
+            "region": "France m\u00e9tropolitaine",
+            "postcode": "20238",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "42.9283563",
+            "42.9683563",
+            "9.3440631",
+            "9.3840631"
+        ]
+    },
+    "n60": {
+        "place_id": 73602568,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "node",
+        "osm_id": 6904893831,
+        "lat": "42.9878915",
+        "lon": "9.3476537",
+        "display_name": "Sundarelli, Centuri, Bastia, Haute-Corse, Corse, France m\u00e9tropolitaine, 20238, France",
+        "address": {
+            "locality": "Sundarelli",
+            "city": "Centuri",
+            "municipality": "Bastia",
+            "county": "Haute-Corse",
+            "state": "Corse",
+            "region": "France m\u00e9tropolitaine",
+            "postcode": "20238",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "42.9778915",
+            "42.9978915",
+            "9.3376537",
+            "9.3576537"
+        ]
+    },
+    "n61": {
+        "place_id": 283192254,
+        "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+        "osm_type": "relation",
+        "osm_id": 7499093,
+        "lat": "43.02497915",
+        "lon": "9.406692275",
+        "display_name": "R\u00e9serve naturelle des \u00celes du Cap Corse, Ersa, Bastia, Haute-Corse, Corse, France m\u00e9tropolitaine, 20275, France",
+        "address": {
+            "leisure": "R\u00e9serve naturelle des \u00celes du Cap Corse",
+            "city": "Ersa",
+            "municipality": "Bastia",
+            "county": "Haute-Corse",
+            "state": "Corse",
+            "region": "France m\u00e9tropolitaine",
+            "postcode": "20275",
+            "country": "France",
+            "country_code": "fr"
+        },
+        "boundingbox": [
+            "42.962485",
+            "43.0277079",
+            "9.340308",
+            "9.471868"
+        ]
+    }
+}
