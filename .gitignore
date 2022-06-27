@@ -1,6 +1,4 @@
 # Project exclude paths
-/static/data/
-/tools/
-
-# Project exclude paths
 /node_modules/
+/static/data/
+/tools/data/
