@@ -1,0 +1,12 @@
+sectorize package loads data and formats it to sectors.
+
+LINKS:
+# https://gis.stackexchange.com/questions/24340/converting-coordinates-from-meters-to-decimal-degrees-in-qgis
+
+
+
+#TODO:
+
+bathymetry #check
+geo shapes - sectorized
+geo-lines - sectorized
