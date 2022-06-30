@@ -1,7 +1,10 @@
 # Project exclude paths
+/.parcel-cache/
+/.idea/
 /node_modules/
 /static/data/
 /tools/data/
 /tools/assets/
 /tools/db/
 /data-resources/
+/src/deprecated/

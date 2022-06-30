@@ -10,3 +10,17 @@ LINKS:
 bathymetry #check
 geo shapes - sectorized
 geo-lines - sectorized
+
+
+"""
+TWO STAGES
+frontend wants: (base) whole map of wudi, protected_regions as points, places
+frontend wants: (selected) regions, wudi_points, places, protected_regions
+
+for stage one, send the dicts as json so bokeh.js can display
+for stage two, send more typical data-structures to obspkg.js (per-region only)
+
+what really do?
+consolidated all geometry products.
+"""
+

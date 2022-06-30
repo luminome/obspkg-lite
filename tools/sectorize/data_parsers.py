@@ -585,12 +585,12 @@ def tests():
     # # print(eco_regions_df.dtypes)
     # util.save_asset(eco_regions_df, 'parsed_eco_regions_partitioned')
     # ///////////////////////////////////////////////////////////
-    # eco_regions_df = pd.read_pickle(os.path.join(conf.assets_path, 'parsed_eco_regions_partitioned-DataFrame.pkl'))
-    # plot_instance = {
-    #     'entries': [eco_regions_df.iloc[i] for i in range(eco_regions_df.shape[0])],
-    #     'geometry': ['eco_region_geom', 'eco_region_bounds']
-    # }
-    # util.make_plot([plot_instance])
+    eco_regions_df = pd.read_pickle(os.path.join(conf.assets_path, 'parsed_eco_regions_partitioned-DataFrame.pkl'))
+    plot_instance = {
+        'entries': [eco_regions_df.iloc[i] for i in range(eco_regions_df.shape[0])],
+        'geometry': ['eco_region_geom', 'eco_region_bounds']
+    }
+    util.make_plot([plot_instance])
     # ///////////////////////////////////////////////////////////
     #
     # for n, g in df.iterrows():
@@ -679,17 +679,6 @@ def build_guides_attach_data():
 
 
 if __name__ == '__main__':
-    """
-    TWO STAGES
-    frontend wants: (base) whole map of wudi, protected_regions as points, places 
-    frontend wants: (selected) regions, wudi_points, places, protected_regions 
-    
-    for stage one, send the dicts as json so bokeh.js can display
-    for stage two, send more typical data-structures to obspkg.js (per-region only)
-    
-    what really do?
-    consolidated all geometry products.
-    """
 
     tests()
     pass

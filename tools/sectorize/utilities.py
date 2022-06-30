@@ -75,58 +75,7 @@ def save_asset(asset, file_name):
 
 
 #//should accept list of dict of attributes and shapes. kinda brill atm.
-def make_plot(iterable: list):
-    # list of grouped datum
-    for plot_element in iterable:
-        plot_list = plot_element['entries']
-        plot_geometry_flags = plot_element['geometry']
-        entries = [dict(p) for p in plot_list]
-        plot_data_sources = []
-        print(len(plot_list))
-        for e_dict in entries:
-            plot_data_sources.append(e_dict)
-            print(e_dict)
-            for geometry in plot_geometry_flags:
-                print(type(e_dict[geometry]))
-
-        print(plot_geometry_flags)
-
-
-
-
-
-    exit()
-    plot_label = None
-
-
-
-
-
-    for plot_layer in plot_object:
-        plot_source = None
-        if type(plot_object) is MultiPolygon:
-            x, y, poly_id, area = [], [], [], []
-            for i, polygon in enumerate(plot_object.geoms):
-                if type(polygon.boundary) == LineString:
-                    x.append(list(polygon.exterior.coords.xy[0]))
-                    y.append(list(polygon.exterior.coords.xy[1]))
-                    poly_id.append(i)
-                    area.append(str(round(polygon.area, 3)))
-
-            plot_source = ColumnDataSource(dict(x=x, y=y, id=poly_id, area=area))
-            plot_label = MultiPolygon
-
-        if type(plot_object) is list:
-            #//assume list of polygons
-            x, y, poly_id, area = [], [], [], []
-            for i, polygon in enumerate(plot_object):
-                x.append(list(polygon.exterior.coords.xy[0]))
-                y.append(list(polygon.exterior.coords.xy[1]))
-                poly_id.append(i)
-                area.append(str(round(polygon.area, 3)))
-
-            plot_source = ColumnDataSource(dict(x=x, y=y, id=poly_id, area=area))
-            plot_label = Polygon
+def make_plot(iterable: list, plot_label=None):
 
     p = figure(title=str(plot_label),
                sizing_mode='stretch_both',
@@ -134,14 +83,54 @@ def make_plot(iterable: list):
                active_scroll="wheel_zoom",
                lod_threshold=None)
 
-    plot = p.patches(
-        'x',
-        'y',
-        source=plot_source,
-        fill_alpha=0.5,
-        line_color="black",
-        line_width=0.5)
+    # list of grouped datum
+    for plot_element in iterable:
+        plot_list = plot_element['entries']
+        plot_geometry_flags = plot_element['geometry']
+        entries = [dict(p) for p in plot_list]
+        plot_data_sources = {}
+        print(len(plot_list))
+        for geometry in plot_geometry_flags:
+            x, y, poly_id, area = [], [], [], []
+            for i, e_dict in enumerate(entries):
+                polygon = e_dict[geometry]
+                x.append(list(polygon.exterior.coords.xy[0]))
+                y.append(list(polygon.exterior.coords.xy[1]))
+                poly_id.append(i)
+                area.append(str(round(polygon.area, 3)))
 
-    p.add_tools(HoverTool(renderers=[plot], tooltips=[('id', '@id'), ('area', '@area')]))
+                print(type(polygon))
+
+            plot_data_sources[geometry] = ColumnDataSource(dict(x=x, y=y, id=poly_id, area=area))
+
+        print(plot_geometry_flags)
+
+        for k, v in plot_data_sources.items():
+            plot = p.patches(
+                'x',
+                'y',
+                source=v,
+                fill_alpha=0.5,
+                line_color="black",
+                line_width=0.5)
+
+            p.add_tools(HoverTool(renderers=[plot], tooltips=[('id', '@id'), ('area', '@area')]))
 
     show(p)
+
+    exit()
+    # plot_label = None
+    # for plot_layer in plot_object:
+    #     plot_source = None
+    #     if type(plot_object) is MultiPolygon:
+    #         x, y, poly_id, area = [], [], [], []
+    #         for i, polygon in enumerate(plot_object.geoms):
+    #             if type(polygon.boundary) == LineString:
+    #                 x.append(list(polygon.exterior.coords.xy[0]))
+    #                 y.append(list(polygon.exterior.coords.xy[1]))
+    #                 poly_id.append(i)
+    #                 area.append(str(round(polygon.area, 3)))
+    #
+    #         plot_source = ColumnDataSource(dict(x=x, y=y, id=poly_id, area=area))
+    #         plot_label = MultiPolygon
+
