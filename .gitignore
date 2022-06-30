@@ -1,6 +1,7 @@
 # Project exclude paths
 /.parcel-cache/
 /.idea/
+/dist/
 /node_modules/
 /static/data/
 /tools/data/
