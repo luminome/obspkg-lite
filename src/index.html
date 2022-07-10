@@ -8,78 +8,118 @@
 	<link type="text/css" rel="stylesheet" href="./css/basic.css">
 	<link type="text/css" rel="stylesheet" href="./css/window.css">
 	<link type="text/css" rel="stylesheet" href="./css/wudi-css.css">
+
+<!--	<script type="text/javascript" src="http://localhost:3000/js/vendor/bokeh.js"></script>-->
+<!--	<script type="text/javascript" src="http://localhost:3000/js/vendor/bokeh-api.js"></script>-->
+
+<!--	<script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-2.4.3.min.js"></script>-->
+<!--	<script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-api-2.4.3.min.js"></script>-->
+<!--	<script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-gl-2.4.3.min.js"></script>-->
+<!--	<script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-widgets-2.4.3.min.js"></script>-->
+<!--	<script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-tables-2.4.3.min.js"></script>-->
+<!--	<script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-mathjax-2.4.3.min.js"></script>-->
+
+
+
 </head>
 <body>
-<canvas id="drawing-canvas" height="1200" width="1200" style="display:none;">k</canvas>
-<div id="drawing-characters" style="position:absolute;">helpre</div>
 
-<div id="window_stack">
-	<div id="menus_container_left">
-		<div id="layers_ui">
 
-			<div id="variable_setter_temp" class="template">
-				<input class="var-text" type="text">
-			</div>
+<!--<canvas id="drawing-canvas" height="1200" width="1200" style="display:none;">k</canvas>-->
+<!--<div id="drawing-characters" style="position:absolute;">helpre</div>-->
 
-			<div id="menu_header_temp" class="row menuheaderlabel template">
-				<div class="menulabel column-label"></div>
-				<span class="menukey column-button">x</span>
-				<span class="menuspecial column-button">x</span>
-			</div>
-		</div>
+<!--<div id="window_stack">-->
+<!--	<div id="menus_container_left">-->
+<!--		<div id="layers_ui">-->
 
+<!--			<div id="variable_setter_temp" class="template">-->
+<!--				<input class="var-text" type="text">-->
+<!--			</div>-->
+
+<!--			<div id="menu_header_temp" class="row menuheaderlabel template">-->
+<!--				<div class="menulabel column-label"></div>-->
+<!--				<span class="menukey column-button">x</span>-->
+<!--				<span class="menuspecial column-button">x</span>-->
+<!--			</div>-->
+<!--		</div>-->
+
+<!--	</div>-->
+
+<!--	<div id="menus_container_right">-->
+<!--		<div id="info_ui"></div>-->
+<!--	</div>-->
+
+<!--	<div id="info">hello</div>-->
+<!--</div>-->
+
+<!--<div id="nav_stack">-->
+<!--	-->
+<!--	<div id="nav_bar">-->
+<!--		<svg id="nav_svg" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"/>-->
+<!--	</div>-->
+<!--	-->
+<!--	<div id="load_bar"></div>-->
+
+<!--	<div id="controls_area">-->
+<!--		<div id="slider_temp" class="slider">-->
+<!--			<div class="slider-image-container">-->
+<!--				<canvas class="slider-image" width="300" height="32"></canvas>-->
+<!--				<div class="slider-marker"></div>-->
+<!--			</div>-->
+<!--			<div class="slider-label">-->
+<!--				<div class="label">hello</div>-->
+<!--				<div class="label-button">play</div>-->
+<!--				<div class="label-frame">hello</div>-->
+<!--			</div>-->
+
+<!--		</div>-->
+<!--	</div>-->
+<!--		-->
+<!--	<div id="view">-->
+<!--		<canvas id="view-area"></canvas>-->
+<!--	</div>-->
+
+<!--	<div id="main-view" class="container"></div>-->
+
+<!--	<div id="row_template" class="wudi-row hidden"></div>-->
+
+<!--	<div id="col_template" class="col hidden">-->
+<!--		<div class="label">time_code</div>-->
+<!--	</div>-->
+
+<!--	<div id="welcome"></div>-->
+<!--	-->
+<!--</div>-->
+
+<!--<div id="root"></div>-->
+
+
+<!--<script type="module" src="./js/landing-chart.js"></script>-->
+
+
+
+<!--<script type="module" src="./js/vendor/hover.ts"></script>-->
+<!--<div id="overlay">blanket</div>-->
+<!--<div id="plot">-->
+<!--	<canvas id="myChart" width="800" height="400"></canvas>-->
+<!--</div>-->
+
+<!--<div class="entry_page_title">Mean daily observations of WUDI from 1980 to 2020</div>-->
+
+
+<script type="module" src="./js/obspkg-lite.js"></script>
+<div id="plot">
+	<div id="info-field" class="info-style">
+		<div class="info-head"></div>
+		<div class="info-body"></div>
 	</div>
-
-	<div id="menus_container_right">
-		<div id="info_ui"></div>
-	</div>
-
-	<div id="info">hello</div>
 </div>
+<div class="entry_page_title">Mean daily observations of WUDI from 1980 to 2020</div>
+<div id="obs">hello</div>
 
-<div id="nav_stack">
-	
-	<div id="nav_bar">
-		<svg id="nav_svg" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"/>
-	</div>
-	
-	<div id="load_bar"></div>
 
-	<div id="controls_area">
-		<div id="slider_temp" class="slider">
-			<div class="slider-image-container">
-				<canvas class="slider-image" width="300" height="32"></canvas>
-				<div class="slider-marker"></div>
-			</div>
-			<div class="slider-label">
-				<div class="label">hello</div>
-				<div class="label-button">play</div>
-				<div class="label-frame">hello</div>
-			</div>
-
-		</div>
-	</div>
-		
-	<div id="view">
-		<canvas id="view-area"></canvas>
-	</div>
-
-	<div id="main-view" class="container"></div>
-
-	<div id="row_template" class="wudi-row hidden"></div>
-
-	<div id="col_template" class="col hidden">
-		<div class="label">time_code</div>
-	</div>
-
-	<div id="welcome"></div>
-	
-</div>
-	
-<!--https://github.com/parcel-bundler/parcel/pull/2809-->
-<script type="module" src="./js/obspkg.js"></script>
-<script type="module" src="./js/wudi-index.js"></script>
-
+<!--<div id="dmark-seven" class="dmark">0.0</div>-->
+<!--<div id="dmark-eight" class="dmark">0.0</div>-->
 
 </body>
 </html>

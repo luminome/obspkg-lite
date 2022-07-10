@@ -10,12 +10,71 @@ import pandas as pd
 import geopandas as gpd
 import pickle
 
-from shapely.geometry import Point, box, LineString, Polygon, MultiPolygon
+import itertools
+
+from shapely.geometry import Point, box, LineString, Polygon, MultiPolygon, MultiLineString, LinearRing
 from bokeh.plotting import figure, output_file, show
 from bokeh.models import GeoJSONDataSource, ColumnDataSource
 from bokeh.models.tools import HoverTool, WheelZoomTool, PanTool, CrosshairTool, LassoSelectTool
 
 from json_encoder import JsonSafeEncoder
+
+
+def polygon_to_serialized_obj(poly, decimal_places):
+    def flatten_coords(coords, dec):
+        arr = [[round(c[0], dec), round(c[1], dec)] for c in coords]
+        return list(itertools.chain(*arr))
+
+    out = flatten_coords(poly.exterior.coords, decimal_places)
+    ins = [flatten_coords(interior.coords, decimal_places) for interior in poly.interiors]
+
+    return {'out': out, 'in': ins}
+
+
+def value_cleaner(obj, decimal_places=4):
+    obj_str = None
+    f_fmt = '{:.%if}' % decimal_places
+
+    def as_string(s):
+        return '\"{:s}\"'.format(s)
+
+    def from_list(s):
+        if isinstance(s, str):
+            return as_string(s)
+        else:
+            return f_fmt.format(s)
+
+    if isinstance(obj, str):
+        obj_str = as_string(obj)
+    if isinstance(obj, type(np.nan)):
+        obj_str = 'null'
+    if isinstance(obj, int):
+        obj_str = str(obj)
+    if isinstance(obj, float):
+        if obj.is_integer():
+            obj_str = str(int(obj))
+        elif np.isnan(obj):
+            obj_str = 'null'
+        else:
+            obj_str = f_fmt.format(obj)
+    if isinstance(obj, List) or isinstance(obj, np.ndarray):
+
+        obj_str = '[{:s}]'.format(','.join([from_list(x) for x in obj]))
+
+    if isinstance(obj, type(np.ndarray)):
+        obj_str = f'ndarray({len(obj)})'
+    if isinstance(obj, MultiPolygon):
+        obj_str = as_string(obj.__class__.__name__)
+    if isinstance(obj, Point):
+        obj_str = as_string(obj.__class__.__name__)
+    if isinstance(obj, Polygon):
+        obj_str = str(polygon_to_serialized_obj(obj, decimal_places)).replace(" ", "")  #;//as_string(obj.__class__.__name__)
+
+    if obj_str is None:
+        print(obj, str(obj.__class__))
+        return 'null'
+    else:
+        return obj_str
 
 
 def show_progress(item_name, count, total):
@@ -64,7 +123,7 @@ def save_asset(asset, file_name):
     if type(asset) is dict:
         path = os.path.join(conf.assets_path, f"{file_name}-{class_name}.json")
         with open(path, "w") as file:
-            json.dump(asset, file, indent=2, cls=JsonSafeEncoder)
+            json.dump(asset, file, cls=JsonSafeEncoder)  #, indent=2,
 
     if path is not None:
         status = f"{str(datetime.now())}\n{path} {os.path.getsize(path)/1000}k\n"

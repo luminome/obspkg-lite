@@ -4,12 +4,15 @@ from shapely.geometry import Polygon, MultiPolygon, LinearRing, LineString, Mult
 import numpy as np
 import json
 
+
 class JsonSafeEncoder(json.JSONEncoder):
     def default(self, obj):
+        if isinstance(obj, np.nan):
+            return '"'+str(obj)+'"'
         if isinstance(obj, np.integer):
             return int(obj)
         if isinstance(obj, np.floating):
-            return float(obj)
+            return round(float(obj), 5)
         if isinstance(obj, np.ndarray):
             return obj.tolist()
         if isinstance(obj, MultiPolygon):

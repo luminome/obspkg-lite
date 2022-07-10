@@ -11,7 +11,7 @@ import csv
 import math
 from operator import itemgetter
 from itertools import groupby
-from shapely.geometry import Point, box, LineString, MultiPolygon, MultiLineString, MultiPoint
+from shapely.geometry import Point, box, LineString, MultiPolygon, MultiLineString, MultiPoint, Polygon
 from shapely.affinity import translate, scale
 from skimage import measure
 from scipy.ndimage.filters import gaussian_filter
@@ -568,6 +568,72 @@ def parse_wudi_build_db():
 
 
 def tests():
+
+    test_poly = Polygon(
+        ((0, 0), (0, 1), (1, 1), (1, 0), (0, 0)),
+        [
+            ((0.1, 0.1), (0.1, 0.2), (0.2, 0.2), (0.2, 0.1), (0.1, 0.1)),
+            ((0.8, 0.8), (0.8, 0.9), (0.9, 0.9), (0.9, 0.8), (0.8, 0.8))
+        ])
+
+    print(test_poly.is_valid)
+    test_case_poly_str = util.value_cleaner(test_poly)
+
+    df = pd.read_pickle(os.path.join(conf.assets_path, 'parsed_eco_regions-GeoDataFrame.pkl'))
+    cols = list(df)
+    col_count = len(cols)+1
+    #//add ID column for x-cross
+    haste = '"ID",'+','.join([util.value_cleaner(x) for x in cols]) + ','
+
+    print(df)
+    print(haste, f'({col_count})')
+    for j, e in df.iterrows():
+
+        t_str = str(j)+',{:s}'.format(','.join([util.value_cleaner(x) for x in e]))+','
+        haste += t_str
+        print(t_str)
+
+    test_case = f'0, 1,"HOTNESS",1000,"test",1000,"totally nowhere",0,0,"hot as hell",{test_case_poly_str},'
+    haste += test_case
+
+    file_name = 'raw-georegions'
+    path = os.path.join(conf.static_data_path, f"{file_name}-{col_count}.txt")
+    with open(path, "w") as file:
+        file.write(haste[:-1])
+
+    # #//df = pd.read_pickle(os.path.join(conf.assets_path, 'parsed_wudi-DataFrame.pkl'))
+    # df = pd.read_pickle(os.path.join(conf.assets_path, 'parsed_protected_regions-DataFrame.pkl'))
+    # #df = df.replace({np.nan: None})  #//works
+    # #df = np.trunc(1000 * df) / 1000
+    #
+    # cols = list(df)
+    # col_count = len(cols)
+    #
+    # haste = ','.join([util.value_cleaner(x) for x in cols])+','
+    # print(col_count, haste)
+    #
+    # for j, e in df.iterrows():
+    #     t_str = '{:s}'.format(','.join([util.value_cleaner(x) for x in e]))+','
+    #     haste += t_str
+    #     print(t_str)
+    #
+    # file_name = 'raw-protected'
+    # path = os.path.join(conf.static_data_path, f"{file_name}-{col_count}.txt")
+    # with open(path, "w") as file:
+    #     file.write(haste[:-1])
+
+
+    #
+    # d_dict = {}
+    # for n in list(df.columns):
+    #     d_dict[n] = list(df[n])
+    #
+    # util.save_asset(d_dict, 'temp')
+
+    #print(type(d_dict))
+
+    #df.to_json(os.path.join(conf.assets_path, 'temp.json'), orient='records', lines=False)
+
     # parse_wudi
     # parse guides
     # add 'closed' attribute to geonames table
@@ -585,12 +651,12 @@ def tests():
     # # print(eco_regions_df.dtypes)
     # util.save_asset(eco_regions_df, 'parsed_eco_regions_partitioned')
     # ///////////////////////////////////////////////////////////
-    eco_regions_df = pd.read_pickle(os.path.join(conf.assets_path, 'parsed_eco_regions_partitioned-DataFrame.pkl'))
-    plot_instance = {
-        'entries': [eco_regions_df.iloc[i] for i in range(eco_regions_df.shape[0])],
-        'geometry': ['eco_region_geom', 'eco_region_bounds']
-    }
-    util.make_plot([plot_instance])
+    # eco_regions_df = pd.read_pickle(os.path.join(conf.assets_path, 'parsed_eco_regions_partitioned-DataFrame.pkl'))
+    # plot_instance = {
+    #     'entries': [eco_regions_df.iloc[i] for i in range(eco_regions_df.shape[0])],
+    #     'geometry': ['eco_region_geom', 'eco_region_bounds']
+    # }
+    # util.make_plot([plot_instance])
     # ///////////////////////////////////////////////////////////
     #
     # for n, g in df.iterrows():

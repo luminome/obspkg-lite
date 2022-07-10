@@ -2,6 +2,8 @@ DEBUG = True
 
 data_path = '/Users/sac/Sites/obspkg-lite/tools/data'
 
+static_data_path = '/Users/sac/Sites/obspkg-lite/static/data'
+
 assets_path = '/Users/sac/Sites/obspkg-lite/tools/assets'
 
 guide_geom_closed_distance = 0.01

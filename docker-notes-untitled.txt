@@ -1,4 +1,7 @@
 git rm -r --cached data_resources
+https://discourse.bokeh.org/t/wheelzoom-active-by-default-not-working/2509
+https://discourse.bokeh.org/t/select-callback-using-bokehjs-in-a-static-react-site/9103/5
+
 
 WIKI MAP DATA:
 https://query.wikidata.org/#SELECT%20%3Ftown%20%3FtownLabel%20%3Farea%20%3Fpopulation%20%3Felevation%20WHERE%20%7B%0A%20%20%3Ftown%20%3Flabel%20%22Calvi%22%40fr.%0A%20%20%3Ftown%20wdt%3AP2046%20%3Farea.%0A%20%20%3Ftown%20wdt%3AP1082%20%3Fpopulation.%0A%20%20%3Ftown%20wdt%3AP2044%20%3Felevation.%0A%20%20SERVICE%20wikibase%3Alabel%20%7B%20bd%3AserviceParam%20wikibase%3Alanguage%20%22%5BAUTO_LANGUAGE%5D%2Cfr%22.%20%7D%0A%7D

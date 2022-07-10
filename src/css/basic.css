@@ -8,5 +8,7 @@ html, body {
 
 @font-face {
     font-family: heavy_data;
+    font-weight: normal;
+    font-feature-settings: normal;
     src: url(../font/pf_tempesta_seven.ttf);
 }

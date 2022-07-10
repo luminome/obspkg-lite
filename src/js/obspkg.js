@@ -721,7 +721,6 @@ function make_user_position_mark(radius) {
 	line.computeLineDistances();
 	line.rotateX(Math.PI / 2);
 	return line;
-
 }
 //||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 function make_pointer_arrow() {
@@ -1377,6 +1376,7 @@ function render(a) {
 
 	camera.updateMatrix();
 	camera.updateMatrixWorld();
+
 	raycaster.setFromCamera(vars.user.mouse, camera);
 	camera_frustum.setFromProjectionMatrix(camera_frustum_m.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
 
