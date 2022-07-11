@@ -1064,6 +1064,7 @@ function init() {
 	};
 
 	particles = classes.make_particle_cloud(map_particles, vars.wind_particle_vars);
+
 	cloud_mesh = map_particles.children[0];
 
 
@@ -1421,6 +1422,7 @@ function render(a) {
 
 		v.subVectors(vars.user.local_position, tile.center);
 		vm = vars.view.get_zoom((v.length() * vars.map.s) / vars.view.base_pos)*1.0; //1.0 bc zoom returns a string
+
 		if (tile.zoom_level !== vm) {
 			tile.zoom_level = vm;
 			tile.plane.material.opacity = tile.zoom_level / 5;

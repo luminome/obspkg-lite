@@ -323,6 +323,7 @@ svg {
 }
 
 .entry_page_title{
+	position:absolute;
 	font-size: 0.8em;
 	width:100%;
 	text-align: center;
@@ -350,8 +351,11 @@ svg {
 	vertical-align: center;
 	text-align: center;
 	display: block;
-	color:rgba(120,120,120);
-	background-color: rgba(120,120,120,0.1);
+
+	/*color:rgba(120,120,120);*/
+	/*background-color: rgba(120,120,120,0.1);*/
+	color:blue;
+	background-color: #1d2733;
 	pointer-events: none;
 }
 
@@ -359,6 +363,8 @@ svg {
 	position:absolute;
 	opacity:0.75;
 	pointer-events: none;
+	background-color: #1d2733EE;
+	padding:4px;
 }
 
 /*.info-style:hover{*/
@@ -367,8 +373,10 @@ svg {
 
 .info-style .info-head{
 	font-size: 0.75em;
+	line-height: 0.75em;
 }
 
 .info-style .info-body{
 	font-size: 0.3em;
+	/*line-height: 0.75em;*/
 }

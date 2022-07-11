@@ -1,11 +1,15 @@
 const vars = {
+	map:{
+		test_bounds: [-7.0, 29.0, 37.0, 49.0]
+	},
 	user: {
 		mouse: {},
 		selection: null
 	},
 	view: {
 		width: null,
-		height:null
+		height:null,
+		bottom_offset:60
 	},
 	data: {},
 	materials: {

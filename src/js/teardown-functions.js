@@ -360,6 +360,7 @@ function make_cloud(parent, vars, c_count=particle_count){
 	const geometry = new THREE.SphereBufferGeometry( 0.1, 16, 8 );
 	geometry.deleteAttribute('uv');
 	geometry.deleteAttribute('normal');
+
 	const material = new THREE.MeshBasicMaterial( {
 		color: 0xFFFFFF,
 		side: THREE.FrontSide,
