@@ -74,10 +74,12 @@ class Sector {
     init(){
         const material = new THREE.LineBasicMaterial({color: 0xff00ff, transparent: true, opacity:1.0});
         const geometry = new THREE.BufferGeometry().setFromPoints(this.bounds);
+        geometry.setIndex([0, 1, 2, 2, 3, 0]);
         geometry.computeVertexNormals();
 		geometry.computeBoundingBox();
 		geometry.boundingBox.getCenter(this.center);
-        const plane_line = new THREE.LineLoop(geometry, material);
+
+        const plane_line = new THREE.Mesh(geometry, material);
         plane_line.name = this.id+`(${this.loc.toString()})`;
         plane_line.userData.center = this.center;
         this.group.add(plane_line);
@@ -85,13 +87,28 @@ class Sector {
         this.objects.plane = plane_line;
     }
 
-    set_level(int=null){
-        const cadre = 5;
-        const offset = (Math.round(int*cadre)/cadre);
-        this.level = (offset*cadre) > cadre ? cadre : (offset*cadre);
-        this.objects.plane.material.setValues({opacity:this.level/(cadre)});
+    set_level(LV=null){
+        if(this.level !== LV){
+            this.level = LV;
+            //update_draw_here
+        }
+        this.objects.plane.material.setValues({opacity:this.level/vars.levels});
         this.objects.plane.name = `(${this.level})`;
     }
+
+    update(){
+        this[ky].children.forEach(res => res.visible = (res.userData.level === a));
+
+    }
+
+    draw_sector(ky) {
+		const a = this.get_max_level(ky);
+		if(this.data_keys[ky].hasOwnProperty('static')){
+			this[ky].children.forEach(res => res.visible = (res.userData.level <= this.zoom_level));
+		}else{
+			if(a) this[ky].children.forEach(res => res.visible = (res.userData.level === a));
+		}
+	}
 }
 
 vars.user.mouse.raw = new THREE.Vector3();
@@ -446,8 +463,8 @@ function translateAction(type, actual_xy, delta_xy, object) {
         vw.copy(s.userData.owner.objects.plane.userData.center);
         map_sectors_group.localToWorld(vw);
         vk.subVectors(camera.position, vw);
-        const L = vk.length();
-        s.userData.owner.set_level((1/L));
+        const LV = Math.round((1/vk.length())*vars.levels);
+        s.userData.owner.set_level(LV > vars.levels ? vars.levels : LV);
     })
 
     if (active_keys.includes('Tab')) {
@@ -934,9 +951,8 @@ function init() {
 
     map_container = make_map_container(vars.map.test_bounds);
     map_container.add(map_sectors_group);
-
     scene.add(map_container);
-    map_plane.visible = true;
+    map_plane.visible = false;
 
     dragControls(renderer.domElement, translateAction, cube, {passive: true});
     keyControls(window, keyAction);

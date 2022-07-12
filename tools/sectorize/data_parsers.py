@@ -423,27 +423,34 @@ def parse_depth_points() -> dict:
 
 # build depth contours as list of dicts with LineStrings.
 # old school from '/Users/sac/Sites/pythonProject/obspkg/main.py' @ def build_contour_levels
-def parse_contour_levels(points_data, attributes, depth_range, poly_origin) -> List:
+def parse_contour_levels(points_data, attributes, depth_range, poly_origin) -> tuple:
     contours_all = [[]] * depth_range
+    iso_bath_100m = []
 
-    for ra in range(0, depth_range):
+    def contour_getter(data, level):
+        f_contours = measure.find_contours(data, level)
+        contours = []
+        for ep in f_contours:
+            ep = LineString(np.flip(ep))
+            ep = scale(ep, xfact=1 / 60, yfact=-1 / 60, origin=(0, 0))
+            ep = translate(ep, xoff=poly_origin[0], yoff=poly_origin[1])
+            contours.append(ep)
+        return contours
+
+    for ra in range(depth_range):
         contours_all[ra] = []
-
         g_data = gaussian_filter(points_data, sigma=attributes["filter"][ra])
         g_range = np.arange(0, attributes["depth_max"], attributes["depth_interval"][ra])
         for i, lv in enumerate(g_range):
-            f_contours = measure.find_contours(g_data, -lv)
-            clutch = []
-            for ep in f_contours:
-                ep = LineString(np.flip(ep))
-                ep = scale(ep, xfact=1/60, yfact=-1/60, origin=(0, 0))
-                ep = translate(ep, xoff=poly_origin[0], yoff=poly_origin[1])
-                clutch.append(ep)
-
+            clutch = contour_getter(g_data, -lv)
             contours_all[ra].append({'d': float(lv), 'contours': clutch})
             util.show_progress(f"generate contours {ra} {lv}m", i, len(g_range))
 
-    return contours_all
+    print('generating iso_bath_100m')
+    g_data = gaussian_filter(points_data, sigma=attributes["isobath_filter"])
+    iso_bath_100m.append({'d': -100.0, 'contours': contour_getter(g_data, -100.0)})
+
+    return contours_all, iso_bath_100m
 
 
 # partition guides and regions as new DataFrame
@@ -568,38 +575,38 @@ def parse_wudi_build_db():
 
 
 def tests():
-
-    test_poly = Polygon(
-        ((0, 0), (0, 1), (1, 1), (1, 0), (0, 0)),
-        [
-            ((0.1, 0.1), (0.1, 0.2), (0.2, 0.2), (0.2, 0.1), (0.1, 0.1)),
-            ((0.8, 0.8), (0.8, 0.9), (0.9, 0.9), (0.9, 0.8), (0.8, 0.8))
-        ])
-
-    print(test_poly.is_valid)
-    test_case_poly_str = util.value_cleaner(test_poly)
-
-    df = pd.read_pickle(os.path.join(conf.assets_path, 'parsed_eco_regions-GeoDataFrame.pkl'))
-    cols = list(df)
-    col_count = len(cols)+1
-    #//add ID column for x-cross
-    haste = '"ID",'+','.join([util.value_cleaner(x) for x in cols]) + ','
-
-    print(df)
-    print(haste, f'({col_count})')
-    for j, e in df.iterrows():
-
-        t_str = str(j)+',{:s}'.format(','.join([util.value_cleaner(x) for x in e]))+','
-        haste += t_str
-        print(t_str)
-
-    test_case = f'0, 1,"HOTNESS",1000,"test",1000,"totally nowhere",0,0,"hot as hell",{test_case_poly_str},'
-    haste += test_case
-
-    file_name = 'raw-georegions'
-    path = os.path.join(conf.static_data_path, f"{file_name}-{col_count}.txt")
-    with open(path, "w") as file:
-        file.write(haste[:-1])
+    #
+    # test_poly = Polygon(
+    #     ((0, 0), (0, 1), (1, 1), (1, 0), (0, 0)),
+    #     [
+    #         ((0.1, 0.1), (0.1, 0.2), (0.2, 0.2), (0.2, 0.1), (0.1, 0.1)),
+    #         ((0.8, 0.8), (0.8, 0.9), (0.9, 0.9), (0.9, 0.8), (0.8, 0.8))
+    #     ])
+    #
+    # print(test_poly.is_valid)
+    # test_case_poly_str = util.value_cleaner(test_poly)
+    #
+    # df = pd.read_pickle(os.path.join(conf.assets_path, 'parsed_eco_regions-GeoDataFrame.pkl'))
+    # cols = list(df)
+    # col_count = len(cols)+1
+    # #//add ID column for x-cross
+    # haste = '"ID",'+','.join([util.value_cleaner(x) for x in cols]) + ','
+    #
+    # print(df)
+    # print(haste, f'({col_count})')
+    # for j, e in df.iterrows():
+    #
+    #     t_str = str(j)+',{:s}'.format(','.join([util.value_cleaner(x) for x in e]))+','
+    #     haste += t_str
+    #     print(t_str)
+    #
+    # test_case = f'0, 1,"HOTNESS",1000,"test",1000,"totally nowhere",0,0,"hot as hell",{test_case_poly_str},'
+    # haste += test_case
+    #
+    # file_name = 'raw-georegions'
+    # path = os.path.join(conf.static_data_path, f"{file_name}-{col_count}.txt")
+    # with open(path, "w") as file:
+    #     file.write(haste[:-1])
 
     # #//df = pd.read_pickle(os.path.join(conf.assets_path, 'parsed_wudi-DataFrame.pkl'))
     # df = pd.read_pickle(os.path.join(conf.assets_path, 'parsed_protected_regions-DataFrame.pkl'))
@@ -704,10 +711,13 @@ def tests():
     #     med_poly = pickle.load(poly_file)
     #     make_plot(med_poly)
     # ///////////////////////////////////////////////////////////
-    # depth_points = parse_depth_points()
+    depth_points = parse_depth_points()
     # save_asset(depth_points, 'parsed_depth_points')
-    # depth_contours = parse_contour_levels(depth_points['data'], conf.contour_ranges, conf.levels_range, depth_points['origin'])
-    # save_asset(depth_contours, 'parsed_depth_contours')
+    depth_contours, iso_bath = parse_contour_levels(depth_points['data'], conf.contour_ranges, conf.levels_range, depth_points['origin'])
+
+    # print(depth_contours)
+    util.save_asset(depth_contours, 'parsed_depth_contours')
+    util.save_asset(iso_bath, 'parsed_iso_bath_100m')
     # ///////////////////////////////////////////////////////////
     # n = pd.read_pickle(os.path.join(conf.assets_path, 'parsed_wudi_raw-DataFrame.pkl'))
     # print(n.head(20))
@@ -718,7 +728,7 @@ def tests():
     # save_asset(df, 'parsed_wudi_raw')
     # ///////////////////////////////////////////////////////////
     # geom = parse_map_geometry()
-    # save_asset(geom, 'parsed_map_geometry')
+    # util.save_asset(geom, 'parsed_map_geometry')
     # ///////////////////////////////////////////////////////////
     pass
 
