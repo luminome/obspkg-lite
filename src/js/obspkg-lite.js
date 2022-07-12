@@ -68,11 +68,34 @@ class Sector {
         this.center = new THREE.Vector3();
         this.group = new THREE.Group();
         this.objects = {};
+        this.meta = null;
         this.init();
     }
 
+    //request in form of (attribute, level)
+    check_disposition(attribute, level){
+        if(this.meta.attribute.includes[level]) return true;
+    }
+
+    load_meta(part){
+        //#//FIX THIS
+        //part is an array, natch
+        this.meta = part[0].raw;
+        console.log(this.meta);
+        const spj = {};
+
+        // this.meta = Object.entries(this.meta).map(kv => {
+        //     //console.log(kv);
+        //     spj[kv[0]] = kv[1].map(v => {`${v}`:null});
+        //     //console.log(kv[0], kv[1]);
+        // })
+
+        console.log(spj);
+
+    }
+
     init(){
-        const material = new THREE.LineBasicMaterial({color: 0xff00ff, transparent: true, opacity:1.0});
+        const material = new THREE.LineBasicMaterial({color: 0xff00ff, transparent: true, opacity:0.0});
         const geometry = new THREE.BufferGeometry().setFromPoints(this.bounds);
         geometry.setIndex([0, 1, 2, 2, 3, 0]);
         geometry.computeVertexNormals();
@@ -85,20 +108,21 @@ class Sector {
         this.group.add(plane_line);
         this.group.userData.owner = this;
         this.objects.plane = plane_line;
+
+        const elem = [{url: vars.static_path+`deg_2/Sector-${this.id}/meta.json`, type: 'json', name: 'meta'}]
+        fetchAll(elem).then(object_list => this.load_meta(object_list));
     }
 
     set_level(LV=null){
         if(this.level !== LV){
             this.level = LV;
-            //update_draw_here
+            this.objects.plane.material.setValues({opacity:this.level/vars.levels});
+            this.objects.plane.name = `${this.id}-(${this.level})`;
         }
-        this.objects.plane.material.setValues({opacity:this.level/vars.levels});
-        this.objects.plane.name = `(${this.level})`;
     }
 
     update(){
         this[ky].children.forEach(res => res.visible = (res.userData.level === a));
-
     }
 
     draw_sector(ky) {
@@ -1020,4 +1044,6 @@ const obj_list = [
 ]
 
 fetchAll(obj_list).then(object_list => fetch_callback(object_list));
+
+
 

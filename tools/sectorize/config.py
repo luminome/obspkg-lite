@@ -8,7 +8,7 @@ assets_path = '/Users/sac/Sites/obspkg-lite/tools/assets'
 
 master_bounds = [[-7.0, 29.0, 37.0, 49.0], 44.0, 20.0]
 
-master_degree_intervals = [2, 1]
+master_degree_intervals = [2, 1, 0.5]
 
 guide_geom_closed_distance = 0.01
 

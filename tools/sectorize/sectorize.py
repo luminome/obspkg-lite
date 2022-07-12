@@ -9,9 +9,6 @@ import pandas as pd
 import numpy as np
 import utilities as util
 from pathlib import Path
-
-#
-
 whole_map_simplified_levels = []
 
 
@@ -129,43 +126,3 @@ if __name__ == '__main__':
                 sector.add_data(j, 'contours', contour_set)
 
             sector.save()
-
-
-
-        #
-        #     relevant_indices = [LineString(ref.exterior.coords) for ref in polygon_set if ref.intersects(sector.box)]
-        #
-        #
-        #
-        #
-        #
-        # miter = []
-        # for i, sector in enumerate(sector_group):
-        #     g = []
-        #     l = []
-        #
-        #     for polygon_set in whole_map_poly_sets:
-        #         relevant = [ref for ref in polygon_set if ref.intersects(sector.box)]
-        #         relevant_lines = [LineString(ref.exterior.coords) for ref in polygon_set if ref.intersects(sector.box)]
-        #
-        #         p_geom = [sector.box.intersection(ref) for ref in relevant]
-        #         p_lines = [sector.box.intersection(ref) for ref in relevant_lines]
-        #
-        #         g.append(p_geom)
-        #         l.append(p_lines)
-        #
-        #     miter.append({'id': f's{i}', 'geometry': g[4]})
-        #     miter.append({'id': f's{i}lines', 'geometry': l[4]})
-        #
-        #     if i > 4:
-        #         break
-        #
-        #     util.show_progress(f'{deg} sectorize', i, 3)
-        #
-        # util.make_other_plot(miter, None)
-        # exit()
-
-    #whole_map_simplified_levels = load_map()
-    #util.save_asset(whole_map_simplified_levels, 'whole_map_simplified_levels')
-
-    pass

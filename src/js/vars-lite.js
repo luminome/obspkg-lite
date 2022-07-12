@@ -1,4 +1,5 @@
 const vars = {
+	static_path:'./data/',
 	levels:5,
 	map:{
 		test_bounds: [-7.0, 29.0, 37.0, 49.0]

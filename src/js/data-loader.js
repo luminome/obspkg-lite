@@ -3,11 +3,9 @@ function do_callback(callback, value){
 }
 
 async function data_loader(resource_tuples, prog_callback) {
-	//console.log("load", prog_callback);
 	let container = []
 	resource_tuples.forEach(url => {
 		if(prog_callback) do_callback(prog_callback, 1);
-
 		let ref = fetch(url[1])
 			.then(response => response.json())
 			.then(function (data) {
