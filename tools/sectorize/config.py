@@ -2,6 +2,8 @@ DEBUG = True
 
 data_path = '/Users/sac/Sites/obspkg-lite/tools/data'
 
+database_path = '/Users/sac/Sites/obspkg-lite/data-resources/sample.db'
+
 static_data_path = '/Users/sac/Sites/obspkg-lite/static/data'
 
 assets_path = '/Users/sac/Sites/obspkg-lite/tools/assets'

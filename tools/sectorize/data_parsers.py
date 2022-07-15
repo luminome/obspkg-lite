@@ -1,25 +1,28 @@
 #!/usr/bin/env python3
-import os
-from typing import List
-import config as conf
-import numpy as np
-import pandas as pd
-import geopandas as gpd
-import netCDF4 as nC
-import fiona
 import csv
 import math
-from operator import itemgetter
+import os
 from itertools import groupby
-from shapely.geometry import Point, box, LineString, MultiPolygon, MultiLineString, MultiPoint, Polygon
-from shapely.affinity import translate, scale
-from shapely.ops import unary_union
+from operator import itemgetter
+from typing import List
 
-from skimage import measure
+import fiona
+import geopandas as gpd
+import netCDF4 as nC
+import numpy as np
+import pandas as pd
 from scipy.ndimage.filters import gaussian_filter
+from shapely.affinity import translate, scale
+from shapely.geometry import Point, box, LineString, MultiPolygon, MultiLineString, MultiPoint, Polygon
+from shapely.ops import unary_union
+from skimage import measure
 
-from Bezier import CubicBezier
+import sqlite3
+from sqlite3 import Error
+
+import config as conf
 import utilities as util
+from Bezier import CubicBezier
 
 
 # convert map geopackage to shapely multigeometry
@@ -45,7 +48,7 @@ def parse_map_geometry() -> MultiPolygon:
     return map_multi_poly
 
 
-#//TODO: re-examine. create protected regions table
+# TODO: re-examine. create protected regions table
 # source re-adaptation of pythonProject:marine_regions.py.
 def parse_protected_regions() -> (pd.DataFrame, pd.DataFrame):
     area_filter = [
@@ -582,12 +585,89 @@ def load_eco_regions_mask() -> Polygon:
     return unary_union(region_polys)
 
 
-#//TODO: slated
+#———————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+#FOLLOWING ARE DATABASE (sqlite3) FUNCTIONS
+#///Users/sac/Sites/wudi-db
+
+def create_connection(db_file):
+    conn = None
+    try:
+        conn = sqlite3.connect(db_file)
+        print('connected', sqlite3.version)
+    except Error as e:
+        print(e)
+    return conn
+
+
 def parse_wudi_build_db():
+    table_name = 'test-protected'
+    conn = create_connection(conf.database_path)
+    df = pd.read_pickle(os.path.join(conf.assets_path, 'parsed_protected_regions-DataFrame.pkl'))
+    df = df.drop('geometry', axis=1)
+    df = df.drop('CENTROID', axis=1)
+
+    df['country'] = df.COUNTRY.apply(', '.join)
+    df['region'] = df.MED_REGION.apply(', '.join)
+
+    df = df.drop('COUNTRY', axis=1)
+    df = df.drop('MED_REGION', axis=1)
+
+
+    print(df.info())
+    for j, e in df.iterrows():
+        print(j,e)
+
+    df.to_sql(table_name, conn, if_exists='replace', index=False)
+
+    conn.close()
     pass
 
 
+#———————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+#FOLLOWING ARE FUNCTIONS FOR FORMATTING
+def save_iso_bath_as_raw():
+    p_list = pd.read_pickle(os.path.join(conf.assets_path, 'parsed_iso_bath_100m-list.pkl'))
+    #list of one entry as dict of contour data
+    contours = [util.value_cleaner(x) for x in p_list[0]['contours']]
+    filtered = [c for c in contours if c != '[[]]']
+
+    haste = '"raw-isobath-100m",{:s}'.format(','.join(filtered)) + ','
+
+    file_name = 'raw-isobath-100m-1'
+    path = os.path.join(conf.static_data_path, f"{file_name}.txt")
+    with open(path, "w") as file:
+        file.write(haste[:-1])
+
+
+def save_protected_test():
+    df = pd.read_pickle(os.path.join(conf.assets_path, 'parsed_protected_regions-DataFrame.pkl'))
+
+
+def build_guides_attach_data():
+    geo_names = pd.read_pickle(os.path.join(conf.assets_path, 'parsed_geo_names-DataFrame.pkl'))
+    eco_regions = pd.read_pickle(os.path.join(conf.assets_path, 'parsed_eco_regions-GeoDataFrame.pkl'))
+    wudi = pd.read_pickle(os.path.join(conf.assets_path, 'parsed_wudi-DataFrame.pkl'))
+    places = pd.read_pickle(os.path.join(conf.assets_path, 'parsed_places-DataFrame.pkl'))
+    protected = pd.read_pickle(os.path.join(conf.assets_path, 'parsed_protected_regions-DataFrame.pkl'))
+
+    print('loaded')
+    df = parse_guides(wudi, eco_regions, geo_names)
+    print('made guides')
+    df = attach_guide_points_get_proximity(df, wudi, ('M_lon', 'M_lat'), 'wudi_point')
+    print('updated wudi')
+    df = attach_guide_points_get_proximity(df, places, ('lon', 'lat'), 'place')
+    print('updated place')
+    df = attach_guide_points_get_intersection(df, protected, 'protected_region')
+    print('updated protected regions')
+
+    util.save_asset(df, 'parsed_guides')
+    #df.to_pickle("data/guide_points_w_wudi_places_protected.pkl")
+
+
+#———————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+#//TODO MAKE THESE proper ƒ's
 def tests():
+
     #
     # test_poly = Polygon(
     #     ((0, 0), (0, 1), (1, 1), (1, 0), (0, 0)),
@@ -602,7 +682,8 @@ def tests():
     # df = pd.read_pickle(os.path.join(conf.assets_path, 'parsed_eco_regions-GeoDataFrame.pkl'))
     # cols = list(df)
     # col_count = len(cols)+1
-    # #//add ID column for x-cross
+
+    # #add ID column for x-cross
     # haste = '"ID",'+','.join([util.value_cleaner(x) for x in cols]) + ','
     #
     # print(df)
@@ -621,7 +702,7 @@ def tests():
     # with open(path, "w") as file:
     #     file.write(haste[:-1])
 
-    # #//df = pd.read_pickle(os.path.join(conf.assets_path, 'parsed_wudi-DataFrame.pkl'))
+    # #/f = pd.read_pickle(os.path.join(conf.assets_path, 'parsed_wudi-DataFrame.pkl'))
     # df = pd.read_pickle(os.path.join(conf.assets_path, 'parsed_protected_regions-DataFrame.pkl'))
     # #df = df.replace({np.nan: None})  #//works
     # #df = np.trunc(1000 * df) / 1000
@@ -757,44 +838,24 @@ def tests():
     # util.value_cleaner(["allo?", "bonjour d'avant",['ça marche',"pas l'mal!"]])
 
     # ///////////////////////////////////////////////////////////
-    p_list = pd.read_pickle(os.path.join(conf.assets_path, 'parsed_iso_bath_100m-list.pkl'))
-    #list of one entry as dict of contour data
-    contours = [util.value_cleaner(x) for x in p_list[0]['contours']]
-    filtered = [c for c in contours if c != '[[]]']
-
-    haste = '"raw-isobath-100m",{:s}'.format(','.join(filtered)) + ','
-
-    file_name = 'raw-isobath-100m-1'
-    path = os.path.join(conf.static_data_path, f"{file_name}.txt")
-    with open(path, "w") as file:
-        file.write(haste[:-1])
+    # p_list = pd.read_pickle(os.path.join(conf.assets_path, 'parsed_iso_bath_100m-list.pkl'))
+    # #list of one entry as dict of contour data
+    # contours = [util.value_cleaner(x) for x in p_list[0]['contours']]
+    # filtered = [c for c in contours if c != '[[]]']
+    #
+    # haste = '"raw-isobath-100m",{:s}'.format(','.join(filtered)) + ','
+    #
+    # file_name = 'raw-isobath-100m-1'
+    # path = os.path.join(conf.static_data_path, f"{file_name}.txt")
+    # with open(path, "w") as file:
+    #     file.write(haste[:-1])
 
     # ///////////////////////////////////////////////////////////
     pass
 
 
-def build_guides_attach_data():
-    geo_names = pd.read_pickle(os.path.join(conf.assets_path, 'parsed_geo_names-DataFrame.pkl'))
-    eco_regions = pd.read_pickle(os.path.join(conf.assets_path, 'parsed_eco_regions-GeoDataFrame.pkl'))
-    wudi = pd.read_pickle(os.path.join(conf.assets_path, 'parsed_wudi-DataFrame.pkl'))
-    places = pd.read_pickle(os.path.join(conf.assets_path, 'parsed_places-DataFrame.pkl'))
-    protected = pd.read_pickle(os.path.join(conf.assets_path, 'parsed_protected_regions-DataFrame.pkl'))
-
-    print('loaded')
-    df = parse_guides(wudi, eco_regions, geo_names)
-    print('made guides')
-    df = attach_guide_points_get_proximity(df, wudi, ('M_lon', 'M_lat'), 'wudi_point')
-    print('updated wudi')
-    df = attach_guide_points_get_proximity(df, places, ('lon', 'lat'), 'place')
-    print('updated place')
-    df = attach_guide_points_get_intersection(df, protected, 'protected_region')
-    print('updated protected regions')
-
-    util.save_asset(df, 'parsed_guides')
-    #df.to_pickle("data/guide_points_w_wudi_places_protected.pkl")
-
-
 if __name__ == '__main__':
+    #tests()
 
-    tests()
+    parse_wudi_build_db()
     pass
