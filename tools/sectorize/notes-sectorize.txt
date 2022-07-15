@@ -2,7 +2,7 @@ sectorize package loads data and formats it to sectors.
 
 LINKS:
 # https://gis.stackexchange.com/questions/24340/converting-coordinates-from-meters-to-decimal-degrees-in-qgis
-
+# https://stackoverflow.com/questions/12472338/flattening-a-list-recursively
 
 
 #TODO:

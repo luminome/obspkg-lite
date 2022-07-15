@@ -3,12 +3,15 @@ import os
 import config as conf
 import math
 import json
-from shapely.geometry import box, LineString
+from shapely.geometry import box, LineString, Polygon
+
 from typing import List
 import pandas as pd
 import numpy as np
 import utilities as util
+import data_parsers as data_parse
 from pathlib import Path
+
 whole_map_simplified_levels = []
 
 
@@ -29,7 +32,7 @@ class Sector:
         for k, v in self.data_layers.items():
             meta[k] = []
             for nk, nv in v.items():
-                if any(nv):
+                if any(util.flatten_list(nv)):
                     meta[k].append(int(nk))
                     sector_asset_path = os.path.join(s_path, f"{k}-{nk}.json")
                     with open(sector_asset_path, 'w') as fp:
@@ -81,6 +84,7 @@ def load_contours():
 
 def save_parsed_map_data(map_range):
     contour_levels = load_contours()
+    eco_regions_mask = data_parse.load_eco_regions_mask()
     map_levels = load_map(map_range)
     map_sets = []
 
@@ -88,10 +92,13 @@ def save_parsed_map_data(map_range):
         if m >= force_range:
             break
         p_polys = [p for p in map_level.geoms]
-        p_lines = [LineString(ref.exterior.coords) for ref in map_level.geoms]
+        #DONE: SETUP CLIPS BY ECO REGION. (eliminate brittany and Black Sea)
+        p_lines = [LineString(ref.exterior.coords).intersection(eco_regions_mask) for ref in map_level.geoms]
 
         map_sets.append({'polygons': p_polys, 'line_strings': p_lines, 'contours': contour_levels[m]})
-        print('level', m, len(polys), len(lines))
+        print('level', m, len(p_polys), len(p_lines))
+        # util.make_other_plot([{'id': 0, 'geometry': p_lines}])
+        # exit()
 
     util.save_asset(map_sets, 'parsed_sector_map_layers')
 
@@ -99,18 +106,22 @@ def save_parsed_map_data(map_range):
 if __name__ == '__main__':
     print(conf.master_bounds)
     force_range = conf.levels_range
-    #// save_parsed_map_data(force_range)
+    # save_parsed_map_data(force_range)
+    # exit()
+
     whole_map_poly_sets = pd.read_pickle(os.path.join(conf.assets_path, 'parsed_sector_map_layers-list.pkl'))
 
     for deg in conf.master_degree_intervals:
         sector_group = build_sectors(deg)
         print("sectors:", len(sector_group))
-        for i, sector in enumerate(sector_group):
-            print("sector", i)
-            for j, geometry in enumerate(whole_map_poly_sets):
-                if j >= force_range:
-                    break
+
+        for j, geometry in enumerate(whole_map_poly_sets):
+            print('level:', j)
+            if j >= force_range:
+                break
+            for i, sector in enumerate(sector_group):
                 relevant_indices = [r for (r, k) in enumerate(geometry['polygons']) if k.intersects(sector.box)]
+
                 polys = [sector.box.intersection(geometry['polygons'][p]) for p in relevant_indices]
                 lines = [sector.box.intersection(geometry['line_strings'][p]) for p in relevant_indices]
 
@@ -125,4 +136,10 @@ if __name__ == '__main__':
                 sector.add_data(j, 'line_strings', [util.geometry_to_coords(fp) for fp in lines])
                 sector.add_data(j, 'contours', contour_set)
 
-            sector.save()
+                util.show_progress('sectors', i, len(sector_group))
+            #sector.save()
+
+        [sector.save() for sector in sector_group]
+
+        # util.make_other_plot([{'id': 0, 'geometry': plot_lines}])
+        # exit()

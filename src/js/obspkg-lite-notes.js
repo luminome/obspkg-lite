@@ -6,11 +6,67 @@
 // const array = (new Function("return [" + parsed+ "];")());
 // console.log('/', array);
 
+map_sectors_group.children.forEach(s => {
+    vw.copy(s.userData.owner.objects.plane.userData.center);
+    map_sectors_group.localToWorld(vw);
+    //#//ORIGINAL:
+    // vk.subVectors(camera.position, vw);
+    // const LV = Math.round((1/vk.length())*vars.levels);
+
+    //#//SECOND PASS:
+    // root_plane.projectPoint(camera.position, vu);
+    // vk.subVectors(user_position, vu).multiplyScalar(1.5/camera_distance);
+    // pos_mark_1.position.copy(vk.add(user_position));
+    // const L = Math.ceil((vk.distanceTo(vw))*(vars.degree_scale));
+    // const LP = Math.ceil((vars.levels/(L))*vars.levels*camera_scale)-1;
+    // const LV = LP > 4 ? 4 : LP;
+
+    //#//THIRD PASS:
+    root_plane.projectPoint(camera.position, vu);
+    vk.subVectors(user_position, vu).multiplyScalar(0.5/vars.degree_scale);
+    pos_mark_1.position.copy(vk.add(user_position));
+
+    const L = vw.distanceTo(vk);
+
+    if(L < (vars.levels*(vars.degree_scale))+2){
+        let LV = Math.round((vars.levels - Math.round(L/vars.degree_scale))*(Math.round(camera_scale*vars.levels)/vars.levels));
+        if(LV > 4) LV = 4;
+        if(LV < 0) LV = 0;
+        s.userData.owner.set_level(LV);
+    }
+});
+
 //#//not very nice or precise
 //import * as MeshLine from "./vendor/MeshLine.js";
 //const material = new MeshLine.MeshLineMaterial({color: 0x0000ff, lineWidth:0.1, resolution:resolution, sizeAttenuation:true});
 //const trail_line = new MeshLine.MeshLine();
 //trail_line.setGeometry( geometry );//,  function( p ) { return p; }  ); // makes width taper
+
+
+
+                        // const mapTileLinesMaterial = new LineMaterial({
+                        //     color: 0xffffff,
+                        //     linewidth: 0.01, // in world units with size attenuation, pixels otherwise
+                        //     // vertexColors: true,
+                        //     dashed: false,
+                        //     alphaToCoverage: true,
+                        //     worldUnits: true
+                        // });
+
+                        // let vertices2 = [], colors2 = [];
+                        // const color = new THREE.Color();
+					    // color.setHex(0x00FF22);
+                        // for (let p = 0; p < exterior.points3.length; p += 1) {
+                        //     vertices2.push(exterior.points3[p].x,exterior.points3[p].y,exterior.points3[p].z);
+                        //     colors2.push(color.r, color.g, color.b)
+                        // }
+                        // const geometry = new LineGeometry();
+                        // geometry.setPositions(vertices2);
+					    // geometry.setColors(colors2);
+                        // element = new Line2(geometry, mapTileLinesMaterial.clone());
+
+                        //geometry.setAttribute( 'position', new THREE.BufferAttribute( Float32Array.from(exterior.points3), 3 ) );
+
 
 
 const sprite_mat = () => {

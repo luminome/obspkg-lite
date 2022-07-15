@@ -20,19 +20,24 @@ from bokeh.models.tools import HoverTool, WheelZoomTool, PanTool, CrosshairTool,
 from json_encoder import JsonSafeEncoder
 
 mod_trace = {}
+formatter = {'set': ''}
+
+
+def flatten_list(element):
+    return sum(map(flatten_list, element), []) if isinstance(element, list) else [element]
+    # see notes.
 
 
 def flatten_coords(coords, dec):
     arr = [[round(c[0], dec), round(c[1], dec)] for c in coords]
-    seq = list(itertools.chain(*arr))
-    return seq
+    return list(itertools.chain(*arr))
     #return seq[0] if len(seq) else seq
 
 
+#for complex polygons w/ins and outs.
 def polygon_to_serialized_obj(poly, decimal_places):
     out = flatten_coords(poly.exterior.coords, decimal_places)
     ins = [flatten_coords(interior.coords, decimal_places) for interior in poly.interiors]
-
     return {'out': out, 'in': ins}
 
 
@@ -49,49 +54,76 @@ def geometry_to_coords(geom, decimal_places=4):
         return [getter(geom)]
 
 
-def value_cleaner(obj, decimal_places=4):
-    obj_str = None
-    f_fmt = '{:.%if}' % decimal_places
-
-    def as_string(s):
-        return '\"{:s}\"'.format(s)
-
-    def from_list(s):
-        if isinstance(s, str):
-            return as_string(s)
-        else:
-            return f_fmt.format(s)
-
-    if isinstance(obj, str):
-        obj_str = as_string(obj)
-    if isinstance(obj, type(np.nan)):
-        obj_str = 'null'
-    if isinstance(obj, int):
-        obj_str = str(obj)
-    if isinstance(obj, float):
-        if obj.is_integer():
-            obj_str = str(int(obj))
-        elif np.isnan(obj):
-            obj_str = 'null'
-        else:
-            obj_str = f_fmt.format(obj)
-    if isinstance(obj, List) or isinstance(obj, np.ndarray):
-
-        obj_str = '[{:s}]'.format(','.join([from_list(x) for x in obj]))
-
-    if isinstance(obj, type(np.ndarray)):
-        obj_str = f'ndarray({len(obj)})'
-    if isinstance(obj, MultiPolygon):
-        obj_str = as_string(obj.__class__.__name__)
-    if isinstance(obj, Point):
-        obj_str = as_string(obj.__class__.__name__)
-    if isinstance(obj, Polygon):
-        obj_str = str(polygon_to_serialized_obj(obj, decimal_places)).replace(" ", "")  #;//as_string(obj.__class__.__name__)
-
-    if obj_str is None:
-        print(obj, str(obj.__class__))
+def value_floated(obj, fmt):
+    if obj.__class__ == int:
+        return obj
+    elif obj.is_integer():
+        return int(obj)
+    elif np.isnan(obj):
         return 'null'
     else:
+        return float(fmt.format(obj))
+
+
+def value_as_string(s):
+    return '\"{:s}\"'.format(s)
+
+
+def value_from_list(s, fmt=None):
+    if fmt is None:
+        fmt = formatter['set']
+    if s.__class__ == str:
+        return s  #value_as_string(s)
+    elif s.__class__ == float or s.__class__ == int:
+        return value_floated(s, fmt)
+
+
+def value_in_place(s):
+    return list(map(value_in_place, s)) if isinstance(s, list) else value_from_list(s)
+
+
+def value_cleaner(obj, decimal_places=4, special_poly=None):
+    # global format
+    obj_cls = obj.__class__
+    obj_str = None
+    f_fmt = '{:.%if}' % decimal_places
+    formatter['set'] = f_fmt
+
+    print(obj_cls)
+
+    if obj_cls == str:
+        obj_str = value_as_string(obj)
+
+    if obj_cls == int:
+        obj_str = obj
+
+    if obj_cls == float:
+        obj_str = value_floated(obj, f_fmt)
+
+    if obj_cls == List or obj_cls == tuple or obj_cls == list:
+        obj_str = value_in_place(obj)
+        #obj_str = '[{:s}]'.format(','.join([value_from_list(x, f_fmt) for x in obj]))
+
+    if obj_cls == np.ndarray:
+        float_fmt = ['float64', 'float32']
+        if obj.dtype in float_fmt:
+            obj = np.round(obj, decimal_places)
+        obj_str = str(obj.tolist()).replace("'", "\"")
+
+    if obj_cls == MultiPolygon:
+        obj_str = value_as_string(obj.__class__.__name__)
+
+    if obj_cls == Polygon and special_poly:
+        obj_str = str(polygon_to_serialized_obj(obj, decimal_places)).replace(" ", "")
+
+    if obj_cls == Polygon or obj_cls == LineString or obj_cls == MultiPolygon or obj_cls == MultiLineString:
+        obj_str = str(geometry_to_coords(obj, decimal_places)).replace(" ", "")
+
+    if obj_str is None:
+        print('no cleaner for', str(obj.__class__))
+        return 'null'
+    else:
+        print(obj_str)
         return obj_str
 
 

@@ -1,5 +1,6 @@
 body, html{
-	background-color: #1d2733;
+	background-color: #0f1621;
+	/*background-color: #1d2733;*/
 }
 svg {
 	display: block;
@@ -355,7 +356,7 @@ svg {
 	/*color:rgba(120,120,120);*/
 	/*background-color: rgba(120,120,120,0.1);*/
 	color:blue;
-	background-color: #1d2733;
+	background-color:  #0f1621;
 	pointer-events: none;
 }
 
@@ -363,7 +364,7 @@ svg {
 	position:absolute;
 	opacity:0.75;
 	pointer-events: none;
-	background-color: #1d2733EE;
+	background-color: #0f1621EE;
 	padding:4px;
 }
 

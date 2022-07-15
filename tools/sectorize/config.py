@@ -8,22 +8,23 @@ assets_path = '/Users/sac/Sites/obspkg-lite/tools/assets'
 
 master_bounds = [[-7.0, 29.0, 37.0, 49.0], 44.0, 20.0]
 
-master_degree_intervals = [2, 1, 0.5]
+master_degree_intervals = [2]  #, 1, 0.5]
 
 guide_geom_closed_distance = 0.01
 
 bezier_granularity = 20
 
+accept_classes = ['str', 'int', 'float', 'List']
 #// used by main map build (data_parsers).
 map_bounds_degrees = [-12, 26, 44, 50]
 
 area_limits = [
-    0.001,
-    0.00025
+    0.01,
+    0.005
 ]
 
 simp_limits = [
-    0.01,
+    0.1,
     0.0001
 ]
 
@@ -57,8 +58,8 @@ contour_ranges = {
         500,
         250,
         125,
-        62.5,
-        100.0
+        62.5
     ],
     "depth_max": 5000
+    # "depth_max": 5000
 }

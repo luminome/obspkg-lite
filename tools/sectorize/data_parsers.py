@@ -13,6 +13,8 @@ from operator import itemgetter
 from itertools import groupby
 from shapely.geometry import Point, box, LineString, MultiPolygon, MultiLineString, MultiPoint, Polygon
 from shapely.affinity import translate, scale
+from shapely.ops import unary_union
+
 from skimage import measure
 from scipy.ndimage.filters import gaussian_filter
 
@@ -427,6 +429,8 @@ def parse_contour_levels(points_data, attributes, depth_range, poly_origin) -> t
     contours_all = [[]] * depth_range
     iso_bath_100m = []
 
+    eco_regions_mask = load_eco_regions_mask()
+
     def contour_getter(data, level):
         f_contours = measure.find_contours(data, level)
         contours = []
@@ -434,6 +438,7 @@ def parse_contour_levels(points_data, attributes, depth_range, poly_origin) -> t
             ep = LineString(np.flip(ep))
             ep = scale(ep, xfact=1 / 60, yfact=-1 / 60, origin=(0, 0))
             ep = translate(ep, xoff=poly_origin[0], yoff=poly_origin[1])
+            ep = ep.intersection(eco_regions_mask)
             contours.append(ep)
         return contours
 
@@ -569,6 +574,14 @@ def partition_eco_regions(guides_df, eco_regions_df, geo_names) -> (pd.DataFrame
     return eco_regions_table, out_data
 
 
+def load_eco_regions_mask() -> Polygon:
+    df = pd.read_pickle(os.path.join(conf.assets_path, 'parsed_eco_regions-GeoDataFrame.pkl'))
+    region_polys = []
+    for j, e in df.iterrows():
+        region_polys.append(e.geometry)
+    return unary_union(region_polys)
+
+
 #//TODO: slated
 def parse_wudi_build_db():
     pass
@@ -596,7 +609,7 @@ def tests():
     # print(haste, f'({col_count})')
     # for j, e in df.iterrows():
     #
-    #     t_str = str(j)+',{:s}'.format(','.join([util.value_cleaner(x) for x in e]))+','
+    #     t_str = str(j)+',{:s}'.format(','.join([util.value_cleaner(x,4,True) for x in e]))+','
     #     haste += t_str
     #     print(t_str)
     #
@@ -711,24 +724,51 @@ def tests():
     #     med_poly = pickle.load(poly_file)
     #     make_plot(med_poly)
     # ///////////////////////////////////////////////////////////
-    depth_points = parse_depth_points()
-    # save_asset(depth_points, 'parsed_depth_points')
-    depth_contours, iso_bath = parse_contour_levels(depth_points['data'], conf.contour_ranges, conf.levels_range, depth_points['origin'])
+    # depth_points = parse_depth_points()
+    # depth_contours, iso_bath = parse_contour_levels(depth_points['data'], conf.contour_ranges, conf.levels_range, depth_points['origin'])
+    #
+    # # print(depth_contours)
+    # util.save_asset(depth_contours, 'parsed_depth_contours')
+    # util.save_asset(iso_bath, 'parsed_iso_bath_100m')
 
-    # print(depth_contours)
-    util.save_asset(depth_contours, 'parsed_depth_contours')
-    util.save_asset(iso_bath, 'parsed_iso_bath_100m')
     # ///////////////////////////////////////////////////////////
     # n = pd.read_pickle(os.path.join(conf.assets_path, 'parsed_wudi_raw-DataFrame.pkl'))
     # print(n.head(20))
     # print(n.iloc[0])
     # exit()
+
     # ///////////////////////////////////////////////////////////
     # df = parse_wudi()
     # save_asset(df, 'parsed_wudi_raw')
     # ///////////////////////////////////////////////////////////
     # geom = parse_map_geometry()
     # util.save_asset(geom, 'parsed_map_geometry')
+    # ///////////////////////////////////////////////////////////
+
+    # util.value_cleaner('hello')
+    # util.value_cleaner(2)
+    # util.value_cleaner(2.0)
+    # util.value_cleaner(2.6)
+    # util.value_cleaner(np.nan)
+    # util.value_cleaner(np.ndarray(shape=(2,2), dtype=float, order='F'))
+    # util.value_cleaner(np.array([['cats','dogs'],['cats','dogs']]))
+    # util.value_cleaner(np.array(['cats','dogs']))
+    # util.value_cleaner([[6],[[5,3],2.4567]])
+    # util.value_cleaner(["allo?", "bonjour d'avant",['ça marche',"pas l'mal!"]])
+
+    # ///////////////////////////////////////////////////////////
+    p_list = pd.read_pickle(os.path.join(conf.assets_path, 'parsed_iso_bath_100m-list.pkl'))
+    #list of one entry as dict of contour data
+    contours = [util.value_cleaner(x) for x in p_list[0]['contours']]
+    filtered = [c for c in contours if c != '[[]]']
+
+    haste = '"raw-isobath-100m",{:s}'.format(','.join(filtered)) + ','
+
+    file_name = 'raw-isobath-100m-1'
+    path = os.path.join(conf.static_data_path, f"{file_name}.txt")
+    with open(path, "w") as file:
+        file.write(haste[:-1])
+
     # ///////////////////////////////////////////////////////////
     pass
 
