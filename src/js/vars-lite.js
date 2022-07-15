@@ -1,8 +1,8 @@
 const vars = {
-	window_color: 0x0f1621,
+	// window_color: 0x0f1621,
 	static_path:'./data',
 	position_marks_visible: false,
-	sector_draw: false,
+	sector_draw: true,
 	degree_scale: 2,
 	degree_scale_str: 'deg_2',
 	depth_max: 5000.0,
@@ -48,17 +48,25 @@ const vars = {
 		}
 	},
 	colors:{
+		info_bk_opacity: 0.85,
+		window: 0x1D2733,
+		chart_tick: 0x888888,
+		chart_guide: 0x444444,
 		eco_regions:{
-			select: [0x330033, 0x660066]
+			select: [0xFFFFFF, 0x000000]
 		},
 		wudi:{
 			select: [0x660066, 0xFF00FF]
 		},
 		iso_bath:{
-			select: [0x333333, 0xFF00FF]
+			select: [0x444444, 0xFF00FF]
+		},
+		hex_css: (c, alpha=null) => {
+			return alpha === null ? '#'+c.toString(16) : '#'+c.toString(16)+(Math.round(alpha*255).toString(16))
 		}
 	},
-	bar_scale: 0.5
+	bar_scale: 0.5,
+	point_scale:0.025
 }
 
 export {vars}

@@ -8,5 +8,9 @@ const deg_to_km = (v) => (v * km_deg);
 
 const norm_val = (val, mi, ma) => (val - mi) / (ma - mi);
 
-export {max_min, deg_to_km, norm_val};
+const title_case = (str) => {
+  return str.toLowerCase().replace(/(^|\s)\S/g, s => s.toUpperCase()); ///\b\w/g
+}
+
+export {max_min, deg_to_km, norm_val, title_case};
 

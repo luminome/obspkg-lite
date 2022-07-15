@@ -5,11 +5,12 @@ import {dragControls} from './drags.js';
 import {keyControls} from './keys.js';
 import * as util from './obspkg-lite-util.js';
 import {loader as fetchAll} from './data-loader.js';
-import {norm_val} from "./obspkg-lite-util.js";
+import {norm_val, title_case} from "./obspkg-lite-util.js";
 // import {Line2} from 'three/examples/jsm/lines/Line2.js';
 // import {LineMaterial} from "three/examples/jsm/lines/LineMaterial";
 // import {LineGeometry} from "three/examples/jsm/lines/LineGeometry";
 
+document.body.style['background-color'] = vars.colors.hex_css(vars.colors.window);
 vars.data = {};
 
 vars.info = {
@@ -23,7 +24,10 @@ vars.info = {
     rect: null,
     init: function () {
         this.dom_element = document.getElementById('info-field');
+        this.display_element = this.dom_element.querySelector('.info-body');
+        this.temp_element = this.dom_element.querySelector('.info-temp');
         this.dom_element.querySelector('.info-head').innerHTML = this.text.toString();
+        this.dom_element.style.backgroundColor = vars.colors.hex_css(vars.colors.window, vars.colors.info_bk_opacity);
         this.rect = this.dom_element.getBoundingClientRect();
     },
     hover: function (e) {
@@ -32,27 +36,41 @@ vars.info = {
     set_label_color: function (c) {
         this.dom_element.style.color = c;
     },
-    set_position: function (x, y) {
-        let nx = (vars.view.width / 2) - x;
-        let ny = (vars.view.height / 2) - y;
-        let mod = 0.8;
-        let x_offset = (Math.abs(nx) > (vars.view.width / 2) * mod) ? ((vars.view.width / 2) / Math.abs(nx)) * mod : 1;
-        let y_offset = (Math.abs(ny) > (vars.view.height / 2) * mod) ? ((vars.view.height / 2) / Math.abs(ny)) * mod : 1;
+    set_position: function (x, y, style = 'area') {
+        if (style === 'area') {
+            const nx = (vars.view.width / 2) - x;
+            const ny = (vars.view.height / 2) - y;
+            const mod = 0.8;
+            const x_offset = (Math.abs(nx) > (vars.view.width / 2) * mod) ? ((vars.view.width / 2) / Math.abs(nx)) * mod : 1;
+            const y_offset = (Math.abs(ny) > (vars.view.height / 2) * mod) ? ((vars.view.height / 2) / Math.abs(ny)) * mod : 1;
 
-        if (x_offset !== 1 || y_offset !== 1) {
-            this.screen_position.a.set((vars.view.width / 2) - (nx * x_offset), (vars.view.height / 2) - (ny * y_offset));
+            if (x_offset !== 1 || y_offset !== 1) {
+                this.screen_position.a.set((vars.view.width / 2) - (nx * x_offset), (vars.view.height / 2) - (ny * y_offset));
+            } else {
+                this.screen_position.a.set(x, y);
+            }
         } else {
-            this.screen_position.a.set(x, y);
+            //default to right center of mouse
+            //const pos_x = this.rect.width
+            this.screen_position.a.set(x + (this.rect.width / 2) + 10, y);
+            this.screen_position.b.copy(this.screen_position.a);
+
         }
     },
     set_state: function (bool) {
         this.dom_element.style.display = bool ? 'block' : 'none';
     },
-    set_text: function (a = null, b = null) {
-        [['.info-head', a], ['.info-body', b]].forEach(t => {
-            if (t[1]) this.dom_element.querySelector(t[0]).innerHTML = Array.isArray(t[1]) ? t[1].join('</br>') : t[1].toString();
-            this.dom_element.querySelector(t[0]).style.display = t[1] ? 'block' : 'none';
-        });
+    set_text: function (text_dict, mode = null) {
+        this.display_element.innerHTML = '';
+        for (let d of text_dict) {
+            const part = this.temp_element.cloneNode(true);
+            part.classList.remove('info-temp');
+            [['.info-head', d.head], ['.info-text', d.hasOwnProperty('text') ? d.text : null]].forEach(t => {
+                if (t[1]) part.querySelector(t[0]).innerHTML = Array.isArray(t[1]) ? t[1].join('</br>') : t[1].toString();
+                part.querySelector(t[0]).style.display = t[1] ? 'block' : 'none';
+            });
+            this.display_element.appendChild(part);
+        }
         this.rect = this.dom_element.getBoundingClientRect();
     },
     update_position: function () {
@@ -64,21 +82,21 @@ vars.info = {
 vars.info.init();
 
 
-const coords_from_array = (array, add_z= 0.0) => {
+const coords_from_array = (array, add_z = 0.0) => {
     const build_coords = (coords_flat) => {
         let buffer = [];
-        for(let i = 0; i < coords_flat.length; i+=2){
-            buffer.push(coords_flat[i], coords_flat[i+1], add_z);
+        for (let i = 0; i < coords_flat.length; i += 2) {
+            buffer.push(coords_flat[i], coords_flat[i + 1], add_z);
         }
         return buffer;
     }
 
     let coords = [];
-    for(let a of array){
-        if(a.length === 1){
+    for (let a of array) {
+        if (a.length === 1) {
             coords.push(build_coords(a[0]));
-        }else{
-            for(let b of a){
+        } else {
+            for (let b of a) {
                 //console.log(b.some(r => r.length === 1), b);
                 coords.push(build_coords(b));
             }
@@ -103,16 +121,17 @@ class Sector {
         this.init();
     }
 
-    draw(object){
+    draw(object) {
 
-        if(object.name === 'line_strings'){
+        if (object.name === 'line_strings') {
             const mat = new THREE[vars.mats.line_strings.type](vars.mats.line_strings.dict);
+            mat.setValues({color: vars.colors.eco_regions.select[1]});
             const lines_group = new THREE.Group();
             const coord_arrays = coords_from_array(object.raw);
 
-            for(let vertices of coord_arrays){
+            for (let vertices of coord_arrays) {
                 const geometry = new THREE.BufferGeometry();
-                geometry.setAttribute( 'position', new THREE.BufferAttribute( Float32Array.from(vertices), 3 ) );
+                geometry.setAttribute('position', new THREE.BufferAttribute(Float32Array.from(vertices), 3));
                 const contour = new THREE.Line(geometry, mat);
                 lines_group.add(contour);
             }
@@ -121,14 +140,14 @@ class Sector {
             this.group.add(lines_group);
         }
 
-        if(object.name === 'contours'){
+        if (object.name === 'contours') {
             const mat = new THREE[vars.mats.contours.type](vars.mats.contours.dict);
             object.raw.map(obj => {
                 const contour_depth = new THREE.Group();
-                const coord_arrays = coords_from_array(obj['line_strings'], obj['d']/-vars.depth_max);
-                for(let vertices of coord_arrays){
+                const coord_arrays = coords_from_array(obj['line_strings'], obj['d'] / -vars.depth_max);
+                for (let vertices of coord_arrays) {
                     const geometry = new THREE.BufferGeometry();
-                    geometry.setAttribute( 'position', new THREE.BufferAttribute( Float32Array.from(vertices), 3 ) );
+                    geometry.setAttribute('position', new THREE.BufferAttribute(Float32Array.from(vertices), 3));
                     const contour = new THREE.Line(geometry, mat);
                     contour_depth.add(contour);
                 }
@@ -141,42 +160,47 @@ class Sector {
         }
     }
 
-    self_destruct(){
+    self_destruct() {
         //console.log('removed', this.name);
         this.group.removeFromParent();
         delete this;
     }
 
-    load_meta(obj_list){
+    load_meta(obj_list) {
         this.meta = obj_list[0].raw; //only one here
 
 
         Object.entries(this.meta)
             .map((k) => {
-                if(k[1].length){
-                    this.meta[k[0]] = k[1].reduce((a, v) => ({ ...a, [v]: null}), {});
-                }else{
+                if (k[1].length) {
+                    this.meta[k[0]] = k[1].reduce((a, v) => ({...a, [v]: null}), {});
+                } else {
                     delete this.meta[k[0]];
                 }
             });
 
         const recap = Object.keys(this.meta);//.map(m => );
-        if((recap.length === 1 && recap[0] === 'polygons') || !recap.length) this.self_destruct();
+        if ((recap.length === 1 && recap[0] === 'polygons') || !recap.length) this.self_destruct();
 
         return true;
     }
 
-    load_layers(obj_list){
-        for(let obj of obj_list){
+    load_layers(obj_list) {
+        for (let obj of obj_list) {
             this.meta[obj.name][obj.level] = 'loaded';
             this.draw(obj);
         }
     }
 
-    check_layers(){
+    check_layers() {
         const required = Object.entries(this.meta).filter(k => k[1].hasOwnProperty(this.level) && k[1][this.level] === null && this.enabled.includes(k[0]));
-        if(required.length){
-            const objects_list = required.map(k => ({url: `${this.path}/${k[0]}-${this.level}.json`, type: 'json', name: k[0], level: this.level}) );
+        if (required.length) {
+            const objects_list = required.map(k => ({
+                url: `${this.path}/${k[0]}-${this.level}.json`,
+                type: 'json',
+                name: k[0],
+                level: this.level
+            }));
             //console.log(this.name, objects_list);
             fetchAll(objects_list).then(object_list => this.load_layers(object_list));
         }
@@ -184,16 +208,16 @@ class Sector {
         // if(objects_list.length) fetchAll(objects_list).then(object_list => this.load_layers(object_list));
     }
 
-    init(){
-        const material = new THREE.LineBasicMaterial({color: 0xff00ff, transparent: true, opacity:0.0});
+    init() {
+        const material = new THREE.LineBasicMaterial({color: 0xff00ff, transparent: true, opacity: 0.0});
         const geometry = new THREE.BufferGeometry().setFromPoints(this.bounds);
         geometry.setIndex([0, 1, 2, 2, 3, 0]);
         geometry.computeVertexNormals();
-		geometry.computeBoundingBox();
-		geometry.boundingBox.getCenter(this.center);
+        geometry.computeBoundingBox();
+        geometry.boundingBox.getCenter(this.center);
 
         const plane_line = new THREE.Line(geometry, material);
-        plane_line.name = this.id+`(${this.loc.toString()})`;
+        plane_line.name = this.id + `(${this.loc.toString()})`;
         plane_line.userData.center = this.center;
 
         this.group.add(plane_line);
@@ -207,15 +231,15 @@ class Sector {
                 if (state) {
                     this.level = 0;
                     this.check_layers();//request_layers(this.level);
-                }else{
+                } else {
                     console.log(`Error loading ${this.name} meta-data: ${meta_json[0].url}`);
                 }
             });
     }
 
-    set_level(LV=null){
+    set_level(LV = null) {
         //return false;
-        if(this.level !== LV){
+        if (this.level !== LV) {
             this.level = LV;
             //this.objects.plane.material.setValues({opacity:(this.level/vars.levels)*0.5});
             this.objects.plane.name = `${this.id}-(${this.level})`;//(<pre>${JSON.stringify(this.meta)}</pre>)`;
@@ -225,7 +249,7 @@ class Sector {
         }
     }
 
-    update(){
+    update() {
         this.group.children.forEach(res => res.visible = (res.userData.level === this.level));
     }
 
@@ -263,10 +287,9 @@ const vu = new THREE.Vector3(0, 0, 0);
 const vc = new THREE.Vector3(0, 0, 0);
 
 const mu = new THREE.Matrix4();
-mu.matrixWorldNeedsUpdate = true;
+// mu.matrixWorldNeedsUpdate = true;
 
 const qu = new THREE.Quaternion();
-
 
 const y_up = new THREE.Vector3(0, 1, 0);
 const x_right = new THREE.Vector3(1, 0, 0);
@@ -391,6 +414,8 @@ function make_markers_divs() {
         const mark = document.createElement('div');
         mark.classList.add('dmark');
         mark.innerHTML = '0.0';
+        mark.style.color = vars.colors.hex_css(vars.colors.chart_tick);
+        mark.style.backgroundColor = vars.colors.hex_css(vars.colors.window);
         document.body.appendChild(mark);
         marks.push(mark);
     }
@@ -406,35 +431,35 @@ function make_grid_lines() {
     points.push(new THREE.Vector3(0, 0, size));
 
     const material = new THREE.LineBasicMaterial({
-        color: 0x0000ff
+        color: vars.colors.chart_guide
     });
 
     const geometry = new THREE.BufferGeometry().setFromPoints(points);
     return new THREE.LineSegments(geometry, material);
 }
 
+function make_hexagonal_shape(scale = 1.0) {
+    const v = new Float32Array(18);
+    let int = ((Math.PI * 2) / 6);
+    for (let i = 0; i < v.length; i += 3) {
+        v[i] = (Math.cos((i / 3) * int)) * scale;
+        v[i + 1] = (Math.sin((i / 3) * int)) * scale;
+        v[i + 2] = 0.0;
+    }
+    const a_geometry = new THREE.BufferGeometry();
+    a_geometry.setAttribute('position', new THREE.BufferAttribute(v, 3));
+    a_geometry.setIndex([0, 1, 2, 2, 3, 0, 3, 4, 5, 5, 0, 3]);
+    //a_geometry.rotateX(Math.PI / -2);
+    return a_geometry;
+}
+
 function make_markers_group() {
     const markers_group = new THREE.Group();
     const mat = new THREE[vars.mats.mapMarkersMaterial.type](vars.mats.mapMarkersMaterial.dict);
     mat.setValues({'side': THREE[vars.mats.mapMarkersMaterial.dict.side]});
+    const a_geometry = make_hexagonal_shape();
 
     for (let n = 0; n < axis_markers_count; n++) {
-        const v = new Float32Array(18);
-        let int = (Math.PI * 2) / 6;
-        for (let i = 0; i < v.length; i += 3) {
-            v[i] = Math.cos((i / 3) * int);
-            v[i + 1] = Math.sin((i / 3) * int);
-            v[i + 2] = 0.0;
-        }
-        const a_geometry = new THREE.BufferGeometry();
-        a_geometry.setAttribute('position', new THREE.BufferAttribute(v, 3));
-        a_geometry.setIndex([0, 1, 2, 2, 3, 0, 3, 4, 5, 5, 0, 3]);
-
-        //const mat = new THREE[vars.materials.mapMarkersMaterial.type](vars.materials.mapMarkersMaterial.dict);
-        //const mat = MATS.mapMarkersMaterial;
-        //
-
-        //console.log(mat);
         const hexagon = new THREE.Mesh(a_geometry, mat);
         hexagon.rotateX(Math.PI / -2);
         hexagon.scale.set(0.050, 0.050, 0.050);
@@ -480,9 +505,9 @@ function rayIntersectionWithXZPlane(rayOrigin, rayDirection, planeY) {
     return new THREE.Vector3(xIntersect, planeY, zIntersect);
 }
 
-function adaptive_scaling_wudi(){
+function adaptive_scaling_wudi() {
     const wudi = scene.getObjectByName('wudi');
-    if(wudi && wudi.children.length) {
+    if (wudi && wudi.children.length) {
         //insane re-normalization technique MAYBE
         const shred = wudi.children[0].userData.td.position.reduce((st, p, n) => {
             vw.fromArray(p);
@@ -495,21 +520,138 @@ function adaptive_scaling_wudi(){
         }, {index: [], samp: []});
 
         const shred_lim = [Math.min(...shred.samp), Math.max(...shred.samp)]
-        shred.index.map((s,i) => {
+        shred.index.map((s, i) => {
             const si = +(shred.samp[i] > 0);
-            const index = wudi.children[si+1].userData.td.indices.indexOf(s);
+            const index = wudi.children[si + 1].userData.td.indices.indexOf(s);
             if (index !== -1) {
-                wudi.children[si+1].getMatrixAt(index, mu);
-                mu.decompose(vw,qu,vu);
-                vu.setZ((shred.samp[i]/shred_lim[si])*vars.bar_scale);
-                mu.compose(vw,qu,vu);
-                wudi.children[si+1].setMatrixAt(index, mu);
+                wudi.children[si + 1].getMatrixAt(index, mu);
+                mu.decompose(vw, qu, vu);
+                vu.setZ((shred.samp[i] / shred_lim[si]) * vars.bar_scale);
+                mu.compose(vw, qu, vu);
+                wudi.children[si + 1].setMatrixAt(index, mu);
                 //return [s, index, si, shred_lim[si], shred.samp[i], vu]
             }
         });
         wudi.children[1].instanceMatrix.needsUpdate = true;
         wudi.children[2].instanceMatrix.needsUpdate = true;
     }
+}
+
+function interactionAction() {
+    //#//basic touches called by translateAction -> move
+    ray_caster.setFromCamera(vars.user.mouse.raw, camera);
+    const intersects = ray_caster.intersectObjects(scene.children, true);
+
+    const filter = {
+        protected_no_geom: (index = null) => {
+            const figure = vars.data.protected_no_geom.raw[index + 1];
+            return {
+                head: `${title_case(figure[1])}`,
+                text: [figure[3] + ' ' + figure[2], figure[8], figure[13] + '—' + figure[14], figure[6] + 'km^2', `(${index}) `]
+            }
+        },
+        iso_bath: (index = null) => {
+            return {
+                text: 'isobath 100m ' + index
+            }
+        },
+        wudi: (index = null) => {
+            return {
+                text: 'wudi point ' + index
+            }
+        },
+        wudi_upwelling: (index = null) => {
+            return filter.wudi(index);
+        },
+        wudi_downwelling: (index = null) => {
+            return filter.wudi(index);
+        },
+        eco_regions: (index = null) => {
+            return {
+                text: 'eco_region (general) ' + index
+            }
+        },
+    }
+
+    function make_clean(ints) {
+        let len = ints.length;
+        let ids = [];
+        let result = [];
+        let name = null;
+        let instance_id = null;
+        for (let i = 0; i < len; i++) {
+            if (ints[i].object.name.length) {
+                name = ints[i].object.id;
+                if (ints[i].hasOwnProperty('instanceId')) instance_id = ints[i].instanceId;
+                if (ids.indexOf(name) === -1 && ids.indexOf(instance_id) === -1) {
+                    let index = null;
+                    if (instance_id) {
+                        const r = ints[i].object.userData.td.indices;
+                        index = r ? r[instance_id] : instance_id;
+                    } else {
+                        index = ints[i].object.userData.index;
+                    }
+                    const ref = filter.hasOwnProperty(ints[i].object.name) ? filter[ints[i].object.name](index) : null;
+                    if (ref) result.push(ref);
+                    ids.push(instance_id ? instance_id : name);
+                }
+                instance_id = null;
+            }
+        }
+        return result;
+        // obs_handler({IN: make_clean(intersects).join('</br>')});
+    }
+
+    vars.info.set_text(make_clean(intersects));
+    vars.info.set_position(vars.user.mouse.screen.x, vars.user.mouse.screen.y, 'mouse');
+
+    const eco_regions = scene.getObjectByName('eco_regions'); ///AREAS
+
+    if (eco_regions && eco_regions.children.length) {
+        const eco = eco_regions.children.filter(e => e.geometry.boundingBox.containsPoint(mouse_pos_map))
+            .filter(e => point_in_poly(e, mouse_pos_map))
+
+        if (eco.length) {
+            const poly = eco[0];
+
+            if (poly.id !== vars.user.selection) {
+                vars.info.set_state(true);
+                poly.geometry.boundingBox.getCenter(vw);
+                map_container.localToWorld(vw);
+                projected(vw);
+                vars.info.set_position(vw.x, vw.y);
+                const data = vars.data[poly.name].raw[poly.userData.index];
+                vars.info.set_text([{head: data[2], text: `id:${data[0]}`}]);
+
+                poly.userData.selected(true);
+                if (vars.user.selection) scene.getObjectById(vars.user.selection, true).userData.selected(false);
+            }
+
+            vars.user.selection = poly.id;
+        } else {
+            if (vars.user.selection) scene.getObjectById(vars.user.selection, true).userData.selected(false);
+            vars.info.set_state(false);
+            vars.user.selection = null;
+        }
+    }
+
+    //.map(e => e.object.name + '-' + e.instanceId + '-' + e.object.userData.td.indices[e.instanceId]))]
+    // selection = selection.map(i => {
+    //     let ham = '-';
+    //     if (intersects[i].object.userData.hasOwnProperty('td') && intersects[i].object.userData.td.hasOwnProperty('indices')) {
+    //         ham += intersects[i].object.userData.td.indices[intersects[i].instanceId];
+    //     } else {
+    //         ham += intersects[i].instanceId;
+    //     }
+    //     return intersects[i].object.name + '-' + intersects[i].object.id + ham;
+    // });
+    //
+    // obs_handler(
+    //     {
+    //         IN: selection.join('</br>')
+    //     });
+
+
 }
 
 function translateAction(type, actual_xy, delta_xy, object) {
@@ -520,6 +662,7 @@ function translateAction(type, actual_xy, delta_xy, object) {
 
     vars.user.mouse.raw.x = (dx / vars.view.width) * 2 - 1;
     vars.user.mouse.raw.y = -(dy / vars.view.height) * 2 + 1;
+    vars.user.mouse.screen = {x: dx, y: dy};
     document.body.style.cursor = 'pointer';
 
     m_ray_origin.copy(new THREE.Vector3(vars.user.mouse.raw.x, vars.user.mouse.raw.y, 0.0)).unproject(camera);
@@ -561,88 +704,26 @@ function translateAction(type, actual_xy, delta_xy, object) {
     }
 
     if (type === 'move') {
-        const eco_regions = scene.getObjectByName('eco_regions');
-
-        if (eco_regions && eco_regions.children.length) {
-            const eco = eco_regions.children.filter(e => e.geometry.boundingBox.containsPoint(mouse_pos_map))
-                .filter(e => point_in_poly(e, mouse_pos_map))
-
-            if (eco.length) {
-                vars.info.set_state(true);
-                const poly = eco[0];
-                poly.geometry.boundingBox.getCenter(vw);
-                map_container.localToWorld(vw);
-                projected(vw);
-                vars.info.set_position(vw.x, vw.y);
-                const data = vars.data[poly.userData.data.name].raw[poly.userData.data.index];
-                vars.info.set_text(data[2], `id:${data[0]}`);
-
-                // if (vars.user.selection && poly.id !== vars.user.selection) {
-                //     // scene.getObjectById(vars.user.selection, true).userData.selected(false);
-                //     //
-                //     // poly.userData.selected(true);
-                //     // vars.info.set_state(true);
-                //     poly.geometry.boundingBox.getCenter(vw);
-                //     map_container.localToWorld(vw);
-                //     projected(vw);
-                //     vars.info.set_position(vw.x, vw.y);
-                //
-                //     //vars.info.set_label_color('#' + poly.material.color.getHexString());
-                //     const data = vars.data[poly.userData.data.name].raw[poly.userData.data.index];
-                //     vars.info.set_text(data[2], `id:${data[0]}`);
-                // }
-                // vars.user.selection = poly.id;
-                // } else {
-                //     if (vars.user.selection) scene.getObjectById(vars.user.selection, true).userData.selected(false);
-                //     vars.user.selection = null;
-                //     vars.info.set_state(false);
-                // }
-            }
-
-            obs_handler({
-                E: vars.user.selection,
-                M: mouse_pos_map.toArray().map(e => e.toFixed(2)).join(', '),
-            });
-        }
-
-        //basic touches
-        ray_caster.setFromCamera(vars.user.mouse.raw, camera);
-        const intersects = ray_caster.intersectObjects(scene.children, true).filter(i => i.object.name !== '');
-        let selection = [...new Set(intersects.map((e, i) => i))]; //.map(e => e.object.name + '-' + e.instanceId + '-' + e.object.userData.td.indices[e.instanceId]))]
-        selection = selection.map(i => {
-            let ham = '-';
-            if (intersects[i].object.userData.hasOwnProperty('td') && intersects[i].object.userData.td.hasOwnProperty('indices')) {
-                ham += intersects[i].object.userData.td.indices[intersects[i].instanceId];
-            } else {
-                ham += intersects[i].instanceId;
-            }
-            return intersects[i].object.name + '-' + intersects[i].object.id + ham;
-        });
-
-        obs_handler(
-            {
-                IN: selection.join('</br>')
-            });
+        interactionAction();
     }
 
     //#// adaptive scaling of wudi data:
     if (type !== 'move') {
         adaptive_scaling_wudi();
-        vars.info.set_state(false);
     }
 
-    const camera_scale = 1-(camera_distance/reset_default_z);
+    const camera_scale = 1 - (camera_distance / reset_default_z);
     map_sectors_group.children.forEach(s => {
         vw.copy(s.userData.owner.objects.plane.userData.center);
         map_sectors_group.localToWorld(vw);
         root_plane.projectPoint(camera.position, vu);
-        vk.subVectors(user_position, vu).multiplyScalar(0.5/vars.degree_scale);
+        vk.subVectors(user_position, vu).multiplyScalar(0.5 / vars.degree_scale);
         pos_mark_1.position.copy(vk.add(user_position));
         const L = vw.distanceTo(vk);
-        if(L < (vars.levels*(vars.degree_scale))+2){
-            let LV = Math.round((vars.levels - Math.round(L/vars.degree_scale))*(Math.round(camera_scale*vars.levels)/vars.levels));
-            if(LV > 4) LV = 4;
-            if(LV < 0) LV = 0;
+        if (L < (vars.levels * (vars.degree_scale)) + 2) {
+            let LV = Math.round((vars.levels - Math.round(L / vars.degree_scale)) * (Math.round(camera_scale * vars.levels) / vars.levels));
+            if (LV > 4) LV = 4;
+            if (LV < 0) LV = 0;
             s.userData.owner.set_level(LV);
         }
     });
@@ -830,8 +911,8 @@ function draw_sectors() {
         let x = i % (vars.map.dims.w * (1 / vars.map.deg));
         let y = Math.floor(i / (vars.map.dims.w * (1 / vars.map.deg)));
         let sx = vars.map.test_bounds[0] + (x * vars.map.deg);
-        let sy = (vars.map.test_bounds[3]-vars.map.deg) - (y * vars.map.deg);
-        vw.set(sx, sy+vars.map.deg, 0.0);
+        let sy = (vars.map.test_bounds[3] - vars.map.deg) - (y * vars.map.deg);
+        vw.set(sx, sy + vars.map.deg, 0.0);
 
         let tile_vertices = [
             vw.clone(),
@@ -930,39 +1011,46 @@ function plot_data(obj) {
         }
 
         if (obj.name === 'protected_no_geom') {
-            const areas = obj.raw.reduce((sv,e,i) => {
-                if(i>0 && e[6]!==null){
+            const areas = obj.raw.reduce((sv, e, i) => {
+                if (i > 0 && e[6] !== null) {
                     sv[0].push(e[6]);
                     sv[1] += e[6];
                 }
                 datum.sample_raw.push(1.0);
                 return sv;
-            },[[],0.0]);
+            }, [[], 0.0]);
             const max_area = Math.max(...areas[0]);
             const min_area = Math.min(...areas[0]);
-            const avg_area = areas[1]/areas[0].length;
+            const avg_area = areas[1] / areas[0].length;
             console.log(avg_area, min_area, max_area, areas);
 
-            const set_size = obj.raw.map((e,i) =>{
-                if(i>0 && e[6]!==null){
+            const set_size = obj.raw.map((e, i) => {
+                if (i > 0 && e[6] !== null) {
                     //datum.sample_raw[i] = e[6]/avg_area;
                     //const norm = norm_val(e[6], min_area, max_area)*avg_area;
                     let norm = norm_val(e[6], min_area, avg_area);//*avg_area;
-                    if( norm > 5.0 ) norm = 2.0;
-                    if( norm < 0.25 ) norm = 0.25;
+                    if (norm > 4.0) norm = 4.0;
+                    if (norm < 1) norm = 1.0;
                     datum.sample_raw[i] = norm;/// > 5.0 ? 5.0 : norm;
                 }
             })
         }
 
-        const geometry = new THREE.CircleBufferGeometry(0.1, 12);
+
+        // const hexagon = new THREE.Mesh(a_geometry, mat);
+        // hexagon.rotateX(Math.PI / -2);
+        // hexagon.scale.set(0.050, 0.050, 0.050);
+
+        const geometry = make_hexagonal_shape(vars.point_scale);
+        //const geometry = new THREE.CircleBufferGeometry(vars.point_scale, 16);
+
         geometry.deleteAttribute('uv');
         geometry.deleteAttribute('normal');
         const material = new THREE.MeshBasicMaterial({
             color: 0xFFFFFF,
             side: THREE.FrontSide,
             transparent: true,
-            opacity:0.5,
+            opacity: 0.5,
             blending: THREE.AdditiveBlending,
             depthWrite: false,
         });
@@ -970,9 +1058,10 @@ function plot_data(obj) {
         const instance = new THREE.InstancedMesh(geometry, material, datum.len);
         instance.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         instance.name = obj.name;
+
         if (obj.name === 'protected_no_geom') {
             instance.userData.type = 'scaled_point';
-        }else{
+        } else {
             instance.userData.type = 'point';
         }
 
@@ -981,14 +1070,10 @@ function plot_data(obj) {
 
 
         if (obj.name === 'wudi') {
-            //["0:A_lat", "1:A_lon", "2:M_lat", "3:M_lon", "4:B_lat", "5:B_lon", "6:geo", "7:eco_region", "8:sample"] (9)
-            // const A = new THREE.Vector3(vars.data[obj.name].raw[i][1], vars.data[obj.name].raw[i][0], 0.0);
-            // const B = new THREE.Vector3(vars.data[obj.name].raw[i][5], vars.data[obj.name].raw[i][4], 0.0);
-            // datum.position = [];
-            // datum.rotation = [];
+            instance.visible = false;
 
             const wudi_down = {
-                name: 'wudi downwelling',
+                name: 'wudi_downwelling',
                 len: 0,
                 color: [],
                 position: [],
@@ -1000,7 +1085,7 @@ function plot_data(obj) {
             }
 
             const wudi_up = {
-                name: 'wudi upwelling',
+                name: 'wudi_upwelling',
                 len: 0,
                 color: [],
                 position: [],
@@ -1065,7 +1150,6 @@ function plot_data(obj) {
         group.name = obj.name;
 
 
-
         vars.data[obj.name].raw.forEach((l_obj, i) => {
             if (i > 0) {
                 if (obj.style === 'mesh' || obj.style === 'line') {
@@ -1077,7 +1161,7 @@ function plot_data(obj) {
                     if (obj.style === 'mesh') {
                         const out_points = exterior.points2;
                         const polygon_shape = new THREE.Shape(out_points);
-                        if(is_complex){
+                        if (is_complex) {
                             const in_shapes = geom_obj.in.map(i => new THREE.Shape(array_to_xy(i).points2));
                             if (in_shapes.length) polygon_shape.holes = in_shapes;
                         }
@@ -1086,15 +1170,20 @@ function plot_data(obj) {
                         element = new THREE.Mesh(geometry, material);
                     } else if (obj.style === 'line') {
                         const geometry = new THREE.BufferGeometry().setFromPoints(exterior.points3);
-                        const material = new THREE.LineBasicMaterial({color: vars.colors[obj.name].select[0]});
+                        const material = new THREE.LineBasicMaterial({
+                            color: vars.colors[obj.name].select[0],
+                            transparent: true
+                        });
                         element = new THREE.Line(geometry, material);
                         element.computeLineDistances();
-                        element.name = `eco${vars.data[obj.name].raw[i][0]}`;
+                        element.name = obj.name;// `eco${vars.data[obj.name].raw[i][0]}`;
                     }
 
                     element.userData.x_coords = exterior.x;
                     element.userData.y_coords = exterior.y;
-                    element.userData.data = {name: obj.name, index: i};
+                    //element.userData.data = {name: obj.name, index: i};
+                    element.userData.index = i;
+
                     element.userData.selected = (state) => {
                         element.material.setValues({color: vars.colors[obj.name].select[+state]});
                         element.position.setZ(+state * 0.01);
@@ -1103,18 +1192,19 @@ function plot_data(obj) {
                     element.geometry.computeBoundingBox();
                     group.add(element);
 
-                }else if (obj.style === 'multi_line') {
+                } else if (obj.style === 'multi_line') {
                     const material = new THREE.LineBasicMaterial({color: vars.colors[obj.name].select[0]});
                     let element;
-                    const batch = coords_from_array(l_obj, -100/vars.depth_max);//.flat(1);
-                    for(let vertices of batch){
-                        if(vertices.length > 9){
+                    const batch = coords_from_array(l_obj, -100 / vars.depth_max);//.flat(1);
+                    for (let vertices of batch) {
+                        if (vertices.length > 9) {
                             const geometry = new THREE.BufferGeometry();
-                            geometry.setAttribute( 'position', new THREE.BufferAttribute( Float32Array.from(vertices), 3 ) );
+                            geometry.setAttribute('position', new THREE.BufferAttribute(Float32Array.from(vertices), 3));
                             element = new THREE.Line(geometry, material);
-                            element.name = `${obj.name}-(${vertices.length})`;
+                            element.name = obj.name;//`${obj.name}-(${vertices.length})`;
                             element.geometry.computeBoundingBox();
-                            element.userData.data = {name: obj.name, index: i};
+                            //element.userData.data = {name: obj.name, index: i};
+                            element.userData.index = i;
                             group.add(element);
                         }
                     }
@@ -1135,7 +1225,19 @@ function plot_data(obj) {
 function init() {
     camera = new THREE.PerspectiveCamera(45, ww / wh, 0.1, 1000);
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(vars.window_color);
+    scene.background = new THREE.Color(vars.colors.window);
+    const utility_color = new THREE.Color();
+
+    let reg_0 = {}
+    scene.background.getHSL(reg_0);
+    utility_color.setHSL(reg_0.h, reg_0.s, reg_0.l * 1.2);
+    vars.colors.eco_regions.select[0] = utility_color.getHex();
+    utility_color.setHSL(reg_0.h, reg_0.s, reg_0.l * 1.5);
+    vars.colors.eco_regions.select[1] = utility_color.getHex();
+
+    vars.colors.iso_bath.select = vars.colors.eco_regions.select;
+    //mat.setValues({color: vars.colors.eco_regions.select[1]});
+
 
     vars.user.group = new THREE.Group();
     map_sectors_group = new THREE.Group();
@@ -1200,6 +1302,7 @@ function init() {
     //vars.user.group.visible = false;
 
     stats = new Stats();
+    stats.dom.style.opacity = 0.2;
     document.body.appendChild(stats.dom);
 
     map_container = make_map_container(vars.map.test_bounds);
@@ -1271,6 +1374,7 @@ animate();
 
 const obj_list = [
     {url: './data/raw-wudi-9.txt', type: 'csv_text', name: 'wudi', columns: 9, style: 'point', geom_index: [3, 2]},
+    {url: './req', type: 'csv_text', name: 'random-names', columns: 4, style: 'none'},
     {url: './data/raw-protected-15.txt', type: 'csv_text', name: 'protected_no_geom', style: 'point', columns: 15, geom_index: 12},
     {url: './data/raw-georegions-11.txt', type: 'csv_text', name: 'eco_regions', columns: 11, style: 'line', geom_index: 10, is_complex: true},
     {url: './data/raw-isobath-100m-1.txt', type: 'csv_text', name: 'iso_bath', columns: 1, style: 'multi_line', geom_index: 0}

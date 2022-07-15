@@ -12,6 +12,7 @@ const wudi_router = require('./routes/wudi');
 app.use(serveStatic('static'));
 
 app.use(express.json());
+// app.use(express.raw());
 app.use('/req', api_router);
 app.use('/wudi', wudi_router);
 

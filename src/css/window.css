@@ -1,7 +1,8 @@
-body, html{
+body{
 	background-color: #0f1621;
 	/*background-color: #1d2733;*/
 }
+
 svg {
 	display: block;
 }
@@ -355,29 +356,46 @@ svg {
 
 	/*color:rgba(120,120,120);*/
 	/*background-color: rgba(120,120,120,0.1);*/
-	color:blue;
-	background-color:  #0f1621;
+	/*background-color:  #0f1621;*/
 	pointer-events: none;
 }
 
 .info-style{
 	position:absolute;
-	opacity:0.75;
 	pointer-events: none;
-	background-color: #0f1621EE;
-	padding:4px;
+	/*padding:0 6px 3px;*/
+	/*border: 1px blue dotted;*/
+	border: 1px green dotted;
+	border-radius: 4px;
+	max-width: 200px;
 }
+
 
 /*.info-style:hover{*/
 /*	opacity:1.0;*/
 /*}*/
 
-.info-style .info-head{
-	font-size: 0.75em;
-	line-height: 0.75em;
+.info-style .info-temp{
+	display: none;
 }
 
-.info-style .info-body{
+.info-style .info-section{
+	/*border: 1px blue dotted;*/
+	padding:0 6px;
+}
+
+.info-section:not(:only-child, :last-child) {
+	border-bottom: 1px green dotted;
+}
+
+
+.info-style .info-head{
+	font-size: 0.75em;
+	line-height: 1.3em;
+}
+
+.info-style .info-text{
 	font-size: 0.3em;
+	padding-bottom:2px;
 	/*line-height: 0.75em;*/
 }
