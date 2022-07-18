@@ -82,6 +82,7 @@ def value_in_place(s):
     return list(map(value_in_place, s)) if isinstance(s, list) else value_from_list(s)
 
 
+# VALUE CLEANER FOR TEXT-ASSETS
 def value_cleaner(obj, decimal_places=4, special_poly=None):
     # global format
     obj_cls = obj.__class__
@@ -102,7 +103,6 @@ def value_cleaner(obj, decimal_places=4, special_poly=None):
 
     if obj_cls == List or obj_cls == tuple or obj_cls == list:
         obj_str = value_in_place(obj)
-        #obj_str = '[{:s}]'.format(','.join([value_from_list(x, f_fmt) for x in obj]))
 
     if obj_cls == np.ndarray:
         float_fmt = ['float64', 'float32']
@@ -123,8 +123,50 @@ def value_cleaner(obj, decimal_places=4, special_poly=None):
         print('no cleaner for', str(obj.__class__))
         return 'null'
     else:
-        print(obj_str)
+        #print(obj_str)
         return obj_str
+
+
+def db_value_floated(obj, fmt):
+    #print(obj.__class__.__name__)
+    if obj.__class__ == int:
+        return str(obj)
+    elif obj.is_integer():
+        return str(int(obj))
+    elif np.isnan(obj):
+        return 'null'
+    else:
+        return fmt.format(obj)
+
+
+def db_make_title(string):
+    return string.title()
+
+
+def db_value_cleaner(obj, precision, o_type):
+    obj_cls = obj.__class__
+    obj_str = None
+    formatter['set'] = '{:.%if}' % precision
+    fmt = formatter['set']
+    #print(obj.__class__.__name__)
+
+    if obj_cls == Point:
+        cale = [round(obj.x, precision), round(obj.y, precision)]
+        return ",".join([fmt.format(c) for c in cale])
+
+    if obj_cls == list:
+        if o_type == 'number':
+            return ",".join([db_value_floated(c, fmt) for c in obj])
+        if o_type == 'string':
+            return ",".join(obj)
+            pass
+
+    if obj_cls == np.ndarray:
+        return ",".join([db_value_floated(c, fmt) for c in obj.tolist()])
+
+    if obj_cls == float:
+        return db_value_floated(obj, fmt)
+    #return obj.__class__.__name__+' '+str(arg)
 
 
 def show_progress(item_name, count, total):
@@ -160,28 +202,42 @@ def poly_s_to_list(reso, min_length=0.0) -> List:
     return result
 
 
-def save_asset(asset, file_name):
+def save_asset(asset, file_name, alt_path=None):
     class_name = type(asset).__name__.split('.')[-1]
     print(class_name, type(asset))
-    path, status = None, None
+    asset_path, path, status = None, None, None
+
+    if alt_path is None:
+        asset_path = conf.assets_path
+    else:
+        asset_path = alt_path
+
+    if type(asset) in [np.ndarray, np.array]:
+        path = os.path.join(asset_path, f"{file_name}-{class_name}.npy")
+        np.save(str(path), asset, allow_pickle=True)
+
+    if type(asset) in [np.ma.core.MaskedArray]:
+        path = os.path.join(asset_path, f"{file_name}-{class_name}.npy")
+        b = {'data': asset}
+        np.save(str(path), b, allow_pickle=True)
 
     if type(asset) in [pd.DataFrame, gpd.GeoDataFrame]:
-        path = os.path.join(conf.assets_path, f"{file_name}-{class_name}.pkl")
+        path = os.path.join(asset_path, f"{file_name}-{class_name}.pkl")
         asset.to_pickle(path)
 
     if type(asset) in [list, MultiPolygon]:
-        path = os.path.join(conf.assets_path, f"{file_name}-{class_name}.pkl")
+        path = os.path.join(asset_path, f"{file_name}-{class_name}.pkl")
         with open(path, "wb") as file:
             pickle.dump(asset, file, pickle.HIGHEST_PROTOCOL)
 
     if type(asset) is dict:
-        path = os.path.join(conf.assets_path, f"{file_name}-{class_name}.json")
+        path = os.path.join(asset_path, f"{file_name}-{class_name}.json")
         with open(path, "w") as file:
             json.dump(asset, file, cls=JsonSafeEncoder)  #, indent=2,
 
     if path is not None:
         status = f"{str(datetime.now())}\n{path} {os.path.getsize(path)/1000}k\n"
-        with open(os.path.join(conf.assets_path, 'history.txt'), 'a+') as history:
+        with open(os.path.join(asset_path, 'history.txt'), 'a+') as history:
             history.write(status)
 
     print(status)
@@ -222,6 +278,7 @@ def simplify_multi_poly(source_poly, f_range=None) -> tuple:
         ]
 
     return poly_levels, mod_trace
+
 
 
 #//should accept list of dict of attributes and shapes. kinda brill atm.

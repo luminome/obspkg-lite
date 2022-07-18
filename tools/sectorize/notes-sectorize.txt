@@ -1,3 +1,44 @@
+optimizing adds to dbs
+# https://hakibenita.com/fast-load-data-python-postgresql
+# https: // sqlite.org / forum / info / b8770e83b1e011d4
+#(*) https://github.com/avinassh/fast-sqlite3-inserts/blob/009694f3dc1e6dd9d6caa6f57a8d5fd9432f4f83/sqlite3_opt_batched.py
+
+
+
+
+
+Comment utiliser les WUDI ?
+On considère les seuils suivants pour qualifier un jour d'up/downwelling:
+
+UPWthr = 0.4325 (cad si WUDI >= UPWthr, alors on considère qu'il y a un upwelling)
+DNWthr = -0.3905 (cad si WUDI <= DNWthr, alors on considère qu'il y a un downwelling)
+
+Typiquement pour les cartes, il s'agira donc de calculer le nombre de jours moyen par an au dessus/en dessous des seuils UPW/DNW.
+
+
+
+
+
+
+
+
+now make synthetics
+https://www.sqlite.org/queryplanner.html (indexing)
+
+CREATE INDEX dates ON point_data(time_code);
+CREATE INDEX points ON point_data(point_id);
+CREATE INDEX time_codes ON time_data(time_code);
+CREATE INDEX attr_codes ON time_data(attr);
+CREATE INDEX point_time_codes ON point_time_data(time_code);
+
+CREATE VIEW synthetic AS SELECT point_data.time_code, point_data.json FROM point_data
+
+
+
+
+
+
+
 sectorize package loads data and formats it to sectors.
 
 LINKS:

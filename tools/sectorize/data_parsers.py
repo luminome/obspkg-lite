@@ -5,6 +5,8 @@ import os
 from itertools import groupby
 from operator import itemgetter
 from typing import List
+from pathlib import Path
+from cftime import num2date
 
 import fiona
 import geopandas as gpd
@@ -139,6 +141,7 @@ def parse_protected_regions() -> (pd.DataFrame, pd.DataFrame):
         return {'protected': elements_all, 'eco_regions_mapamed': regions_all}
 
     tables, country_data = load_sources()
+
     ref_table = regions_parse(tables, country_data)
 
     protected_df = pd.json_normalize(ref_table['protected'])
@@ -156,15 +159,216 @@ def parse_places() -> pd.DataFrame:
     return places
 
 
+#———————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+def parse_wudi_timeseries():
+    new_fn = os.path.join(conf.data_path, 'wudi_rev_2/WUDI_daily_1979-2020/WUDI_v2/WUDI_daily_1979-2020_v2.nc')
+    ds = nC.Dataset(new_fn)
+    print(list(ds.variables))
+
+    #GET WUDI as day-up or day-down (1,-1) ARRAY or fallback to create it from 'ds' dataset
+    def get_vectorized_wudi():
+        vectorized_file_path = os.path.join(conf.assets_path, 'wudi-vectorized-ndarray.npy')
+        if os.path.exists(vectorized_file_path):
+            vectorized = np.load(vectorized_file_path, None, True)
+        else:
+
+            def kool_aid(k):
+                if k >= conf.wudi_UPWthr:
+                    return 1.0
+                elif k <= conf.wudi_DNWthr:
+                    return -1.0
+                else:
+                    return 0.0
+
+            source = ds['WUDI'][:, :]
+            print('get_vectorized_wudi np.vectorize ...', source.size)
+            vectorized_kool = np.vectorize(kool_aid)
+            vectorized = vectorized_kool(source)
+            vectorized = np.ma.getdata(vectorized)
+            util.save_asset(vectorized, 'wudi-vectorized')
+        return vectorized
+
+    #GET TIMES ARRAY or fallback to create it from 'ds' dataset
+    def get_times():
+        times_file_path = os.path.join(conf.assets_path, 'wudi-time-index-ndarray.npy')
+        if os.path.exists(times_file_path):
+            valid_dates = np.load(times_file_path, None, True)
+        else:
+            times_static = []
+            for n in range(ds['time'].size):
+                n_date = num2date(ds['time'][n], units=ds['time'].units, calendar=ds['time'].calendar, has_year_zero=True)
+                times_static.append([n_date.year, n_date.month, n_date.day])
+                util.show_progress('parse_wudi_timeseries', n, ds['time'].size)
+            valid_dates = np.array(times_static)
+            util.save_asset(valid_dates, 'wudi-time-index')
+        return valid_dates
+
+    times = get_times()
+    daily = get_vectorized_wudi()
+
+
+    t_years = np.unique(times[:, 0])
+    t_months = [e+1 for e in range(12)]
+    t_days = [e+1 for e in range(31)]
+
+    def get_events_meta(source) -> np.ndarray:
+        def get_events(dailies, accumulator):
+            rtx = None
+            rtq = np.zeros(dailies.shape[1], dtype=np.int32)
+            rng = len(dailies)
+            for t in range(rng):
+                if t > 0:
+                    rtq = np.add(rtq, rtx, where=rtx == dailies[t])
+                    prc = np.where(rtx != dailies[t])
+                    rtq[prc[0]] = 0
+                    fin = np.where(np.abs(rtq) == conf.wudi_event_num_days - 1)
+                    if fin[0].any():
+                        accumulator[t] = fin
+                rtx = dailies[t]
+                util.show_progress('get_events_meta', t, rng)
+            return accumulator
+
+        kpt = np.ndarray((source.shape[0],), dtype=object)
+        return get_events(source, kpt)
+
+    def reset_data():
+        new_datum = {
+            'meta': {
+                'df': pd.DataFrame({
+                    'time': pd.Series(dtype='int'),
+                    'size': pd.Series(dtype='int'),
+                    'up_max': pd.Series(dtype='int'),
+                    'up_mean': pd.Series(dtype='int'),
+                    'down_max': pd.Series(dtype='int'),
+                    'down_mean': pd.Series(dtype='int')}),
+                'len': 0
+            },
+            'points': {
+                'df': pd.DataFrame({
+                    'time': pd.Series(dtype='int'),
+                    'point': pd.Series(dtype='int'),
+                    'up_max': pd.Series(dtype='int'),
+                    'down_max': pd.Series(dtype='int'),
+                    'raw': pd.Series(dtype='object'),
+                    'events': pd.Series(dtype='object')}),
+                'len': 0
+            },
+            'rawdata': {
+                'df': pd.DataFrame({
+                    'time': pd.Series(dtype='int'),
+                    'point': pd.Series(dtype='int'),
+                    'raw': pd.Series(dtype='float'),
+                    'events': pd.Series(dtype='int')}),
+                'len': 0
+            },
+            'obs_count': 0
+        }
+        return new_datum
+
+    def traverse(events=None, style=None):
+        datum = reset_data()
+
+        def save_line(df_name, array_obj):
+            df = datum[df_name]
+            df['df'].loc[df['len']] = array_obj
+            df['len'] += 1
+            print('\r obs', datum['obs_count'], end='')
+            datum['obs_count'] += 1
+
+        def event_fmt(evt, t_month):
+            lt = [str(times[evt[0]][1]).zfill(2), str(times[evt[0]][2]).zfill(2), str(evt[2] + 1)]
+            if t_month is not None:
+                lt = lt[2:]
+            return int(''.join(lt))
+
+        def observe(t_year, t_month=None, t_day=None):
+            if t_day:
+                indices = np.where((times[:, 0] == t_year) & (times[:, 1] == t_month) & (times[:, 2] == t_day))
+            elif t_month:
+                indices = np.where((times[:, 0] == t_year) & (times[:, 1] == t_month))
+            else:
+                indices = np.where(times[:, 0] == t_year)
+
+            long = len(indices[0])
+
+            if long:
+                ref = [t_year, t_month, t_day]
+                time_record = ''.join([str(n).zfill(2) for n in ref if n is not None])
+                wudi_at_time = daily[indices[0], :]
+                pos_sum = np.sum(wudi_at_time, where=wudi_at_time > 0, axis=0, dtype=np.int32)
+                neg_sum = np.sum(wudi_at_time, where=wudi_at_time < 0, axis=0, dtype=np.int32)
+                events_rst = [[i, events[i], n] for n, i in enumerate(indices[0]) if events[i] is not None]
+
+                #if t_day is None:
+                upmax = np.nanmax(pos_sum)
+                upmin = np.nanmean(pos_sum, dtype=np.int32)
+                downmax = np.nanmin(neg_sum)
+                downmin = np.nanmean(neg_sum, dtype=np.int32)
+                save_line('meta', [int(time_record), long, upmax, upmin, downmax, downmin])
+
+                raw_values = ds['WUDI'][indices[0], :]
+                upmax = np.nanmax(np.where(raw_values >= 0, raw_values, np.nan), axis=0)
+                downmax = np.nanmin(np.where(raw_values <= 0, raw_values, np.nan), axis=0)
+                upmean = np.nanmean(np.where(raw_values >= 0, raw_values, np.nan), axis=0)
+                downmean = np.nanmean(np.where(raw_values <= 0, raw_values, np.nan), axis=0)
+
+                for n in range(pos_sum.shape[0]):
+                    t_evt = [event_fmt(i, t_month) for i in events_rst if np.any(n == i[1][0])]
+                    save_line('points', [int(time_record), n, pos_sum[n], neg_sum[n], [upmax[n], upmean[n], downmax[n], downmean[n]], t_evt])
+
+        def observe_daily(index, d_width):
+            d_time_record = ''.join([str(n).zfill(2) for n in times[index] if n is not None])
+            d_events = events[index]  #events is just a bool on daily.
+            for n in range(d_width):
+                d_event = np.any(n == d_events[0]) if d_events is not None else False
+                save_line('rawdata', [int(d_time_record), int(n), float(ds['WUDI'][index, n]), int(d_event)])
+
+        total = ds['WUDI'].shape[0]
+        width = ds['WUDI'].shape[1]
+        result = 'done'
+        print('total', total)
+
+        def collect_years_months():
+            for year in t_years:
+                datum['points'] = reset_data()['points']
+                observe(year)
+                for month in t_months:
+                    observe(year, month)
+                util.save_asset(datum['points']['df'], 'wudi-v2-point-' + str(year), conf.wudi_assets_path)
+            util.save_asset(datum['meta']['df'], 'wudi-v2-meta', conf.wudi_assets_path)
+
+        def collect_dailies():
+            # batched ? not going to take less time.
+
+            try:
+                for n in range(total):
+                    observe_daily(n, width)
+            except KeyboardInterrupt:
+                pass
+            util.save_asset(datum['rawdata']['df'], 'wudi-v2-raw-data', conf.wudi_assets_path)
+
+        if style is None:
+            collect_years_months()
+        else:
+            collect_dailies()
+
+        return result
+
+
+    get_all_events = get_events_meta(daily)
+    traverse(get_all_events, 'run_dailies')
+
+
 # convert nat's netcdf to pandas dataframe for WUDI data
 # source re-adaptation of /Users/sac/Sites/pythonProject/wudi/tests.py.
 # parse wudi data positions and add selected meta regions.
 def parse_wudi(eco_regions) -> pd.DataFrame:
-    new_fn = os.path.join(conf.data_path, 'WUDI_daily_1979-2020_v1.nc')
+    #new_fn = os.path.join(conf.data_path, 'WUDI_daily_1979-2020_v1.nc')
+    new_fn = os.path.join(conf.data_path, 'wudi_rev_2/WUDI_daily_1979-2020/WUDI_v2/WUDI_daily_1979-2020_v2.nc')
     ds = nC.Dataset(new_fn)
     size = np.array(ds['geo']).size
     print('size:', size)
-    column_values = ['A_lat', 'A_lon', 'M_lat', 'M_lon', 'B_lat', 'B_lon', 'geo', 'eco_region', 'sample']
+    column_values = ['A_lat', 'A_lon', 'M_lat', 'M_lon', 'B_lat', 'B_lon', 'geo', 'eco', 'sample']
     index_values = np.arange(0, size, 1, dtype=int)
     region_field = np.zeros(size, dtype=int)
 
@@ -196,7 +400,7 @@ def parse_wudi(eco_regions) -> pd.DataFrame:
         'B_lat': float,
         'B_lon': float,
         'geo': int,
-        'eco_region': int,
+        'eco': int,
         'sample': float,
     }
 
@@ -462,6 +666,7 @@ def parse_contour_levels(points_data, attributes, depth_range, poly_origin) -> t
 
 
 # partition guides and regions as new DataFrame
+# I think this is for getting all the points in order
 def partition_eco_regions(guides_df, eco_regions_df, geo_names) -> (pd.DataFrame, List):
 
     def check_segment(seg, guide_points):
@@ -599,26 +804,71 @@ def create_connection(db_file):
     return conn
 
 
-def parse_wudi_build_db():
-    table_name = 'test-protected'
+def save_guides_database():
+    table_name = 'guides'
     conn = create_connection(conf.database_path)
-    df = pd.read_pickle(os.path.join(conf.assets_path, 'parsed_protected_regions-DataFrame.pkl'))
-    df = df.drop('geometry', axis=1)
-    df = df.drop('CENTROID', axis=1)
-
-    df['country'] = df.COUNTRY.apply(', '.join)
-    df['region'] = df.MED_REGION.apply(', '.join)
-
-    df = df.drop('COUNTRY', axis=1)
-    df = df.drop('MED_REGION', axis=1)
-
-
+    df = pd.read_pickle(os.path.join(conf.assets_path, 'parsed_guides-DataFrame.pkl'))
     print(df.info())
+    numbers = ['point', 'protected_region', 'eco_region']
+    for c in numbers:
+        df[c] = df[c].apply(util.db_value_cleaner, args=(conf.db_float_precision, 'number',))
+
+    df.to_sql(table_name, conn, if_exists='replace', index=True)
+    conn.close()
+    # for j, e in df.iterrows():
+    #     print(j, e.point, e.protected_region, e.eco_region, e.place)
+
+
+def save_protected_database():
+    table_name = 'protected_regions'
+    conn = create_connection(conf.database_path)
+    df_eco = pd.read_pickle(os.path.join(conf.assets_path, 'parsed_eco_regions-GeoDataFrame.pkl'))
+    df = pd.read_pickle(os.path.join(conf.assets_path, 'parsed_protected_regions-DataFrame.pkl'))
+    # print(df_eco.info())
+
+    # for j, e in df.iterrows():
+    #     d_point = Point([e.CENTROID[0], e.CENTROID[1]])
+    #     ints = [d.name for n, d in df_eco.iterrows() if d.geometry.contains(d_point)]
+    #     print(j, ints)
+    #
+    # exit()
+
+    def save_geoms(g_df):
+        #path to save geometries
+        paths = []
+        s_path = os.path.join(conf.static_data_path, "geoms", "protected")
+        Path(s_path).mkdir(parents=True, exist_ok=True)
+        for index, obj in g_df.iterrows():
+            haste = '"region_geom",{:s}'.format(util.value_cleaner(obj.geometry))
+            f_path = os.path.join(s_path, f"{index}.txt")
+            with open(f_path, "w") as file:
+                file.write(haste)
+            paths.append(os.path.join("./data", "geoms", "protected", f"{index}.txt"))
+        return paths
+
+    df['geom'] = save_geoms(df)
+    df = df.drop('geometry', axis=1)
+
+    mods = [['CENTROID', 'number', 'centroid'], ['COUNTRY', 'string', 'COUNTRY'], ['MED_REGION', 'string', 'MED_REGION']]
+    for m in mods:
+        df[m[2]] = df[m[0]].apply(util.db_value_cleaner, args=(conf.db_float_precision, m[1],))
+
+    df.NAME = df.NAME.apply(util.db_make_title)
+
+    eco_regions = []
+
     for j, e in df.iterrows():
-        print(j,e)
+        d_point = Point([e.CENTROID[0], e.CENTROID[1]])
+        eco_reg = ','.join([str(d.name) for n, d in df_eco.iterrows() if d.geometry.contains(d_point)])
+        if not len(eco_reg):  #stupid hobbitses
+            eco_reg = None
+        eco_regions.append(eco_reg)
+        print(j, eco_reg, e.centroid, e.CENTROID, e.COUNTRY, e.MED_REGION)
 
-    df.to_sql(table_name, conn, if_exists='replace', index=False)
+    df = df.drop('CENTROID', axis=1)
+    df['eco_region'] = eco_regions
 
+    df.to_sql(table_name, conn, if_exists='replace', index=True)
     conn.close()
     pass
 
@@ -662,6 +912,8 @@ def build_guides_attach_data():
 
     util.save_asset(df, 'parsed_guides')
     #df.to_pickle("data/guide_points_w_wudi_places_protected.pkl")
+
+
 
 
 #———————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
@@ -751,6 +1003,7 @@ def tests():
     # #     print(d)
     # # print(eco_regions_df.dtypes)
     # util.save_asset(eco_regions_df, 'parsed_eco_regions_partitioned')
+    # geo_names = pd.read_pickle(os.path.join(conf.assets_path, 'parsed_eco_regions_partitioned-DataFrame.pkl'))
     # ///////////////////////////////////////////////////////////
     # eco_regions_df = pd.read_pickle(os.path.join(conf.assets_path, 'parsed_eco_regions_partitioned-DataFrame.pkl'))
     # plot_instance = {
@@ -854,8 +1107,94 @@ def tests():
     pass
 
 
+def wudi_year_df_wrecker():
+    start_year = 1978
+    while True:
+        rpath = os.path.join(conf.wudi_assets_path, f'wudi-v2-point-{start_year}-DataFrame.pkl')
+        if not os.path.exists(rpath):
+            return
+        w_df = pd.read_pickle(rpath)
+        print(start_year)
+        print(w_df.info())
+        start_year += 1
+
+
 if __name__ == '__main__':
+    # wudi_year_df_wrecker()
+    # exit()
+    #
+    #
+    # parse_wudi_timeseries()
+    # exit()
+
+    #parts = pd.read_pickle(os.path.join(conf.wudi_assets_path, 'wudi-v2-point-1978-DataFrame.pkl'))
+    parts = pd.read_pickle(os.path.join(conf.wudi_assets_path, 'wudi-v2-raw-data-DataFrame.pkl'))
+    print(parts.info())
+    for j, e in parts.iterrows():
+        print(j, list(e))
+
+    exit()
+    #
+    # # from datetime import date
+    # # d = date(0000, 1, 1).toordinal() + 1721425
+    # # print(d)
+    # # def kool_aid(k):
+    # #     if k >= conf.wudi_UPWthr:
+    # #         return 1.0
+    # #     elif k <= conf.wudi_DNWthr:
+    # #         return -1.0
+    # #     else:
+    # #         return 0.0
+    #
+    # ktest = np.random.rand(8, 12)
+    # ktest *= 2.0
+    # ktest -= 1.0
+    # print(ktest)
+    # print('')
+    #
+    #
+    #
+    # min = np.nanmin(ktest, axis=0)
+    # print(min)
+    # print('')
+    # print(np.nanmean(min))
+    # print(ktest.shape)
+    #
+    # up_or_down = np.vectorize(kool_aid, otypes=[np.int32])(ktest)
+    # print(up_or_down)
+
+    #
+    # def get_events(vast):
+    #     events = []
+    #     rtx = None
+    #     rtq = np.zeros(vast.shape[1], dtype=np.int32)
+    #     for t in range(len(vast)):
+    #         if t > 0:
+    #             rtq = np.add(rtq, rtx, where=rtx == vast[t])
+    #             prc = np.where(rtx != vast[t])
+    #             rtq[prc[0]] = 0
+    #             fin = np.where(np.abs(rtq) == conf.wudi_event_num_days-1)
+    #             if fin[0].any():
+    #                 events.append([t, fin])
+    #         rtx = vast[t]
+    #     return events
+    #
+    # print(get_events(up_or_down))
+
+    # pos_sum = np.sum(up_or_down, where=up_or_down > 0, axis=0, dtype=np.int32)
+    # neg_sum = np.sum(up_or_down, where=up_or_down < 0, axis=0, dtype=np.int32)
+    # print(pos_sum)
+    # print(neg_sum)
+    # #parse_wudi_timeseries()
+
+    # parts = pd.read_pickle(os.path.join(conf.assets_path, 'parsed_eco_regions_partitioned-DataFrame.pkl'))
+    # print(parts.info())
+    # for j, e in parts.iterrows():
+    #     print(j, list(e))
+    #save_protected_database()
+
     #tests()
 
-    parse_wudi_build_db()
+    #parse_wudi_build_db()
+
     pass
