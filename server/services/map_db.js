@@ -1,6 +1,6 @@
 const path = require('path');
 const Sqlite = require("better-sqlite3");
-const db = new Sqlite(path.resolve('data-resources/wudi.db'), {fileMustExist: true});
+const db = new Sqlite(path.resolve('data-resources/obspkg_map.db'), {fileMustExist: true});
 
 function query(sql, params) {
   return db.prepare(sql).all(params);

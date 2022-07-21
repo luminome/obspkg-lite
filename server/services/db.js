@@ -1,6 +1,6 @@
-const sqlite = require('better-sqlite3');
+const Sqlite = require('better-sqlite3');
 const path = require('path');
-const db = new sqlite(path.resolve('data-resources/sample.db'), {fileMustExist: true});
+const db = new Sqlite(path.resolve('data-resources/sample.db'), {fileMustExist: true});
 
 function query(sql, params) {
   return db.prepare(sql).all(params);

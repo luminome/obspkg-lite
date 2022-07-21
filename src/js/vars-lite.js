@@ -9,7 +9,7 @@ const vars = {
 	levels:5,
 	min_zoom:0.125,
 	layers:{
-		allow:['line_strings'] ///, 'contours'] ///'polygons',
+		allow:['line_strings'] //;//, 'contours'] ///, 'contours'] ///'polygons',
 	},
 	map:{
 		test_bounds: [-7.0, 29.0, 37.0, 49.0]
@@ -37,7 +37,7 @@ const vars = {
 		contours:{
 			type: 'LineBasicMaterial',
 			dict: {
-				color: 0x00AA00
+				color: 0x000033
 			}
 		},
 		line_strings:{
@@ -65,8 +65,9 @@ const vars = {
 			return alpha === null ? '#'+c.toString(16) : '#'+c.toString(16)+(Math.round(alpha*255).toString(16))
 		}
 	},
-	bar_scale: 0.5,
-	point_scale:0.025
+	bar_scale: 0.025,
+	point_scale:0.025,
+	wudi_point_scale:0.01
 }
 
 export {vars}

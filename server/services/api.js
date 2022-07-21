@@ -3,9 +3,7 @@ const config = require('../config');
 
 function get_all(key=null, value=null) {
 	data = db.query(`SELECT * FROM datum ORDER by id`,[]);
-	
   	const meta = {key, value};
-
   	return {
     	data,
     	meta

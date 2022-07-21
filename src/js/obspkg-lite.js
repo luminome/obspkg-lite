@@ -5,6 +5,7 @@ import {dragControls} from './drags.js';
 import {keyControls} from './keys.js';
 import * as util from './obspkg-lite-util.js';
 import {loader as fetchAll} from './data-loader.js';
+import {post_loader as fetchPOST} from './data-loader.js';
 import {norm_val, title_case} from "./obspkg-lite-util.js";
 // import {Line2} from 'three/examples/jsm/lines/Line2.js';
 // import {LineMaterial} from "three/examples/jsm/lines/LineMaterial";
@@ -276,6 +277,8 @@ cube.rotateX(Math.PI / -2);
 cube.updateMatrix();
 cube.userData.originalMatrix = cube.matrix.clone();
 
+const utility_color = new THREE.Color();
+
 const instance_dummy = new THREE.Object3D();
 
 const ray_caster = new THREE.Raycaster();
@@ -505,40 +508,57 @@ function rayIntersectionWithXZPlane(rayOrigin, rayDirection, planeY) {
     return new THREE.Vector3(xIntersect, planeY, zIntersect);
 }
 
+function apply_adaptive_scale(inst, v, v_lim, index){
+    inst.getMatrixAt(index, mu);
+    mu.decompose(vw, qu, vu);
+    const value = (v / v_lim);
+    vu.setZ(value * vars.bar_scale);
+    mu.compose(vw, qu, vu);
+    inst.setMatrixAt(index, mu);
+    utility_color.fromArray(inst.userData.td.base_color).multiplyScalar(Math.abs(value));
+    inst.setColorAt(index, utility_color.clone());
+}
+
 function adaptive_scaling_wudi() {
     const wudi = scene.getObjectByName('wudi');
     if (wudi && wudi.children.length) {
-        //insane re-normalization technique MAYBE
-        const shred = wudi.children[0].userData.td.position.reduce((st, p, n) => {
-            vw.fromArray(p);
-            map_container.localToWorld(vw);
-            if (camera_frustum.containsPoint(vw)) {
-                st.index.push(n);
-                st.samp.push(wudi.children[0].userData.td.sample_raw[n]);
-            }
-            return st;
-        }, {index: [], samp: []});
 
-        const shred_lim = [Math.min(...shred.samp), Math.max(...shred.samp)]
-        shred.index.map((s, i) => {
-            const si = +(shred.samp[i] > 0);
-            const index = wudi.children[si + 1].userData.td.indices.indexOf(s);
-            if (index !== -1) {
-                wudi.children[si + 1].getMatrixAt(index, mu);
-                mu.decompose(vw, qu, vu);
-                vu.setZ((shred.samp[i] / shred_lim[si]) * vars.bar_scale);
-                mu.compose(vw, qu, vu);
-                wudi.children[si + 1].setMatrixAt(index, mu);
-                //return [s, index, si, shred_lim[si], shred.samp[i], vu]
+        const test = wudi.children[0].userData.td;
+        let index;
+        let cherf = 0;
+        const visible = {set:[],up:[],down:[]};
+        for(let c = 0; c < test.position.length; c++){
+            index = vars.data.wudi_index[c];
+            vw.fromArray(test.position[c]);
+            map_container.localToWorld(vw);
+            //#//TODO make depend on distance from view also.
+            if (camera_frustum.containsPoint(vw)) {
+                visible.set.push([c, index, cherf]);
+                visible.up.push([vars.data.wudi_data.current[index][0]]);
+                visible.down.push([vars.data.wudi_data.current[index][1]]);
+                cherf++;
             }
-        });
-        wudi.children[1].instanceMatrix.needsUpdate = true;
-        wudi.children[2].instanceMatrix.needsUpdate = true;
+        }
+
+        const wudi_up = scene.getObjectByName('wudi_up');
+        const wudi_down = scene.getObjectByName('wudi_down');
+        const lim = [Math.max(...visible.up), Math.min(...visible.down)];
+
+        for(let v of visible.set){
+            apply_adaptive_scale(wudi_up, visible.up[v[2]], lim[0], v[0]);
+            apply_adaptive_scale(wudi_down, visible.down[v[2]], lim[1], v[0]);
+        }
+
+        wudi_up.instanceMatrix.needsUpdate = true;
+        wudi_up.instanceColor.needsUpdate = true;
+        wudi_down.instanceMatrix.needsUpdate = true;
+        wudi_down.instanceColor.needsUpdate = true;
+        
     }
 }
 
 function interactionAction() {
-    //#//basic touches called by translateAction -> move
+    //basic touches called by translateAction -> move
     ray_caster.setFromCamera(vars.user.mouse.raw, camera);
     const intersects = ray_caster.intersectObjects(scene.children, true);
 
@@ -555,16 +575,18 @@ function interactionAction() {
                 text: 'isobath 100m ' + index
             }
         },
-        wudi: (index = null) => {
+        wudi_points: (index = null) => {
+            const data_index = vars.data.wudi_index[index];
+            const d_value = vars.data.wudi_data.current[data_index].toString();
             return {
-                text: 'wudi point ' + index
+                text: 'wudi point ' + index  + ' g' + vars.data.wudi_points.raw.data[index][6] + '</br>' + d_value
             }
         },
-        wudi_upwelling: (index = null) => {
-            return filter.wudi(index);
+        wudi_up: (index = null) => {
+            return filter.wudi_points(index);
         },
-        wudi_downwelling: (index = null) => {
-            return filter.wudi(index);
+        wudi_down: (index = null) => {
+            return filter.wudi_points(index);
         },
         eco_regions: (index = null) => {
             return {
@@ -580,14 +602,14 @@ function interactionAction() {
         let name = null;
         let instance_id = null;
         for (let i = 0; i < len; i++) {
-            if (ints[i].object.name.length) {
+            if (ints[i].object.name.length && ints[i].object.visible) {
                 name = ints[i].object.id;
                 if (ints[i].hasOwnProperty('instanceId')) instance_id = ints[i].instanceId;
                 if (ids.indexOf(name) === -1 && ids.indexOf(instance_id) === -1) {
                     let index = null;
-                    if (instance_id) {
-                        const r = ints[i].object.userData.td.indices;
-                        index = r ? r[instance_id] : instance_id;
+                    if (instance_id != null) {
+                        const r = ints[i].object.userData.td.index;
+                        index = instance_id;///r ? r[instance_id] : instance_id;
                     } else {
                         index = ints[i].object.userData.index;
                     }
@@ -943,7 +965,7 @@ function draw_data_instanced(instances_group) {
                 if (instance.userData.type === 'bar') {
                     instance_dummy.rotation.z = instance.userData.td.rotation[i];
                     instance_dummy.scale.x = instance.userData.td.scale[i];
-                    instance_dummy.scale.z = Math.sign(instance.userData.td.sample[i]);
+                    instance_dummy.scale.z = Math.sign(instance.userData.td.value[i]);
                 }
                 instance_dummy.updateMatrix();
                 color.fromArray(instance.userData.td.color[i], 0);
@@ -952,20 +974,20 @@ function draw_data_instanced(instances_group) {
             }
             instance.instanceMatrix.needsUpdate = true;
             instance.instanceColor.needsUpdate = true;
-            console.log(instance.name, "instance", instance);
         }
     }
 }
 
+//#//TOT CUT THIS BACK
 function plot_data(obj) {
-    const keys = vars.data[obj.name].raw[0];
-    console.log(keys.map((k, i) => {
-        return `${i}:${k}`
-    }));
+    // const keys = vars.data[obj.name].raw[0];
+    // console.log(keys.map((k, i) => {
+    //     return `${i}:${k}`
+    // }));
     let group;
     let is_instance = false;
 
-    console.log('object:', obj);
+    //console.log('object:', obj);
     if (obj.style === 'point') {
         is_instance = true;
         let samples = [];
@@ -1036,7 +1058,6 @@ function plot_data(obj) {
             })
         }
 
-
         // const hexagon = new THREE.Mesh(a_geometry, mat);
         // hexagon.rotateX(Math.PI / -2);
         // hexagon.scale.set(0.050, 0.050, 0.050);
@@ -1067,7 +1088,6 @@ function plot_data(obj) {
 
         instance.userData.td = datum;
         instances.push(instance);
-
 
         if (obj.name === 'wudi') {
             instance.visible = false;
@@ -1218,7 +1238,169 @@ function plot_data(obj) {
         draw_data_instanced(group);
     }
 
+    //
+
+}
+
+function wudi_plot(obj){
+    // points, up_bars, down_bars
+    //#//BASIC POINTS:
+    const group = new THREE.Group();
+    group.name = 'wudi';
+
+    const data = vars.data[obj.name].raw.data;
+    const point_data_td = {
+        len: data.length,
+        visible: false,
+        color: data.map(v => [0.9, 0.5, 0.9]),
+        position: data.map((v) => [v[3], v[2], 0.0]),
+        raw: data.map(v => 0.0),
+        index: data.map(v => v[8]-1),
+    }
+    vars.data.wudi_index = point_data_td.index;
+    //console.log(point_data_td.index);
+
+    const geometry = make_hexagonal_shape(vars.wudi_point_scale); //wudi_point_scale
+    geometry.deleteAttribute('uv');
+    geometry.deleteAttribute('normal');
+    const material = new THREE.MeshBasicMaterial({
+        color: 0xFFFFFF,
+        side: THREE.FrontSide,
+        transparent: true,
+        opacity: 1.0,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+    });
+
+    const instance = new THREE.InstancedMesh(geometry, material, point_data_td.len);
+    instance.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    instance.name = 'wudi_points';
+    instance.userData.type = 'points';
+    instance.userData.td = point_data_td;
+    instance.visible = point_data_td.visible;
+    group.add(instance);
+
+    const bar_instances = [
+        {name:'wudi_down', len: data.length, base_color:[1.0, 0.0, 0.0], visible:true},
+        {name:'wudi_up', len: data.length, base_color:[0.0, 0.0, 1.0], visible:true},
+        {name:'wudi_meta', len: data.length, base_color:[0,0,0], visible:false}
+    ];
+
+    const bar_attributes = ['color','position','rotation','scale','value','raw','index'];
+
+    for(let bar of bar_instances) {
+        for(let a of bar_attributes) bar[a] = [];
+        for (let i = 0; i < data.length; i++) {
+            const A = new THREE.Vector3(data[i][1], data[i][0], 0.0);
+            const B = new THREE.Vector3(data[i][5], data[i][4], 0.0);
+            const angle = Math.atan2(B.y - A.y, B.x - A.x);
+            bar.position.push([A.x, A.y, A.z]);
+            bar.rotation.push(angle.toFixed(5));
+            bar.scale.push(A.distanceTo(B));
+            bar.color.push([0.0,0.0,0.0]);
+            bar.value.push(0.005);
+            bar.raw.push(0.0);
+            bar.index.push(data[i][8]-1);
+        }
+    }
+
+    //#//TODO make y-scale depend on zoom.
+    const bar_geometry = new THREE.BoxBufferGeometry(1, 0.25, 1);
+    bar_geometry.translate(0.5, 0.0, 0.5);
+    bar_geometry.deleteAttribute('uv');
+    bar_geometry.deleteAttribute('normal');
+
+    const bar_material = new THREE.MeshBasicMaterial({
+        color: 0xFFFFFF,
+        side: THREE.FrontSide,
+        transparent: true,
+        opacity: 1.0,
+        blending: THREE.AdditiveBlending, //THREE.NormalBlending, //
+        depthWrite: true
+    });
+
+    for (let bar of bar_instances) {
+        const instance = new THREE.InstancedMesh(bar_geometry, bar_material, bar.len);
+        instance.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        instance.name = bar.name;
+        instance.userData.td = bar;
+        instance.userData.type = 'bar';
+        instance.visible = bar.visible;
+        group.add(instance);
+    }
+
+    map_container.add(group);
+
+}
+
+function wudi_set_data(data_obj){
+    console.log(data_obj);
+    //#//updates and draws the instances
+    if(!vars.data.hasOwnProperty('wudi_data')) vars.data.wudi_data = {selected:[], current:[], index:{}};
+    const data = data_obj.raw.data;
+    const meta = data_obj.raw.meta;
+    vars.data.wudi_data[data_obj.tim] = {'data':data, 'meta':meta};
+
+    //
+    //#//this might be a mixin
+    /*
+
+    d_me: -1378
+
+    d_mx: -8912
+
+    siz: 15341
+
+    tim: 40
+
+    u_me: 1037
+
+    u_mx: 9050
+
+     */
+
+    const new_normals = [];//new Array(data.length).fill([0, 0, 0]);
+    data.map(v => new_normals.push([0.0,0.0,0.0]));///[i][2] = d[2]);
+
+    const worker_color = new THREE.Color();
+    const instance_names = ['wudi_up', 'wudi_down'];
+    const limits = [meta.u_mx, meta.d_mx];
+    for(let i = 0; i < instance_names.length; i++){
+
+        const wudi_obj = scene.getObjectByName(instance_names[i]);
+        const base_color = new THREE.Color().fromArray(wudi_obj.userData.td.base_color, 0);
+        const c_hsl = {}
+        base_color.getHSL(c_hsl);
+
+        const data_td = {
+            value: [],
+            color: [],
+            raw: []
+        }
+
+        for(let d = 0; d < data.length; d++){
+            const has_index = wudi_obj.userData.td.index.indexOf(d) !== -1;
+            if(has_index){
+                const value = (data[d][i]/limits[i])*Math.sign(limits[i]); //# normal of days/max_days
+                const color = base_color.clone().multiplyScalar(Math.abs(value)).toArray();
+                //;//worker_color.clone().setHSL(c_hsl.h, c_hsl.s, Math.abs(value)).toArray();
+                data_td.value.push(value);
+                data_td.color.push(color);//(wudi_obj.userData.td.base_color);//(color);
+                data_td.raw.push(value);
+                new_normals[d][i] = value;
+            }
+        }
+
+        Object.keys(data_td).map(k => wudi_obj.userData.td[k] = data_td[k]);
+    }
+
+    vars.data.wudi_data.current = new_normals;
+    console.log(vars.data.wudi_data.current);
+
+    const group = scene.getObjectByName('wudi');
+    draw_data_instanced(group);
     adaptive_scaling_wudi();
+
 
 }
 
@@ -1226,7 +1408,11 @@ function init() {
     camera = new THREE.PerspectiveCamera(45, ww / wh, 0.1, 1000);
     scene = new THREE.Scene();
     scene.background = new THREE.Color(vars.colors.window);
-    const utility_color = new THREE.Color();
+    //scene.fog = new THREE.Fog( vars.colors.window, 0.015, 10 );
+
+    // scene.Fog();
+
+
 
     let reg_0 = {}
     scene.background.getHSL(reg_0);
@@ -1349,19 +1535,26 @@ const fetch_callback = (obj_list) => {
             case 'csv_text':
                 obj.raw = array_chuk(array_auto(obj.raw), obj.columns);
                 vars.data[obj.name] = obj;
+                plot_data(obj);
                 break;
             case 'json':
                 vars.data[obj.name] = obj;
+                plot_data(obj);
+                break;
+            case 'json-ser':
+                if(obj.name === 'wudi_points'){
+                    vars.data[obj.name] = obj;
+                    wudi_plot(obj);
+                }
+                if(obj.name === 'wudi_data') wudi_set_data(obj);
                 break;
             default:
                 console.log(`callback found no data of type ${obj.type}`);
         }
 
-        plot_data(obj);
     });
-    console.log(vars.data);
-    draw_sectors();
-    // do_run_test_plot('wudi', 'point');
+    //console.log(vars.data);
+    //draw_sectors();
 }
 
 // 👉️ START EVERYTHING HERE
@@ -1373,8 +1566,7 @@ animate();
 // draw_sectors();
 
 const obj_list = [
-    {url: './data/raw-wudi-9.txt', type: 'csv_text', name: 'wudi', columns: 9, style: 'point', geom_index: [3, 2]},
-    {url: './req', type: 'csv_text', name: 'random-names', columns: 4, style: 'none'},
+    //{url: './data/raw-wudi-9.txt', type: 'csv_text', name: 'wudi', columns: 9, style: 'point', geom_index: [3, 2]},
     {url: './data/raw-protected-15.txt', type: 'csv_text', name: 'protected_no_geom', style: 'point', columns: 15, geom_index: 12},
     {url: './data/raw-georegions-11.txt', type: 'csv_text', name: 'eco_regions', columns: 11, style: 'line', geom_index: 10, is_complex: true},
     {url: './data/raw-isobath-100m-1.txt', type: 'csv_text', name: 'iso_bath', columns: 1, style: 'multi_line', geom_index: 0}
@@ -1382,5 +1574,22 @@ const obj_list = [
 
 fetchAll(obj_list).then(object_list => fetch_callback(object_list));
 
+let payload = [];
+for(let i = 0; i < 100; i++){
+    payload.push(i);
+}
+
+const post_obj_list = [
+    {"url":"/wudi", "table":"turn_table", "type":"json-ser", "name":"wudi_points", "tck":util.shuffle_array(payload)},
+    {"url":"/wudi", "tim":"40", "type":"json-ser", "name":"wudi_data", "tck":util.shuffle_array(payload)}
+    //{"url":"/map", "table":"guides", "type":"json-ser", "name":"guides", "tck":util.shuffle_array(payload)}
+]
 
 
+fetchPOST(post_obj_list).then(object_list => fetch_callback(object_list)); ///console.log(object_list));///
+
+//wudi is two-fold process
+/*
+location data.
+values data.
+ */

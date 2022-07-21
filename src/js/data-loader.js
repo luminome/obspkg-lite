@@ -2,6 +2,7 @@ function do_callback(callback, value){
 	if (callback && typeof(callback) === "function") callback(value);
 }
 
+
 async function data_loader(resource_tuples, prog_callback) {
 	let container = []
 	resource_tuples.forEach(url => {
@@ -31,8 +32,8 @@ async function data_loader(resource_tuples, prog_callback) {
   return resource_obj;
 }
 
-async function loader(resource_obj_list, prog_callback=null) {
 
+async function loader(resource_obj_list, prog_callback=null) {
 	let container = [];
 
 	resource_obj_list.forEach(obj => {
@@ -56,5 +57,39 @@ async function loader(resource_obj_list, prog_callback=null) {
 	return resource_obj_list;
 }
 
-export {data_loader, loader};
+
+async function post_loader(resource_obj_list, prog_callback=null) {
+	let container = [];
+	resource_obj_list.forEach(obj => {
+		if (prog_callback) do_callback(prog_callback, 1);
+		let ref = fetch(obj.url, {
+			method: 'POST',
+			headers: {
+				'Accept': 'application/json, text/plain, */*',
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify(obj)
+		})
+		.then(res => res.json())
+		.then(function (data) {
+			if (prog_callback) do_callback(prog_callback, -1);
+			return data
+		})
+		.catch((error) => {
+			console.log(error.status, error);
+			return error;
+		})
+		container.push(ref);
+	});
+
+	const done = await Promise.all(container);
+	resource_obj_list.forEach((obj,i) => obj.raw = done[i].data);
+	return resource_obj_list;
+}
+
+
+
+
+
+export {data_loader, loader, post_loader};
 // as default

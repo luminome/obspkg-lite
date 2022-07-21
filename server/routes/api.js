@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const api_service = require('../services/api');
 
+
+
 /* GET quotes listing. */
 router.get('/', function (req, res, next) {
     try {

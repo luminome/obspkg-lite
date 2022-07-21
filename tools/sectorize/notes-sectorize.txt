@@ -15,11 +15,14 @@ DNWthr = -0.3905 (cad si WUDI <= DNWthr, alors on considère qu'il y a un downwe
 
 Typiquement pour les cartes, il s'agira donc de calculer le nombre de jours moyen par an au dessus/en dessous des seuils UPW/DNW.
 
+https://www.sqlite.org/lang_vacuum.html
+"VACUUM"
 
+ALTER TABLE 'protected_regions' DROP 'index';
 
-
-
-
+CREATE INDEX dates ON wudi_daily(tim);
+CREATE INDEX derivative_dates ON wudi_derivative(tim);
+CREATE INDEX derivative_meta_dates ON wudi_derivative_meta(tim);
 
 
 now make synthetics

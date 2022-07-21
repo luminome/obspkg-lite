@@ -2,13 +2,52 @@ DEBUG = True
 
 data_path = '/Users/sac/Sites/obspkg-lite/tools/data'
 
-database_path = '/Users/sac/Sites/obspkg-lite/data-resources/sample.db'
+wudi_database_path = '/Users/sac/Sites/obspkg-lite/data-resources/wudi.db'
+
+database_path = '/Users/sac/Sites/obspkg-lite/data-resources/obspkg_map.db'
 
 static_data_path = '/Users/sac/Sites/obspkg-lite/static/data'
 
 assets_path = '/Users/sac/Sites/obspkg-lite/tools/assets'
 
 wudi_assets_path = '/Users/sac/Sites/obspkg-lite/tools/assets/wudi'
+
+db_tables = {
+    'wudi_daily': """
+            create table IF NOT EXISTS wudi_daily
+            (
+                tim INTEGER,
+                pid INTEGER,
+                raw REAL,
+                evt INTEGER
+            )
+        """,
+    #return_object.append([int(time_record), n, pos_sum[n], neg_sum[n], [up_max[n], up_mean[n], down_max[n], down_mean[n]], t_evt])
+    'wudi_derivative': """
+            create table IF NOT EXISTS wudi_derivative
+            (
+                tim INTEGER,
+                pid INTEGER,
+                u_tl INTEGER,
+                d_tl INTEGER,
+                raw BLOB,
+                e_ct INTEGER,
+                e_ls BLOB
+            )
+        """,
+    #return_object_meta.append([int(time_record), long, up_max, up_mean, down_max, down_mean])
+    'wudi_derivative_meta': """
+        create table IF NOT EXISTS wudi_derivative_meta
+        (
+            tim INTEGER,
+            siz INTEGER,
+            u_mx INTEGER,
+            u_me INTEGER,
+            d_mx INTEGER,
+            d_me INTEGER
+        )
+    """,
+}
 
 
 time_intervals = ['hours', 'minutes', 'seconds']

@@ -148,7 +148,7 @@ def db_value_cleaner(obj, precision, o_type):
     obj_str = None
     formatter['set'] = '{:.%if}' % precision
     fmt = formatter['set']
-    #print(obj.__class__.__name__)
+    print(obj.__class__.__name__)
 
     if obj_cls == Point:
         cale = [round(obj.x, precision), round(obj.y, precision)]
@@ -166,6 +166,9 @@ def db_value_cleaner(obj, precision, o_type):
 
     if obj_cls == float:
         return db_value_floated(obj, fmt)
+
+    if obj_cls == int:
+        return obj
     #return obj.__class__.__name__+' '+str(arg)
 
 
@@ -186,7 +189,6 @@ def normalize_val(val, mi, ma):
 
 
 def get_data_scale_extents(data_packet):
-    d = data_packet['data']
     lo = data_packet['lons']
     la = data_packet['lats']
     return lo[0], la[0]
@@ -278,7 +280,6 @@ def simplify_multi_poly(source_poly, f_range=None) -> tuple:
         ]
 
     return poly_levels, mod_trace
-
 
 
 #//should accept list of dict of attributes and shapes. kinda brill atm.
