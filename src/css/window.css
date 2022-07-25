@@ -147,14 +147,13 @@ svg {
 .row {
 	display: flex;
 	flex-direction: row;
-	/*flex-wrap: wrap;*/
-	width: 100%;
+	flex-wrap: wrap;
 }
 
 .column-label {
 	display: flex;
 	flex-direction: column;
-	flex-basis: 100%;
+	/*flex-basis: 100%;*/
 	flex: 1;
 }
 
@@ -301,18 +300,42 @@ svg {
 
 
 #plot{
-	/*border: 1px red dotted;*/
 	position:relative;
 	top:0;
 	right:0;
 	bottom:80px;
 	left:0;
-	/*display:block;*/
-	/*overflow: auto;*/
-	/*height:auto;*/
-	/*width:auto;*/
-	/*!*margin:10px;*!*/
-	/*!*max-height: 90%;*!*/
+}
+
+#plot_bar{
+	/*border:2px blue dotted;*/
+	width:100%;
+
+}
+
+.time-container{
+	/*border:2px blue dotted;*/
+	padding: 12px 12px 0;
+}
+
+.time-container .time-element{
+	pointer-events: all;
+	font-size: 0.3em;
+	color: cornflowerblue;
+	white-space: nowrap;
+	text-align: center;
+}
+
+.time-container .time-element:not(:only-child, :last-child) {
+	border-right: 1px green dotted;
+}
+
+.time-container .time-element.selected{
+	color: powderblue;
+}
+
+#time_element_temp{
+	display: none;
 }
 
 #overlay{
@@ -337,8 +360,6 @@ svg {
 	font-size: 0.2em;
 	top:0;
 	right:0;
-	/*bottom:40px;*/
-	/*font-size: 0.6em;*/
 	margin-left:4px;
 	margin-right:4px;
 	display:block;
@@ -353,41 +374,28 @@ svg {
 	vertical-align: center;
 	text-align: center;
 	display: block;
-
-	/*color:rgba(120,120,120);*/
-	/*background-color: rgba(120,120,120,0.1);*/
-	/*background-color:  #0f1621;*/
 	pointer-events: none;
 }
 
 .info-style{
 	position:absolute;
 	pointer-events: none;
-	/*padding:0 6px 3px;*/
-	/*border: 1px blue dotted;*/
 	border: 1px green dotted;
 	border-radius: 4px;
 	max-width: 200px;
 }
-
-
-/*.info-style:hover{*/
-/*	opacity:1.0;*/
-/*}*/
 
 .info-style .info-temp{
 	display: none;
 }
 
 .info-style .info-section{
-	/*border: 1px blue dotted;*/
 	padding:0 6px;
 }
 
 .info-section:not(:only-child, :last-child) {
 	border-bottom: 1px green dotted;
 }
-
 
 .info-style .info-head{
 	font-size: 0.75em;
@@ -398,4 +406,8 @@ svg {
 	font-size: 0.3em;
 	padding-bottom:2px;
 	/*line-height: 0.75em;*/
+}
+
+.page-text{
+	padding: 40px;
 }

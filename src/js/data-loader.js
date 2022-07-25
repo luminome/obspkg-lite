@@ -1,22 +1,22 @@
-function do_callback(callback, value){
-	if (callback && typeof(callback) === "function") callback(value);
+function do_callback(callback, value, args=null){
+	if (callback && typeof(callback) === "function") callback(value, args);
 }
 
 
 async function data_loader(resource_tuples, prog_callback) {
 	let container = []
 	resource_tuples.forEach(url => {
-		if(prog_callback) do_callback(prog_callback, 1);
+		if(prog_callback) do_callback(prog_callback, 1, url);
 		let ref = fetch(url[1])
 			.then(response => response.json())
 			.then(function (data) {
 				let obj = {};
 				obj[url[0]] = data;
-				if(prog_callback) do_callback(prog_callback, -1);
+				if(prog_callback) do_callback(prog_callback, -1, url);
 				return obj
 			}).catch(function (error) {
 				console.log(url, error);
-				if(prog_callback) do_callback(prog_callback, -1);
+				if(prog_callback) do_callback(prog_callback, -1, url);
 				return error;
 			});
 		container.push(ref);
@@ -37,12 +37,12 @@ async function loader(resource_obj_list, prog_callback=null) {
 	let container = [];
 
 	resource_obj_list.forEach(obj => {
-		if (prog_callback) do_callback(prog_callback, 1);
+		if (prog_callback) do_callback(prog_callback, 1, obj.url);
 
 		let ref = fetch(obj.url)
 		.then(response => response.text())
 		.then(function (text) {
-			if(prog_callback) do_callback(prog_callback, -1);
+			if(prog_callback) do_callback(prog_callback, -1, obj.url);
 			return obj.type === 'json' ? JSON.parse(text) : text;
 		})
 		.catch((error) => {
@@ -61,7 +61,7 @@ async function loader(resource_obj_list, prog_callback=null) {
 async function post_loader(resource_obj_list, prog_callback=null) {
 	let container = [];
 	resource_obj_list.forEach(obj => {
-		if (prog_callback) do_callback(prog_callback, 1);
+		if (prog_callback) do_callback(prog_callback, 1, obj.url);
 		let ref = fetch(obj.url, {
 			method: 'POST',
 			headers: {
@@ -72,7 +72,7 @@ async function post_loader(resource_obj_list, prog_callback=null) {
 		})
 		.then(res => res.json())
 		.then(function (data) {
-			if (prog_callback) do_callback(prog_callback, -1);
+			if (prog_callback) do_callback(prog_callback, -1, obj.url);
 			return data
 		})
 		.catch((error) => {

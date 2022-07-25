@@ -1,8 +1,11 @@
 const vars = {
 	// window_color: 0x0f1621,
 	static_path:'./data',
+	grid_visible: false,
+	arrow_helper_visible: false,
 	position_marks_visible: false,
 	sector_draw: true,
+	loader_notify_messages: false,
 	degree_scale: 2,
 	degree_scale_str: 'deg_2',
 	depth_max: 5000.0,
@@ -21,7 +24,8 @@ const vars = {
 	view: {
 		width: null,
 		height:null,
-		bottom_offset:60
+		bottom_offset:70,
+		bottom_bar_height:32
 	},
 	data: {},
 	mats: {
@@ -65,9 +69,10 @@ const vars = {
 			return alpha === null ? '#'+c.toString(16) : '#'+c.toString(16)+(Math.round(alpha*255).toString(16))
 		}
 	},
-	bar_scale: 0.025,
-	point_scale:0.025,
-	wudi_point_scale:0.01
+	bar_scale: 0.05,
+	bar_scale_width: 0.5, //0.25,
+	point_scale: 0.025,
+	wudi_point_scale: 0.005,
 }
 
 export {vars}

@@ -6,14 +6,16 @@ const compressor = (query, result) => {
     const replacer = (key, value) => value === null ? '' : value; // specify how you want to handle null values here
     const get_size = (str) => Math.ceil(Buffer.byteLength(str, 'utf8')/1000)+'k';
     const rep_filter = (value) => {
-        //if(value === null) return '';
+        //if(value === null) return value;//'';
         if(typeof value === 'string'){
             if(value.indexOf(",") !== -1) return value.split(",").map((v) => {
                 if(isNaN(v)) return v;
-                return parseFloat(v);
+                return v;
             });
+            if(!value.length) return null;
         }
-        if(!isNaN(value)) return parseFloat(value)
+
+        // if(!isNaN(value)) return parseFloat(value)
         return value;
     }
 

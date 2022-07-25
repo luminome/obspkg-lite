@@ -55,8 +55,12 @@ vars.info = {
             //const pos_x = this.rect.width
             this.screen_position.a.set(x + (this.rect.width / 2) + 10, y);
             this.screen_position.b.copy(this.screen_position.a);
-
         }
+    },
+    drag_position: function(delta_x, delta_y){
+        vw.set(delta_x, delta_y);
+        this.screen_position.a.add(vw);
+        this.screen_position.b.copy(this.screen_position.a);
     },
     set_state: function (bool) {
         this.dom_element.style.display = bool ? 'block' : 'none';
@@ -82,28 +86,60 @@ vars.info = {
 }
 vars.info.init();
 
+vars.selecta = {
+    intersect: null,
+    focus_obj: null,
+    moved: null,
+    wudi: {
+        times: {years:['all'], months:['all'], has_default:'all', selected:[], loaded:[], required:[]},
+        points: [],
+        points_in_view: [],
+        manage: function(type, element=null){
+            this.times.required = [];
+            if(this.times[type].includes(this.times.has_default)) this.times[type] = [];
 
-const coords_from_array = (array, add_z = 0.0) => {
-    const build_coords = (coords_flat) => {
-        let buffer = [];
-        for (let i = 0; i < coords_flat.length; i += 2) {
-            buffer.push(coords_flat[i], coords_flat[i + 1], add_z);
-        }
-        return buffer;
-    }
-
-    let coords = [];
-    for (let a of array) {
-        if (a.length === 1) {
-            coords.push(build_coords(a[0]));
-        } else {
-            for (let b of a) {
-                //console.log(b.some(r => r.length === 1), b);
-                coords.push(build_coords(b));
+            if(element){
+                const pos = this.times[type].indexOf(element.data);
+                if(pos === -1) {
+                    this.times[type].push(element.data);
+                }else{
+                    this.times[type].splice(pos,1);
+                }
             }
+
+            if(this.times[type].length === 0 && !this.times[type].includes(this.times.has_default)){
+                this.times[type].push(this.times.has_default);
+            }
+
+
+            for(let y of this.times.years){
+                if(y !== 'all' && this.times.months[0] === 'all') this.times.required.push(y.toString());
+                for(let m of this.times.months){
+                    const month = y+String(m).padStart(2, '0');
+                    if(m !== 'all') this.times.required.push(month);
+                }
+            }
+
+            this.times.selected = this.times.years[0] === 'all' ? ['all'] : this.times.required;
+
+            this.times.required = this.times.required.filter((t) => !this.times.loaded.includes(t));
+
+            wudi_get_data(this.times.required);
+
+            //obs_handler({'T':Object.entries(this.times)});
+
+            vars.dom_time[type].map((y) => y.set_state(this.times[type].includes(y.data)));
+
         }
+    },
+    eco_region: {
+        hover:null,
+        chosen:null
+    },
+    protected_region:{
+        hover:null,
+        chosen:null
     }
-    return coords;
 }
 
 class Sector {
@@ -203,7 +239,7 @@ class Sector {
                 level: this.level
             }));
             //console.log(this.name, objects_list);
-            fetchAll(objects_list).then(object_list => this.load_layers(object_list));
+            fetchAll(objects_list, loader_notify).then(object_list => this.load_layers(object_list));
         }
         // const objects_list = this.get_src(this.level);
         // if(objects_list.length) fetchAll(objects_list).then(object_list => this.load_layers(object_list));
@@ -226,7 +262,7 @@ class Sector {
         this.objects.plane = plane_line;
 
         const meta_json = [{url: `${this.path}/meta.json`, type: 'json', name: 'meta'}]
-        fetchAll(meta_json)
+        fetchAll(meta_json, loader_notify)
             .then(object_list => this.load_meta(object_list))
             .then(state => {
                 if (state) {
@@ -256,16 +292,91 @@ class Sector {
 
 }
 
-vars.user.mouse.raw = new THREE.Vector3();
+class domTimeElement {
+    constructor(id, time_type, label, data, auto_select=false){
+        this.dom_element = null;
+        this.label = label;
+        this.id = id;
+        this.data = data;
+        this.is_auto_selected = auto_select;
+        this.selected = auto_select;
+        this.type = time_type;
+        this.init();
+        this.set_state(this.selected);
+    }
+
+    init(){
+        const el = document.getElementById('time_element_temp').cloneNode(true);
+        this.dom_element = el;
+        el.innerHTML = this.label;
+        el.setAttribute('id', 'time-'+this.type+'-'+this.id);
+        el.setAttribute('data-id', this.data);
+        el.addEventListener('click', this.dom_select.bind(el, this));
+        document.getElementById(this.type+'_container').appendChild(el);
+        //if(this.is_auto_selected) el.classList.toggle('selected');
+    }
+
+    set_state(bool){
+        this.selected = bool;
+        if(bool){
+            this.dom_element.classList.add('selected');
+        }else{
+            this.dom_element.classList.remove('selected');
+        }
+    }
+
+    dom_select(bound, e){
+        obs_handler(e.target.dataset);
+        vars.selecta.wudi.manage(bound.type, bound);///engage()
+    }
+
+}
+
+vars.dom_time = {
+    years:[],
+    months:[],
+    populate: function(type){
+        if(type === 'years'){
+            const test_time = new domTimeElement(0,'years','ALL 40 YEARS','all', true);
+            this.years.push(test_time);
+            for(let t = 1980; t<2021; t++){
+                const label = "'"+t.toString().substr(2,2);
+                const test_time = new domTimeElement(t,'years',label,t);
+                this.years.push(test_time);
+            }
+            vars.selecta.wudi.manage('years');
+        }else if(type === 'months'){
+            const test_time = new domTimeElement(0,'months','ALL MONTHS','all', true);
+            this.months.push(test_time);
+            for(let t = 1; t<13; t++){
+                const label = String(t).padStart(2, '0');///"'"+t.toString().substr(2,2);
+                const test_time = new domTimeElement(t,'months',label,t);
+                this.months.push(test_time);
+            }
+            vars.selecta.wudi.manage('months');
+        }
+    }
+}
+
+
+
+
+
+
+vars.user.mouse.raw = new THREE.Vector3(0, 0, 0);
+vars.sectors_loaded = false;
+vars.loader_notify = {ct:0, list:[]};
 
 let ww, wh, camera, scene, renderer, stats, gridHelper, cube;
 let map_container, map_plane, visible_dimensions, camera_distance, root_plane, pos_mark_1, pos_mark_2, pos_mark_3, pos_mark_4,
-    arrow_helper, grid_lines, grid_resolution, map_sectors_group, wudi_instances;
-let cam_dot_y, cam_dot_x, cam_dot_z;
+    axes_helper, arrow_helper_1, arrow_helper_2, arrow_helper_3, arrow_helper_4, grid_lines, grid_resolution, map_sectors_group, wudi_instances;
+let cam_dot_y, cam_dot_x, cam_dot_z, camera_scale;
 let active_keys = [];
 let axis_planes = [];
 let pos_marks_array = [];
 let ticks = {};
+
+
 
 const z_mants = [0.25, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0];
 let default_z = 10;
@@ -281,42 +392,71 @@ const utility_color = new THREE.Color();
 
 const instance_dummy = new THREE.Object3D();
 
+const display_array = ['none', 'block'];
+
 const ray_caster = new THREE.Raycaster();
 const cam_base_pos = new THREE.Vector3(0, 0, default_z);
 const cam_pos = new THREE.Vector3(0, 0, 0);
+const camera_projected = new THREE.Vector3(0, 0, 0);
 const vk = new THREE.Vector3(0, 0, 0);
 const vw = new THREE.Vector3(0, 0, 0);
 const vu = new THREE.Vector3(0, 0, 0);
 const vc = new THREE.Vector3(0, 0, 0);
 
+const axis_dir_x = new THREE.Vector3(0, 0, 1);
+const axis_dir_y = new THREE.Vector3(-1, 0, 0);
+
 const mu = new THREE.Matrix4();
-// mu.matrixWorldNeedsUpdate = true;
 
 const qu = new THREE.Quaternion();
 
 const y_up = new THREE.Vector3(0, 1, 0);
 const x_right = new THREE.Vector3(1, 0, 0);
 const z_in = new THREE.Vector3(0, 0, 1);
-const cam_right = new THREE.Vector3();
+const cam_right = new THREE.Vector3(0, 0, 0);
 const mouse_plane_pos = new THREE.Vector3(0, 0, 0);
 const mouse_pos_map = new THREE.Vector3(0, 0, 0);
 
 const user_position = new THREE.Vector3(0, 0, 0);
 const user_position_round = new THREE.Vector3(0, 0, 0);
-const mouseDownCameraPosition = new THREE.Vector3();
-const lastMouseDown = new THREE.Vector3();
-const newMouseDown = new THREE.Vector3();
-const m_ray_origin = new THREE.Vector3();
-const m_ray_pos = new THREE.Vector3();
-const m_ray_dir = new THREE.Vector3();
+const mouseDownCameraPosition = new THREE.Vector3(0, 0, 0);
+
+const lastMouseDown = new THREE.Vector3(0, 0, 0);
+const newMouseDown = new THREE.Vector3(0, 0, 0);
+const m_ray_origin = new THREE.Vector3(0, 0, 0);
+const m_ray_pos = new THREE.Vector3(0, 0, 0);
+const m_ray_dir = new THREE.Vector3(0, 0, 0);
 
 const camera_frustum = new THREE.Frustum();
 const camera_frustum_m = new THREE.Matrix4();
-const axis_markers_count = 15;
+const axis_markers_count = 25;
 
 const plot = document.getElementById('plot');
 const obs = document.getElementById('obs');
 const title = document.getElementById('title');
+
+const coords_from_array = (array, add_z = 0.0) => {
+    const build_coords = (coords_flat) => {
+        let buffer = [];
+        for (let i = 0; i < coords_flat.length; i += 2) {
+            buffer.push(coords_flat[i], coords_flat[i + 1], add_z);
+        }
+        return buffer;
+    }
+
+    let coords = [];
+    for (let a of array) {
+        if (a.length === 1) {
+            coords.push(build_coords(a[0]));
+        } else {
+            for (let b of a) {
+                //console.log(b.some(r => r.length === 1), b);
+                coords.push(build_coords(b));
+            }
+        }
+    }
+    return coords;
+}
 
 const array_to_xy = (arr) => {
     let points2 = [];
@@ -372,7 +512,13 @@ const visibleAtZDepth = (depth, camera) => {
 };
 
 function obs_handler(obj) {
-    let lex = Object.entries(obj).map(e => `${e[0]}: ${e[1]}`);
+    let lex = Object.entries(obj).map(e => {
+        if(Array.isArray(e[1])){
+            return `${e[0]}</br> ${e[1].join('</br>')}`
+        }else{
+            return `${e[0]}: ${e[1]}`
+        }
+    });
     obs.innerHTML = lex.join('</br>');
 }
 
@@ -509,24 +655,29 @@ function rayIntersectionWithXZPlane(rayOrigin, rayDirection, planeY) {
 }
 
 function apply_adaptive_scale(inst, v, v_lim, index){
+    //#//TODO must re-normalize to scale.
     inst.getMatrixAt(index, mu);
     mu.decompose(vw, qu, vu);
     const value = (v / v_lim);
     vu.setZ(value * vars.bar_scale);
+    vu.setY((1-camera_scale)*vars.bar_scale_width);
     mu.compose(vw, qu, vu);
     inst.setMatrixAt(index, mu);
     utility_color.fromArray(inst.userData.td.base_color).multiplyScalar(Math.abs(value));
     inst.setColorAt(index, utility_color.clone());
+    return true;
 }
 
 function adaptive_scaling_wudi() {
+    // return;
     const wudi = scene.getObjectByName('wudi');
-    if (wudi && wudi.children.length) {
 
+    if (wudi && wudi.children.length && vars.selecta.wudi.times.selected.length) {
         const test = wudi.children[0].userData.td;
         let index;
         let cherf = 0;
         const visible = {set:[],up:[],down:[]};
+
         for(let c = 0; c < test.position.length; c++){
             index = vars.data.wudi_index[c];
             vw.fromArray(test.position[c]);
@@ -542,19 +693,56 @@ function adaptive_scaling_wudi() {
 
         const wudi_up = scene.getObjectByName('wudi_up');
         const wudi_down = scene.getObjectByName('wudi_down');
+
         const lim = [Math.max(...visible.up), Math.min(...visible.down)];
 
         for(let v of visible.set){
+            ///console.log(visible.up[v[2]], lim[0], v[0]);
             apply_adaptive_scale(wudi_up, visible.up[v[2]], lim[0], v[0]);
             apply_adaptive_scale(wudi_down, visible.down[v[2]], lim[1], v[0]);
         }
 
+        //obs_handler({L:[visible.set.length, visible.up[0], visible.down[0]],LIM:lim});
+
         wudi_up.instanceMatrix.needsUpdate = true;
         wudi_up.instanceColor.needsUpdate = true;
+
         wudi_down.instanceMatrix.needsUpdate = true;
         wudi_down.instanceColor.needsUpdate = true;
-        
+
     }
+
+    return true;
+}
+
+function get_point_data_matrix(data_index){
+    //data_index should be of type array.
+    //this is a way to get a 2d average of point-data.
+    //: ex time[1980,1981] , points[234,235,236]
+
+    const r_sum = (arr, modu, s=0) => {
+        for (let i = 0; i < arr.length; i++) s += arr[i];
+        return Math.round(s/modu);
+    }
+
+    const r_avg = {'times':vars.selecta.wudi.times.selected,'days':[],'up':[],'down':[],'events':[]};
+
+    data_index.map(dp => {
+        for(let d of vars.selecta.wudi.times.selected){
+            const data_point = vars.data.wudi_data[d].data[dp];
+            r_avg.days.push(vars.data.wudi_data[d].meta.siz);
+            r_avg.up.push(data_point[0]);
+            r_avg.down.push(Math.abs(data_point[1]));
+            r_avg.events.push(data_point[2])
+        }
+    });
+
+    r_avg.days = r_sum(r_avg.days, r_avg.times.length);
+    r_avg.up = r_sum(r_avg.up, data_index.length*r_avg.times.length);
+    r_avg.down = r_sum(r_avg.down, data_index.length*r_avg.times.length);
+    r_avg.events = r_sum(r_avg.events, data_index.length*r_avg.times.length);
+
+    return Object.entries(r_avg);
 }
 
 function interactionAction() {
@@ -563,8 +751,8 @@ function interactionAction() {
     const intersects = ray_caster.intersectObjects(scene.children, true);
 
     const filter = {
-        protected_no_geom: (index = null) => {
-            const figure = vars.data.protected_no_geom.raw[index + 1];
+        protected_regions: (index = null) => {
+            const figure = vars.data.protected_regions.raw[index + 1];
             return {
                 head: `${title_case(figure[1])}`,
                 text: [figure[3] + ' ' + figure[2], figure[8], figure[13] + '—' + figure[14], figure[6] + 'km^2', `(${index}) `]
@@ -577,9 +765,9 @@ function interactionAction() {
         },
         wudi_points: (index = null) => {
             const data_index = vars.data.wudi_index[index];
-            const d_value = vars.data.wudi_data.current[data_index].toString();
+            const lst = get_point_data_matrix([data_index]);
             return {
-                text: 'wudi point ' + index  + ' g' + vars.data.wudi_points.raw.data[index][6] + '</br>' + d_value
+                text: lst
             }
         },
         wudi_up: (index = null) => {
@@ -608,88 +796,107 @@ function interactionAction() {
                 if (ids.indexOf(name) === -1 && ids.indexOf(instance_id) === -1) {
                     let index = null;
                     if (instance_id != null) {
-                        const r = ints[i].object.userData.td.index;
+                        // const r = ints[i].object.userData.td.index;
                         index = instance_id;///r ? r[instance_id] : instance_id;
                     } else {
                         index = ints[i].object.userData.index;
                     }
                     const ref = filter.hasOwnProperty(ints[i].object.name) ? filter[ints[i].object.name](index) : null;
-                    if (ref) result.push(ref);
+                    if (ref){
+                        result.push(ref);
+                    }
                     ids.push(instance_id ? instance_id : name);
                 }
                 instance_id = null;
             }
         }
         return result;
-        // obs_handler({IN: make_clean(intersects).join('</br>')});
     }
 
-    vars.info.set_text(make_clean(intersects));
-    vars.info.set_position(vars.user.mouse.screen.x, vars.user.mouse.screen.y, 'mouse');
+    const has_intersections = make_clean(intersects);
+    vars.selecta.intersect = has_intersections.length > 0;
 
-    const eco_regions = scene.getObjectByName('eco_regions'); ///AREAS
+    if(vars.selecta.intersect){
+        vars.info.set_state(true);
+        vars.info.set_text(has_intersections);
+        vars.info.set_position(vars.user.mouse.screen.x, vars.user.mouse.screen.y, 'mouse');
+        vars.selecta.focus_obj = 'intersection';
+    }
 
-    if (eco_regions && eco_regions.children.length) {
-        const eco = eco_regions.children.filter(e => e.geometry.boundingBox.containsPoint(mouse_pos_map))
-            .filter(e => point_in_poly(e, mouse_pos_map))
+    if(vars.selecta.moved){
+        vars.selecta.eco_region.hover = null;
+        vars.selecta.moved = false;
+    }
 
-        if (eco.length) {
-            const poly = eco[0];
+    if(!vars.selecta.intersect) {
+        const eco_regions = scene.getObjectByName('eco_regions'); ///AREAS
+        if (eco_regions && eco_regions.children.length) {
+            const eco = eco_regions.children
+                .filter(e => e.geometry.boundingBox.containsPoint(mouse_pos_map))
+                .filter(e => point_in_poly(e, mouse_pos_map))
+            const hover = vars.selecta.eco_region.hover;
+            if (eco.length) {
+                const poly = eco[0];
+                if (poly.id !== hover) {
+                    vars.selecta.focus_obj = 'area';
+                    vars.info.set_state(true);
+                    poly.geometry.boundingBox.getCenter(vw);
+                    map_container.localToWorld(vw);
+                    projected(vw);
+                    vars.info.set_position(vw.x, vw.y);
+                    const data = poly.userData.data;
+                    vars.info.set_text([{head: data[2], text: `id:${data[0]}`}]);
+                    poly.userData.selected(true);
+                    if (hover) scene.getObjectById(hover, true).userData.selected(false);
+                }
+                vars.selecta.eco_region.hover = poly.id;
 
-            if (poly.id !== vars.user.selection) {
-                vars.info.set_state(true);
-                poly.geometry.boundingBox.getCenter(vw);
-                map_container.localToWorld(vw);
-                projected(vw);
-                vars.info.set_position(vw.x, vw.y);
-                const data = vars.data[poly.name].raw[poly.userData.index];
-                vars.info.set_text([{head: data[2], text: `id:${data[0]}`}]);
-
-                poly.userData.selected(true);
-                if (vars.user.selection) scene.getObjectById(vars.user.selection, true).userData.selected(false);
+            } else {
+                if (hover) scene.getObjectById(hover, true).userData.selected(false);
+                vars.info.set_state(false);
+                vars.selecta.eco_region.hover = null;
             }
+        }
 
-            vars.user.selection = poly.id;
-        } else {
-            if (vars.user.selection) scene.getObjectById(vars.user.selection, true).userData.selected(false);
+        if(vars.selecta.focus_obj === 'intersection'){
             vars.info.set_state(false);
-            vars.user.selection = null;
         }
     }
 
-    //.map(e => e.object.name + '-' + e.instanceId + '-' + e.object.userData.td.indices[e.instanceId]))]
-    // selection = selection.map(i => {
-    //     let ham = '-';
-    //     if (intersects[i].object.userData.hasOwnProperty('td') && intersects[i].object.userData.td.hasOwnProperty('indices')) {
-    //         ham += intersects[i].object.userData.td.indices[intersects[i].instanceId];
-    //     } else {
-    //         ham += intersects[i].instanceId;
-    //     }
-    //     return intersects[i].object.name + '-' + intersects[i].object.id + ham;
-    // });
-    //
-    // obs_handler(
-    //     {
-    //         IN: selection.join('</br>')
-    //     });
-
-
+    return true;
 }
 
 function translateAction(type, actual_xy, delta_xy, object) {
+    let dx, dy;
+    run_camera();
+
+    if(type === 'init'){
+        dx = vars.view.width/2;
+        dy = vars.view.height/2;
+    }else{
+        dx = actual_xy[0];
+        dy = actual_xy[1];
+    }
+
     vars.user.mouse.state = type;
-    let dx = actual_xy[0];
-    let dy = actual_xy[1];
-    obs_handler({});
 
     vars.user.mouse.raw.x = (dx / vars.view.width) * 2 - 1;
     vars.user.mouse.raw.y = -(dy / vars.view.height) * 2 + 1;
     vars.user.mouse.screen = {x: dx, y: dy};
     document.body.style.cursor = 'pointer';
 
+    //console.log(vars.user.mouse.raw);//.normalize());
+
+    //obs_handler({'translateAction':type, dx:dx, dy:dy, raw:vars.user.mouse.raw.toArray()});
+
     m_ray_origin.copy(new THREE.Vector3(vars.user.mouse.raw.x, vars.user.mouse.raw.y, 0.0)).unproject(camera);
     m_ray_pos.copy(new THREE.Vector3(vars.user.mouse.raw.x, vars.user.mouse.raw.y, 1.0)).unproject(camera);
     m_ray_dir.copy(m_ray_pos.sub(m_ray_origin));
+
+    // if(type === 'init') {
+    //     newMouseDown.copy(rayIntersectionWithXZPlane(m_ray_origin, m_ray_dir, 0.0));
+    //     user_position.copy(mouseDownCameraPosition.sub(newMouseDown.sub(lastMouseDown)));
+    // }
 
     if (type === 'down') {
         lastMouseDown.copy(rayIntersectionWithXZPlane(m_ray_origin, m_ray_dir, 0.0));
@@ -703,10 +910,13 @@ function translateAction(type, actual_xy, delta_xy, object) {
             object.rotateOnWorldAxis(y_up, delta_xy[0] / 100);
             object.rotateX(delta_xy[1] / 100);
             object.updateMatrixWorld();
+            vars.info.set_state(false);
         } else {
             newMouseDown.copy(rayIntersectionWithXZPlane(m_ray_origin, m_ray_dir, 0.0));
             user_position.copy(mouseDownCameraPosition.sub(newMouseDown.sub(lastMouseDown)));
+            vars.info.drag_position(delta_xy[0], delta_xy[1]);
         }
+        vars.selecta.moved = true;
     }
 
     if (type === 'zoom') {
@@ -719,6 +929,7 @@ function translateAction(type, actual_xy, delta_xy, object) {
             vk.subVectors(mouse_plane_pos, user_position);
             user_position.add(vk.multiplyScalar((1 - zoom_factor)));
         }
+        vars.selecta.moved = true;
     }
 
     if (type === 'clicked') {
@@ -729,17 +940,23 @@ function translateAction(type, actual_xy, delta_xy, object) {
         interactionAction();
     }
 
-    //#// adaptive scaling of wudi data:
-    if (type !== 'move') {
-        adaptive_scaling_wudi();
+
+
+    if(type === 'init'){
+        interactionAction();
     }
 
-    const camera_scale = 1 - (camera_distance / reset_default_z);
+    camera_scale = 1 - (camera_distance / reset_default_z);
     map_sectors_group.children.forEach(s => {
         vw.copy(s.userData.owner.objects.plane.userData.center);
         map_sectors_group.localToWorld(vw);
+
         root_plane.projectPoint(camera.position, vu);
+        vu.sub(camera.up);
         vk.subVectors(user_position, vu).multiplyScalar(0.5 / vars.degree_scale);
+
+        camera_projected.copy(vk);
+
         pos_mark_1.position.copy(vk.add(user_position));
         const L = vw.distanceTo(vk);
         if (L < (vars.levels * (vars.degree_scale)) + 2) {
@@ -768,7 +985,7 @@ function translateAction(type, actual_xy, delta_xy, object) {
         });
     }
 
-    run_camera();
+
     let zg = Math.floor(Math.log(camera_distance)) + 1;
     grid_resolution = z_mants[zg];
     run_ticks();
@@ -780,6 +997,12 @@ function translateAction(type, actual_xy, delta_xy, object) {
 
     pos_mark_4.position.copy(mouse_plane_pos);
     grid_lines.position.copy(mouse_plane_pos);
+
+        //#// adaptive scaling of wudi data:
+    if (type !== 'move'){  //} && type !== 'init') {
+        adaptive_scaling_wudi();
+    }
+
 }
 
 function keyAction(raw) {
@@ -850,44 +1073,103 @@ function run_camera() {
     //visible_dimensions = visibleAtZDepth(-camera_distance, camera);
 }
 
+function run_ticks_axes(axis, tick_index, swap=null){
+    const basis = {x:'x', z:'z'};
+    const axes = [axis_dir_x, axis_dir_y];
+
+    if(swap){
+        basis.x = 'z';
+        basis.z = 'x';
+    }
+
+    const tick_n = Math.round((user_position_round[basis[axis]]) / grid_resolution) * grid_resolution + ((tick_index - ((axis_markers_count - 1) / 2)) * grid_resolution);
+
+    if(basis[axis] === 'x'){
+        vw.set(tick_n,0,-30*Math.sign(axes[0].z));
+        vk.set(0,0,axes[0].z);
+    }else{
+        vw.set(-30*Math.sign(axes[1].x),0,tick_n);
+        vk.set(axes[1].x,0,0);
+    }
+
+    if(axis === 'z') {
+        if(vw.dot(cam_right) < 0){
+            vk.negate();
+            if(vk.x !== 0) vw.x *= -1.0;
+            if(vk.z !== 0) vw.z *= -1.0;
+        }
+
+    }
+
+    // if(axis === 'x'){
+    //     if(tick_index === ((axis_markers_count - 1) / 2)){
+    //         arrow_helper_2.position.copy(vw);
+    //         arrow_helper_2.setDirection(vk);
+    //     }
+    // }
+            // if (tick_index === ((axis_markers_count - 1) / 2)) {
+        //     arrow_helper_3.position.copy(vw);
+        //     arrow_helper_3.setDirection(vk);
+        // }
+
+    return tick_n;
+}
+
 function run_ticks() {
+    let swap = false;
+    vw.set(0, 0, Math.sign(camera_projected.z));
+    vk.set(Math.sign(camera_projected.x), 0, 0);
+
+    if(camera_projected.angleTo(vk) < camera_projected.angleTo(vw)){
+        swap = true;
+    }
+
+    if(Math.abs(camera_projected.x) < 0.01 || Math.abs(camera_projected.z) < 0.01) {
+        axis_dir_y.set(-Math.sign(cam_dot_z), 0, 0).normalize();
+        axis_dir_x.set(0, 0, Math.sign(cam_dot_x)).normalize();
+    }else{
+        axis_dir_y.set(-1*Math.sign(camera_projected.x), 0, 0);
+        axis_dir_x.set(0, 0, -1*Math.sign(camera_projected.z));
+    }
+
+    arrow_helper_4.setDirection(cam_right);
+
     for (let plane of axis_planes) {
-        ticks.card = plane.name === 'x' ? 'E' : 'N';
+        if(swap){
+            ticks.card = plane.name === 'x' ? 'N' : 'E';
+        }else{
+            ticks.card = plane.name === 'x' ? 'E' : 'N';
+        }
         for (let m = 0; m < axis_markers_count; m++) {
             plane.markers_geoms.children[m].position.set(0, 1, 0);
+            ticks.n = run_ticks_axes(plane.name, m, swap);
 
-            if (plane.name === 'x') {
-                ticks.n = Math.round((user_position_round.x) / grid_resolution) * grid_resolution + ((m - ((axis_markers_count - 1) / 2)) * grid_resolution);
-                vw.set(ticks.n, 0, 0);
-                vk.set(0, 0, Math.sign(cam_dot_x)).normalize();
-            } else {
-                ticks.n = Math.round((user_position_round.z) / grid_resolution) * grid_resolution + ((m - ((axis_markers_count - 1) / 2)) * grid_resolution);
-                vw.set(0, 0, ticks.n);
-                vk.set(Math.sign(cam_dot_z), 0, 0).normalize();
-            }
             ray_caster.set(vw, vk);
             ticks.res = ray_caster.ray.intersectPlane(plane.plane, vu);
-            plane.markers_divs[m].style.visibility = ticks.res === null ? 'hidden' : 'visible';
+            plane.markers_divs[m].style.display = ticks.res === null ? 'none' : 'block';
 
             if (ticks.res !== null) {
-
                 projected(vu);
-
                 ticks.offset = ticks.card === 'E' ? vars.map.offset.x : -vars.map.offset.y;
                 plane.markers_divs[m].innerHTML = `${(ticks.n + ticks.offset).toFixed(grid_resolution < 1 ? 2 : 0)}º ${ticks.card}`;
+
                 ticks.rect = plane.markers_divs[m].getBoundingClientRect();
                 if (plane.name === 'x') {
-                    ticks.left = (vu.x - (ticks.rect.width / 2)) + 'px';
-                    ticks.top = (vars.view.height - (ticks.rect.height / 2)) + 'px';
+                    ticks.left = (vu.x - (ticks.rect.width / 2));
+                    ticks.top = (vars.view.height - (ticks.rect.height / 2));
                 } else {
                     ticks.left = 0;
-                    ticks.top = (vu.y - (ticks.rect.height / 2)) + 'px';
+                    ticks.top = (vu.y - (ticks.rect.height / 2));
                 }
-                plane.markers_divs[m].style.left = ticks.left;
-                plane.markers_divs[m].style.top = ticks.top;
+                plane.markers_divs[m].style.left = ticks.left + 'px';
+                plane.markers_divs[m].style.top = ticks.top + 'px';
+
+                const cas = (ticks.top > vars.view.height || ticks.top < 0 || ticks.left > vars.view.width || ticks.left < 0);
+                plane.markers_divs[m].style.display = display_array[+!cas];
             }
         }
     }
+    //obs_handler({'F': vars.view.width, 'S': sum});
 }
 
 function animate() {
@@ -902,32 +1184,10 @@ function render() {
     renderer.render(scene, camera);
 }
 
-function windowRedraw() {
-    const w = window.innerWidth;
-    const h = window.innerHeight;
-    ww = w;
-    wh = h - vars.view.bottom_offset;
-    plot.style.width = (w) + 'px';
-    plot.style.height = (h - vars.view.bottom_offset) + 'px';
-    vars.view.width = ww;
-    vars.view.height = wh;
-
-    if (camera) {
-        camera.aspect = ww / wh;
-        camera.updateProjectionMatrix();
-        renderer.setSize(ww, wh);
-    }
-
-    title.style.bottom = '20px';
-}
-
 function draw_sectors() {
-
     vars.map.deg = vars.degree_scale;
     vars.map.sectors = (vars.map.dims.w * (1 / vars.map.deg)) * (vars.map.dims.h * (1 / vars.map.deg));
-    console.log('total sectors:', vars.map.sectors);
-
-    console.log("vars.map", vars.map);
+    console.log('draw_sectors loading', vars.map.sectors, 'sectors');
 
     for (let i = 0; i < vars.map.sectors; i++) {
         let x = i % (vars.map.dims.w * (1 / vars.map.deg));
@@ -948,11 +1208,13 @@ function draw_sectors() {
         map_sectors_group.add(new_tile.group);
     }
 
+    return true;
 }
 
 function draw_data_instanced(instances_group) {
-    const color = new THREE.Color();
+    const z_color = new THREE.Color();
     for (let instance of instances_group.children) {
+
         if (instance) {
             for (let i = 0; i < instance.userData.td.len; i++) {
                 vw.fromArray(instance.userData.td.position[i]);
@@ -965,35 +1227,31 @@ function draw_data_instanced(instances_group) {
                 if (instance.userData.type === 'bar') {
                     instance_dummy.rotation.z = instance.userData.td.rotation[i];
                     instance_dummy.scale.x = instance.userData.td.scale[i];
-                    instance_dummy.scale.z = Math.sign(instance.userData.td.value[i]);
+                    instance_dummy.scale.z = instance.userData.td.sign;
                 }
                 instance_dummy.updateMatrix();
-                color.fromArray(instance.userData.td.color[i], 0);
+                z_color.fromArray(instance.userData.td.color[i], 0);
+
+                instance.setColorAt(i, z_color);
                 instance.setMatrixAt(i, instance_dummy.matrix);
-                instance.setColorAt(i, color.clone());
             }
-            instance.instanceMatrix.needsUpdate = true;
+            console.log(instance.id, instance.name);
             instance.instanceColor.needsUpdate = true;
+            instance.instanceMatrix.needsUpdate = true;
+
         }
     }
+    return 'draw_data_instanced';
 }
 
-//#//TOT CUT THIS BACK
 function plot_data(obj) {
-    // const keys = vars.data[obj.name].raw[0];
-    // console.log(keys.map((k, i) => {
-    //     return `${i}:${k}`
-    // }));
     let group;
     let is_instance = false;
+    group = new THREE.Group();
+    group.name = obj.name;
 
-    //console.log('object:', obj);
     if (obj.style === 'point') {
         is_instance = true;
-        let samples = [];
-        let instances = [];
-        group = new THREE.Group();
-        group.name = obj.name;
 
         const datum = {
             len: vars.data[obj.name].raw.length - 1,
@@ -1004,35 +1262,11 @@ function plot_data(obj) {
         }
 
         for (let i = 1; i < vars.data[obj.name].raw.length; i++) {
-            if (obj.name === 'wudi') {
-                samples.push(vars.data[obj.name].raw[i][8]);
-                datum.position.push([vars.data[obj.name].raw[i][obj.geom_index[0]], vars.data[obj.name].raw[i][obj.geom_index[1]], 0.0]);
-            } else {
-                datum.color.push([0.0, 1.0, 1.0]);
-                datum.position.push([vars.data[obj.name].raw[i][obj.geom_index][0], vars.data[obj.name].raw[i][obj.geom_index][1], 0.0]);
-            }
+            datum.color.push([0.0, 1.0, 1.0]);
+            datum.position.push([vars.data[obj.name].raw[i][obj.geom_index][0], vars.data[obj.name].raw[i][obj.geom_index][1], 0.0]);
         }
 
-        const limits = util.max_min(samples.filter(s => s !== null && s.toString() !== 'null'));
-
-        if (obj.name === 'wudi') {
-            let r, b, o = 0.1, l = 0.5;
-            for (let s of samples) {
-                if (!s) {
-                    datum.color.push([0.0, 0.0, 0.0]);
-                    datum.sample_normal.push(0.01);
-                    datum.sample_raw.push(0.0);
-                } else {
-                    r = s > 0 ? util.norm_val(s, l, limits.max) + l : o;
-                    b = s < 0 ? util.norm_val(Math.abs(s), l, Math.abs(limits.min)) + l : o;
-                    datum.color.push([r, o, b]);
-                    datum.sample_normal.push(s > 0 ? s / limits.max : -s / limits.min);
-                    datum.sample_raw.push(s);
-                }
-            }
-        }
-
-        if (obj.name === 'protected_no_geom') {
+        if (obj.name === 'protected_regions') {
             const areas = obj.raw.reduce((sv, e, i) => {
                 if (i > 0 && e[6] !== null) {
                     sv[0].push(e[6]);
@@ -1044,12 +1278,9 @@ function plot_data(obj) {
             const max_area = Math.max(...areas[0]);
             const min_area = Math.min(...areas[0]);
             const avg_area = areas[1] / areas[0].length;
-            console.log(avg_area, min_area, max_area, areas);
-
+            //console.log(avg_area, min_area, max_area, areas);
             const set_size = obj.raw.map((e, i) => {
                 if (i > 0 && e[6] !== null) {
-                    //datum.sample_raw[i] = e[6]/avg_area;
-                    //const norm = norm_val(e[6], min_area, max_area)*avg_area;
                     let norm = norm_val(e[6], min_area, avg_area);//*avg_area;
                     if (norm > 4.0) norm = 4.0;
                     if (norm < 1) norm = 1.0;
@@ -1058,12 +1289,7 @@ function plot_data(obj) {
             })
         }
 
-        // const hexagon = new THREE.Mesh(a_geometry, mat);
-        // hexagon.rotateX(Math.PI / -2);
-        // hexagon.scale.set(0.050, 0.050, 0.050);
-
         const geometry = make_hexagonal_shape(vars.point_scale);
-        //const geometry = new THREE.CircleBufferGeometry(vars.point_scale, 16);
 
         geometry.deleteAttribute('uv');
         geometry.deleteAttribute('normal');
@@ -1080,96 +1306,16 @@ function plot_data(obj) {
         instance.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         instance.name = obj.name;
 
-        if (obj.name === 'protected_no_geom') {
-            instance.userData.type = 'scaled_point';
-        } else {
-            instance.userData.type = 'point';
-        }
+        if (obj.name === 'protected_regions') instance.userData.type = 'scaled_point';
 
         instance.userData.td = datum;
-        instances.push(instance);
 
-        if (obj.name === 'wudi') {
-            instance.visible = false;
+        group.add(instance);
 
-            const wudi_down = {
-                name: 'wudi_downwelling',
-                len: 0,
-                color: [],
-                position: [],
-                rotation: [],
-                scale: [],
-                sample: [],
-                sample_raw: [],
-                indices: []
-            }
-
-            const wudi_up = {
-                name: 'wudi_upwelling',
-                len: 0,
-                color: [],
-                position: [],
-                rotation: [],
-                scale: [],
-                sample: [],
-                sample_raw: [],
-                indices: []
-            }
-
-            const ft = [wudi_down, wudi_up];
-
-            for (let i = 1; i < vars.data[obj.name].raw.length; i++) {
-                const A = new THREE.Vector3(vars.data[obj.name].raw[i][1], vars.data[obj.name].raw[i][0], 0.0);
-                const B = new THREE.Vector3(vars.data[obj.name].raw[i][5], vars.data[obj.name].raw[i][4], 0.0);
-                const angle = Math.atan2(B.y - A.y, B.x - A.x);
-
-                const s = (vars.data[obj.name].raw[i][8]) > 0;
-
-                ft[+s].position.push([A.x, A.y, A.z]);
-                ft[+s].rotation.push(angle.toFixed(5));
-                ft[+s].scale.push(A.distanceTo(B));
-                ft[+s].color.push(datum.color[i - 1]);
-                ft[+s].sample.push(datum.sample_normal[i - 1]);
-                ft[+s].sample_raw.push(datum.sample_raw[i - 1]);
-                ft[+s].indices.push(i - 1);
-                ft[+s].len += 1;
-            }
-
-            const bar_geometry = new THREE.BoxBufferGeometry(1, 0.025, 1);
-            bar_geometry.translate(0.5, 0.0, 0.5);
-            bar_geometry.deleteAttribute('uv');
-            bar_geometry.deleteAttribute('normal');
-
-            const material = new THREE.MeshBasicMaterial({
-                color: 0xFFFFFF,
-                side: THREE.FrontSide,
-                transparent: true,
-                opacity: 1.0,
-                blending: THREE.AdditiveBlending, //THREE.NormalBlending, //
-                depthWrite: true
-            });
-
-            for (let f of ft) {
-                const instance = new THREE.InstancedMesh(bar_geometry, material, datum.len);
-                instance.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-                instance.name = f.name;
-                instance.userData.td = f;
-                instance.userData.type = 'bar';
-                instances.push(instance);
-            }
-        }
-
-        for (let inst of instances) group.add(inst);
-
-        //obj.geometry_array = datum;
-        //return;
     } else {
         //#//for datasets with polygonal geometries
         //#//MAKE WORK FOR MULTIPOLYS
-        group = new THREE.Group();
-        group.name = obj.name;
-
-
+        console.log(obj);
         vars.data[obj.name].raw.forEach((l_obj, i) => {
             if (i > 0) {
                 if (obj.style === 'mesh' || obj.style === 'line') {
@@ -1189,6 +1335,7 @@ function plot_data(obj) {
                         const material = new THREE.MeshBasicMaterial({color: 0xffffff});
                         element = new THREE.Mesh(geometry, material);
                     } else if (obj.style === 'line') {
+
                         const geometry = new THREE.BufferGeometry().setFromPoints(exterior.points3);
                         const material = new THREE.LineBasicMaterial({
                             color: vars.colors[obj.name].select[0],
@@ -1196,13 +1343,15 @@ function plot_data(obj) {
                         });
                         element = new THREE.Line(geometry, material);
                         element.computeLineDistances();
-                        element.name = obj.name;// `eco${vars.data[obj.name].raw[i][0]}`;
+                        element.name = obj.name;// used by intersection-tests for boundaries.
+                        //element.name = obj.name;// `eco${vars.data[obj.name].raw[i][0]}`;
                     }
 
                     element.userData.x_coords = exterior.x;
                     element.userData.y_coords = exterior.y;
-                    //element.userData.data = {name: obj.name, index: i};
                     element.userData.index = i;
+                    element.userData.data = vars.data[obj.name].raw[i];
+
 
                     element.userData.selected = (state) => {
                         element.material.setValues({color: vars.colors[obj.name].select[+state]});
@@ -1221,9 +1370,8 @@ function plot_data(obj) {
                             const geometry = new THREE.BufferGeometry();
                             geometry.setAttribute('position', new THREE.BufferAttribute(Float32Array.from(vertices), 3));
                             element = new THREE.Line(geometry, material);
-                            element.name = obj.name;//`${obj.name}-(${vertices.length})`;
+                            element.name = obj.name;
                             element.geometry.computeBoundingBox();
-                            //element.userData.data = {name: obj.name, index: i};
                             element.userData.index = i;
                             group.add(element);
                         }
@@ -1234,6 +1382,7 @@ function plot_data(obj) {
     }
 
     map_container.add(group);
+
     if (is_instance) {
         draw_data_instanced(group);
     }
@@ -1251,7 +1400,7 @@ function wudi_plot(obj){
     const data = vars.data[obj.name].raw.data;
     const point_data_td = {
         len: data.length,
-        visible: false,
+        visible: true,
         color: data.map(v => [0.9, 0.5, 0.9]),
         position: data.map((v) => [v[3], v[2], 0.0]),
         raw: data.map(v => 0.0),
@@ -1281,15 +1430,16 @@ function wudi_plot(obj){
     group.add(instance);
 
     const bar_instances = [
-        {name:'wudi_down', len: data.length, base_color:[1.0, 0.0, 0.0], visible:true},
-        {name:'wudi_up', len: data.length, base_color:[0.0, 0.0, 1.0], visible:true},
-        {name:'wudi_meta', len: data.length, base_color:[0,0,0], visible:false}
+        {name:'wudi_down', len: data.length, base_color:[1.0, 0.0, 0.0], visible:true, sign:-1},
+        {name:'wudi_up', len: data.length, base_color:[0.0, 0.0, 1.0], visible:true, sign:1},
+        {name:'wudi_meta', len: data.length, base_color:[0,0,0], visible:false, sign:1}
     ];
 
     const bar_attributes = ['color','position','rotation','scale','value','raw','index'];
 
     for(let bar of bar_instances) {
         for(let a of bar_attributes) bar[a] = [];
+
         for (let i = 0; i < data.length; i++) {
             const A = new THREE.Vector3(data[i][1], data[i][0], 0.0);
             const B = new THREE.Vector3(data[i][5], data[i][4], 0.0);
@@ -1305,7 +1455,7 @@ function wudi_plot(obj){
     }
 
     //#//TODO make y-scale depend on zoom.
-    const bar_geometry = new THREE.BoxBufferGeometry(1, 0.25, 1);
+    const bar_geometry = new THREE.BoxBufferGeometry(1, vars.bar_scale_width, 1);
     bar_geometry.translate(0.5, 0.0, 0.5);
     bar_geometry.deleteAttribute('uv');
     bar_geometry.deleteAttribute('normal');
@@ -1322,6 +1472,8 @@ function wudi_plot(obj){
     for (let bar of bar_instances) {
         const instance = new THREE.InstancedMesh(bar_geometry, bar_material, bar.len);
         instance.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        // instance.instanceColor.needsUpdate = true;
+        // instance.instanceMatrix.needsUpdate = true;
         instance.name = bar.name;
         instance.userData.td = bar;
         instance.userData.type = 'bar';
@@ -1330,41 +1482,93 @@ function wudi_plot(obj){
     }
 
     map_container.add(group);
+    //     const group = scene.getObjectByName('wudi');
+    // //draw_data_instanced(group);
+    // // run_camera();
 
+    draw_data_instanced(group);
+    return 'plotted';
 }
 
-function wudi_set_data(data_obj){
-    console.log(data_obj);
-    //#//updates and draws the instances
-    if(!vars.data.hasOwnProperty('wudi_data')) vars.data.wudi_data = {selected:[], current:[], index:{}};
-    const data = data_obj.raw.data;
-    const meta = data_obj.raw.meta;
-    vars.data.wudi_data[data_obj.tim] = {'data':data, 'meta':meta};
+function wudi_get_data(times_arr){
+    const post_obj_list = times_arr.map(t =>{
+        return {
+            "url":"/wudi", "tim":`${t}`, "type":"json-ser", "name":"wudi_data", "tck":[0,0,t]
+        }
+    });
+    fetchPOST(post_obj_list).then(object_list => wudi_set_data(object_list));
+    return true;
+}
 
-    //
-    //#//this might be a mixin
-    /*
+function wudi_set_data(obj_list){
+    if (!vars.data.hasOwnProperty('wudi_data')) vars.data.wudi_data = {points_count: 0, current: []};
+    obj_list.forEach(obj => {
+        console.log(obj);
+        //#//updates and draws the instances
+        const data = obj.raw.data;
+        vars.data.wudi_data.points_count = data.length;
+        const meta = obj.raw.meta;
+        const time_slot = obj.tim === '40' ? 'all' : obj.tim.toString();
+        vars.selecta.wudi.times.loaded.push(time_slot);
+        vars.data.wudi_data[time_slot] = {'data': data, 'meta': meta};
+    });
+    //run averager here:
+    return wudi_set_data_selection();
+}
 
-    d_me: -1378
+function wudi_set_data_selection(){
 
-    d_mx: -8912
+    const points_count = vars.data.wudi_data.points_count;
+    const times_count = vars.selecta.wudi.times.selected.length;
+    const new_normals = [];
+    const new_aggregated = [];
 
-    siz: 15341
+    if(points_count === 0) return false;
 
-    tim: 40
+    console.log('wudi_set_data_selection', points_count, times_count);
+    //CRAZY//
+    for(let i = 0; i < points_count; i++){
+        new_normals.push([0.0, 0.0, 0.0, 0.0, 0.0]);
+        new_aggregated.push([0.0, 0.0, 0.0, 0.0, 0.0, []]);
+    }
+    const meta_avg = {siz:0, u_me:0, d_me:0, u_mx:0, d_mx:0};
+    for(let t = 0; t < times_count; t++){
+        const tn = vars.selecta.wudi.times.selected[t].toString();
+        console.log(tn);
+        const data = vars.data.wudi_data[tn].data;
+        const meta = vars.data.wudi_data[tn].meta;
 
-    u_me: 1037
 
-    u_mx: 9050
+        Object.entries(meta).map((k) => meta_avg[k[0]] += k[1]);
+        for(let i = 0; i < points_count; i++){
+            for(let d = 0; d < 3; d++) new_aggregated[i][d] += data[i][d];
+            new_aggregated[i][3] += data[i][0];
+            new_aggregated[i][4] += data[i][1];
+            if(Array.isArray(data[i][3])){
+                for(let ed of data[i][3]){
+                    if(ed) new_aggregated[i][5].push(tn+ed);
+                }
+            }else{
+                if(data[i][3]) new_aggregated[i][5].push(tn+data[i][3]);
+            }
+        }
+    }
+    Object.keys(meta_avg).map(k=> meta_avg[k] = Math.round(meta_avg[k]/times_count));
+    const rel_meta = [meta_avg.u_mx, meta_avg.d_mx, 1, meta_avg.u_me, meta_avg.d_me];
+    for(let i = 0; i < points_count; i++){
+        for(let d = 0; d < 5; d++){
+            new_aggregated[i][d] = Math.round(new_aggregated[i][d]/times_count);
+            new_normals[i][d] = (Math.round((new_aggregated[i][d]/rel_meta[d])*10000)/10000)*Math.sign(rel_meta[d]);
+        }
+        new_aggregated[i].splice(3, 2);
+    }
 
-     */
+    // CRAZY //
+    // console.log(new_aggregated);
+    // console.log(new_normals);
 
-    const new_normals = [];//new Array(data.length).fill([0, 0, 0]);
-    data.map(v => new_normals.push([0.0,0.0,0.0]));///[i][2] = d[2]);
-
-    const worker_color = new THREE.Color();
     const instance_names = ['wudi_up', 'wudi_down'];
-    const limits = [meta.u_mx, meta.d_mx];
+
     for(let i = 0; i < instance_names.length; i++){
 
         const wudi_obj = scene.getObjectByName(instance_names[i]);
@@ -1377,31 +1581,63 @@ function wudi_set_data(data_obj){
             color: [],
             raw: []
         }
-
-        for(let d = 0; d < data.length; d++){
+        //#//td.sign is already set.
+        for(let d = 0; d < points_count; d++){
             const has_index = wudi_obj.userData.td.index.indexOf(d) !== -1;
             if(has_index){
-                const value = (data[d][i]/limits[i])*Math.sign(limits[i]); //# normal of days/max_days
+                const value = new_normals[d][i];
                 const color = base_color.clone().multiplyScalar(Math.abs(value)).toArray();
-                //;//worker_color.clone().setHSL(c_hsl.h, c_hsl.s, Math.abs(value)).toArray();
                 data_td.value.push(value);
-                data_td.color.push(color);//(wudi_obj.userData.td.base_color);//(color);
+                data_td.color.push(color);
                 data_td.raw.push(value);
-                new_normals[d][i] = value;
             }
         }
-
         Object.keys(data_td).map(k => wudi_obj.userData.td[k] = data_td[k]);
     }
 
     vars.data.wudi_data.current = new_normals;
-    console.log(vars.data.wudi_data.current);
+    vars.data.wudi_data.aggregated = new_aggregated;
 
-    const group = scene.getObjectByName('wudi');
-    draw_data_instanced(group);
+
     adaptive_scaling_wudi();
+    //adaptive_scaling_wudi();
 
+}
 
+function windowRedraw() {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    ww = w;
+    wh = h - vars.view.bottom_offset;
+    plot.style.width = (w) + 'px';
+    plot.style.height = (h - vars.view.bottom_offset) + 'px';
+
+    vars.view.width = ww;
+    vars.view.height = wh;
+
+    if (camera) {
+        camera.aspect = ww / wh;
+        camera.updateProjectionMatrix();
+        renderer.setSize(ww, wh);
+        run_camera();
+    }
+
+    title.style.bottom = '100px';
+    plot.focus();
+}
+
+function loader_notify(count, message=null){
+    vars.loader_notify.ct += count;
+    //let what = {loading:vars.loader_notify.ct};
+    if(message && vars.loader_notify_messages){
+        vars.loader_notify.list.push(`${message}(${count})`);
+        const what = {loading:vars.loader_notify.ct, list:vars.loader_notify.list};
+        //console.log(what);
+        obs_handler(what);
+    }
+    if(vars.loader_notify.ct === 0){
+        //load_complete('true');
+    }
 }
 
 function init() {
@@ -1409,10 +1645,7 @@ function init() {
     scene = new THREE.Scene();
     scene.background = new THREE.Color(vars.colors.window);
     //scene.fog = new THREE.Fog( vars.colors.window, 0.015, 10 );
-
     // scene.Fog();
-
-
 
     let reg_0 = {}
     scene.background.getHSL(reg_0);
@@ -1442,7 +1675,7 @@ function init() {
     const col_gd = new THREE.Color("hsl(100, 0%, 30%)");
     gridHelper = new THREE.GridHelper(20, 20, col_xy, col_gd);
     scene.add(gridHelper);
-    gridHelper.visible = false;
+    gridHelper.visible = vars.grid_visible;
 
     pos_mark_1 = make_position_mark(0.1);
     pos_mark_2 = make_position_mark(0.1);
@@ -1456,7 +1689,9 @@ function init() {
         p.visible = vars.position_marks_visible;
     });
 
-    arrow_helper = new THREE.ArrowHelper(vw, vk, 1, 0xffff00, 0.3, 0.3);
+    axes_helper = new THREE.AxesHelper( 5 );
+    axes_helper.visible = vars.arrow_helper_visible;
+    scene.add( axes_helper );
 
     axis_planes.push({
         name: 'x',
@@ -1469,7 +1704,7 @@ function init() {
     })
 
     axis_planes.push({
-        name: 'y',
+        name: 'z',
         plane: new THREE.Plane(),
         position: new THREE.Vector3(-1, 0, 0),
         up: new THREE.Vector3(),
@@ -1480,9 +1715,23 @@ function init() {
 
     scene.add(axis_planes[0].markers_geoms);
 
+
+    arrow_helper_1 = new THREE.ArrowHelper(vw, vk, 1, 0xFFFF00, 0.3, 0.3);
+    arrow_helper_2 = new THREE.ArrowHelper(vw, vk, 3, 0x2222FF, 0.3, 0.3);
+    arrow_helper_3 = new THREE.ArrowHelper(vw, vk, 3, 0xFF2222, 0.3, 0.3);
+    arrow_helper_4 = new THREE.ArrowHelper(vw, vk, 3, 0xFFFF00, 0.3, 0.3);
+
     vars.user.group.add(pos_mark_3);
-    vars.user.group.add(arrow_helper);
-    arrow_helper.visible = false;
+    vars.user.group.add(arrow_helper_1);
+
+    scene.add(arrow_helper_2);
+    scene.add(arrow_helper_3);
+    scene.add(arrow_helper_4);
+
+    arrow_helper_1.visible = vars.arrow_helper_visible;
+    arrow_helper_2.visible = vars.arrow_helper_visible;
+    arrow_helper_3.visible = vars.arrow_helper_visible;
+    arrow_helper_4.visible = vars.arrow_helper_visible;
 
     scene.add(vars.user.group);
     //vars.user.group.visible = false;
@@ -1513,10 +1762,23 @@ function init() {
     ray_caster.params.Line.threshold = 0.005;
     ray_caster.params.Points.threshold = 0.025;
 
+    translateAction('init', null, null, cube);
+
     run_camera();
     run_ticks();
 
 }
+
+// 👉️ START EVERYTHING HERE
+vars.dom_time.populate('years');
+vars.dom_time.populate('months');
+
+window.addEventListener('resize', windowRedraw);
+windowRedraw();
+
+init();
+animate();
+windowRedraw();
 
 // 👉️ LOADERS / PARSERS
 const array_auto = (str) => (new Function(`return [${str}];`)());
@@ -1546,33 +1808,16 @@ const fetch_callback = (obj_list) => {
                     vars.data[obj.name] = obj;
                     wudi_plot(obj);
                 }
-                if(obj.name === 'wudi_data') wudi_set_data(obj);
+                if(obj.name === 'wudi_data'){
+                    wudi_set_data([obj]);
+                }
                 break;
             default:
                 console.log(`callback found no data of type ${obj.type}`);
         }
-
     });
-    //console.log(vars.data);
-    //draw_sectors();
+    return true;
 }
-
-// 👉️ START EVERYTHING HERE
-window.addEventListener('resize', windowRedraw);
-windowRedraw(null);
-init();
-animate();
-
-// draw_sectors();
-
-const obj_list = [
-    //{url: './data/raw-wudi-9.txt', type: 'csv_text', name: 'wudi', columns: 9, style: 'point', geom_index: [3, 2]},
-    {url: './data/raw-protected-15.txt', type: 'csv_text', name: 'protected_no_geom', style: 'point', columns: 15, geom_index: 12},
-    {url: './data/raw-georegions-11.txt', type: 'csv_text', name: 'eco_regions', columns: 11, style: 'line', geom_index: 10, is_complex: true},
-    {url: './data/raw-isobath-100m-1.txt', type: 'csv_text', name: 'iso_bath', columns: 1, style: 'multi_line', geom_index: 0}
-]
-
-fetchAll(obj_list).then(object_list => fetch_callback(object_list));
 
 let payload = [];
 for(let i = 0; i < 100; i++){
@@ -1581,15 +1826,49 @@ for(let i = 0; i < 100; i++){
 
 const post_obj_list = [
     {"url":"/wudi", "table":"turn_table", "type":"json-ser", "name":"wudi_points", "tck":util.shuffle_array(payload)},
-    {"url":"/wudi", "tim":"40", "type":"json-ser", "name":"wudi_data", "tck":util.shuffle_array(payload)}
-    //{"url":"/map", "table":"guides", "type":"json-ser", "name":"guides", "tck":util.shuffle_array(payload)}
+    {"url":"/wudi", "tim":"40", "type":"json-ser", "name":"wudi_data", "tck":[0,0,0]}
 ]
 
+const obj_list = [
+    {url: './data/raw-protected-15.txt', type: 'csv_text', name: 'protected_regions', style: 'point', columns: 15, geom_index: 12},
+    {url: './data/raw-georegions-11.txt', type: 'csv_text', name: 'eco_regions', columns: 11, style: 'line', geom_index: 10, is_complex: true},
+    {url: './data/raw-isobath-100m-1.txt', type: 'csv_text', name: 'iso_bath', columns: 1, style: 'multi_line', geom_index: 0}
+]
 
-fetchPOST(post_obj_list).then(object_list => fetch_callback(object_list)); ///console.log(object_list));///
+let initial_load = false;
 
-//wudi is two-fold process
-/*
-location data.
-values data.
- */
+async function someFunction(){
+    const get_secondary = await fetchAll(obj_list, loader_notify).then(object_list => fetch_callback(object_list));
+    const get_data = await fetchPOST(post_obj_list, loader_notify).then(object_list => fetch_callback(object_list));
+    const get_last = await draw_sectors().then(r => {
+        return r;
+    });
+    initial_load = true;
+    return [get_data, get_secondary, get_last];
+}
+
+async function load_complete(situation){
+    if(situation === 'true' && initial_load === true){
+        adaptive_scaling_wudi();
+        //obs_handler({R:situation, M:'fully loaded'});
+        //console.log('has cake');
+        //adaptive_scaling_wudi();
+        //
+        //
+        // const model = await wudi_get_data('40');//.then(object_list => wudi_set_data(object_list[0]));
+        // wudi_set_data(model[0])
+        //const res = wudi_get_data('40').then(object_list => wudi_set_data(object_list[0]));
+        //wudi_set_data(res[0]);
+
+        //console.log(res);
+        // const re_k = wudi_get_data('40').then(r => {
+        //     console.log('B:', r);
+        // });
+    }else{
+        //obs_handler({R:situation, M:'load complete(?)'});
+    }
+    // adaptive_scaling_wudi();
+}
+
+const k = someFunction().then(r => load_complete(r));
+
