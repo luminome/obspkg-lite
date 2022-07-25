@@ -3,9 +3,9 @@
 /.idea/
 /dist/
 /node_modules/
-/static/data/
 /tools/data/
 /tools/assets/
 /tools/db/
 /data-resources/
 /src/deprecated/
+/backups-demoted/

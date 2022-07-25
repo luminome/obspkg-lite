@@ -2,7 +2,7 @@ const express = require('express');
 const serveStatic = require('serve-static');
 const app = express();
 const config = require('./config');
-const port = config.default_port || process.env.PORT;
+const port = process.env.PORT || config.default_port;
 
 app.use(express.static('dist'));
 

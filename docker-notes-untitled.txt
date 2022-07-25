@@ -62,6 +62,8 @@ https://github.com/witchard/tutorial-react-parcel-express/blob/master/package.js
 
 DOCKER
 
+https://codefresh.io/blog/not-ignore-dockerignore-2/
+
 docker build -t node-obspkg .
 
 dockerhub : luminome : jobmon-jExtaw-1qajvo 
@@ -85,3 +87,12 @@ docker tag node-obspkg gcr.io/shaped-aegis-351710/node-obspkg
 
 docker push gcr.io/[PROJECT-ID]/[IMAGE]
 docker push gcr.io/shaped-aegis-351710/node-obspkg
+
+
+
+
+
+
+JULY:
+docker build -t node-obspkg-lite .
+docker run -d -p 3000:3000 node-obspkg-lite

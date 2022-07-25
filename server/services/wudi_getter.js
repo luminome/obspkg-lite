@@ -8,37 +8,76 @@ function get_all(query = null) {
     try {
         if (query.table) {
             const meta = {};
-            const data = db.query(`SELECT *, rowid FROM wudi_points WHERE eco != 0`, []);
+            const data = db.query(`SELECT *, rowid
+                                   FROM wudi_points
+                                   WHERE eco != 0`, []);
             return {
                 data,
                 meta,
                 query
             }
 
-        }else {
+        } else {
             const fields = ["u_tl", "d_tl", "e_ct", "e_ls"];
-            const fields_daily = ["raw", "evt"];
+            const fields_daily = ["rowid", "pid", "raw"];
+            //const fields_daily = ["raw", "evt"];
             if (query.tim === '40') fields.pop();
-            let data = {};
-            let meta = {};
+            let data = {none: null};
+            let meta = {none: null};
 
             if (query.tim) {
-                if (query.tim.length < 7) {
-                    data = db.query(`SELECT ${fields.join(',')}
-                                     FROM wudi_derivative
-                                     WHERE tim = ${query.tim} `, []);
-                    meta = db.query(`SELECT *
-                                     FROM wudi_derivative_meta
-                                     WHERE tim = ${query.tim} `, []);
-                } else {
-                    data = db.query(`SELECT ${fields_daily.join(',')}
-                                     FROM wudi_daily
-                                     WHERE tim = ${query.tim} `, []);
-                    meta = db.query(`SELECT *
-                                     FROM wudi_derivative_meta
-                                     WHERE tim = ${query.tim.substring(0, 6)} `, []);
-                }
 
+                if (query.special) {
+                    //#pid IN (58,59,60) AND tim LIKE '______15'
+                    let req_a = query.special;
+                    if (!Array.isArray(req_a)) req_a = req_a.split(',');
+
+                    if (query.tim === 'all') { //ALL TIME
+                        data = db.query(`SELECT raw
+                                         FROM wudi_daily
+                                         WHERE pid IN (${req_a.join(',')})
+                                         AND tim LIKE '______15'
+                                         ORDER BY pid`,[]);
+                        meta = [{len:data.length}];
+
+                    } else if (query.tim.length < 5) { //YEAR
+                        data = db.query(`SELECT raw
+                                         FROM wudi_daily
+                                         WHERE pid IN (${req_a.join(',')})
+                                         AND tim LIKE '${query.tim}__15'
+                                         ORDER BY pid`,[]);
+                        meta = [{len:data.length}];
+
+                    } else if (query.tim.length < 7) { //MONTH
+                        data = db.query(`SELECT raw
+                                         FROM wudi_daily
+                                         WHERE pid IN (${req_a.join(',')})
+                                         AND tim LIKE '${query.tim}__'
+                                         ORDER BY pid`,[]);
+                        meta = [{len:data.length}];
+                    }
+
+                    console.log(req_a, req_a[1]);
+
+                } else {
+
+
+                    if (query.tim.length < 7) {
+                        data = db.query(`SELECT ${fields.join(',')}
+                                         FROM wudi_derivative
+                                         WHERE tim = ${query.tim} `, []);
+                        meta = db.query(`SELECT *
+                                         FROM wudi_derivative_meta
+                                         WHERE tim = ${query.tim} `, []);
+                    } else {
+                        data = db.query(`SELECT ${fields_daily.join(',')}
+                                         FROM wudi_daily
+                                         WHERE tim = ${query.tim} `, []);
+                        meta = db.query(`SELECT *
+                                         FROM wudi_derivative_meta
+                                         WHERE tim = ${query.tim.substring(0, 6)} `, []);
+                    }
+                }
                 return {
                     data,
                     meta,
@@ -53,7 +92,6 @@ function get_all(query = null) {
                 }
             }
         }
-
 
 
     } catch (err) {

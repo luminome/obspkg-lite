@@ -92,9 +92,9 @@ vars.selecta = {
     moved: null,
     wudi: {
         times: {years:['all'], months:['all'], has_default:'all', selected:[], loaded:[], required:[]},
-        points: [],
+        points: {hover:[], selected:[]},
         points_in_view: [],
-        manage: function(type, element=null){
+        times_select: function(type, element=null){
             this.times.required = [];
             if(this.times[type].includes(this.times.has_default)) this.times[type] = [];
 
@@ -129,6 +129,18 @@ vars.selecta = {
             //obs_handler({'T':Object.entries(this.times)});
 
             vars.dom_time[type].map((y) => y.set_state(this.times[type].includes(y.data)));
+
+        },
+        point_select: function(pid){
+            const pos = this.points.selected.indexOf(pid);
+            if(pos === -1){
+                this.points.selected.push(pid);
+                wudi_get_point_detail(this.points.selected);
+            }else{
+                this.points.selected.splice(pos,1);
+            }
+
+
 
         }
     },
@@ -327,7 +339,7 @@ class domTimeElement {
 
     dom_select(bound, e){
         obs_handler(e.target.dataset);
-        vars.selecta.wudi.manage(bound.type, bound);///engage()
+        vars.selecta.wudi.times_select(bound.type, bound);///engage()
     }
 
 }
@@ -344,7 +356,7 @@ vars.dom_time = {
                 const test_time = new domTimeElement(t,'years',label,t);
                 this.years.push(test_time);
             }
-            vars.selecta.wudi.manage('years');
+            vars.selecta.wudi.times_select('years');
         }else if(type === 'months'){
             const test_time = new domTimeElement(0,'months','ALL MONTHS','all', true);
             this.months.push(test_time);
@@ -353,7 +365,7 @@ vars.dom_time = {
                 const test_time = new domTimeElement(t,'months',label,t);
                 this.months.push(test_time);
             }
-            vars.selecta.wudi.manage('months');
+            vars.selecta.wudi.times_select('months');
         }
     }
 }
@@ -766,6 +778,7 @@ function interactionAction() {
         wudi_points: (index = null) => {
             const data_index = vars.data.wudi_index[index];
             const lst = get_point_data_matrix([data_index]);
+            vars.selecta.wudi.points.hover = [data_index];
             return {
                 text: lst
             }
@@ -801,9 +814,11 @@ function interactionAction() {
                     } else {
                         index = ints[i].object.userData.index;
                     }
+
                     const ref = filter.hasOwnProperty(ints[i].object.name) ? filter[ints[i].object.name](index) : null;
                     if (ref){
                         result.push(ref);
+                        obs_handler({obj:ints[i].object.name, i:index});
                     }
                     ids.push(instance_id ? instance_id : name);
                 }
@@ -933,6 +948,13 @@ function translateAction(type, actual_xy, delta_xy, object) {
     }
 
     if (type === 'clicked') {
+
+        if(vars.selecta.wudi.points.hover.length){
+            vars.selecta.wudi.point_select(vars.selecta.wudi.points.hover[0]);
+            vars.selecta.wudi.points.hover = [];
+        }
+
+
         vars.user.mouse.clicked = true;
     }
 
@@ -1500,6 +1522,23 @@ function wudi_get_data(times_arr){
     return true;
 }
 
+function wudi_get_point_detail(points_selected){
+
+    const post_obj_list = vars.selecta.wudi.times.selected.map(t =>{
+        return {
+            "url":"/wudi", "tim":`${t}`, "type":"json-ser", "name":"wudi_daily", "special":points_selected
+        }
+    });
+    fetchPOST(post_obj_list).then(object_list => wudi_set_chart_daily(object_list));
+    return true;
+}
+
+function wudi_set_chart_daily(result_obj){
+    console.log(result_obj);
+
+
+}
+
 function wudi_set_data(obj_list){
     if (!vars.data.hasOwnProperty('wudi_data')) vars.data.wudi_data = {points_count: 0, current: []};
     obj_list.forEach(obj => {
@@ -1840,9 +1879,7 @@ let initial_load = false;
 async function someFunction(){
     const get_secondary = await fetchAll(obj_list, loader_notify).then(object_list => fetch_callback(object_list));
     const get_data = await fetchPOST(post_obj_list, loader_notify).then(object_list => fetch_callback(object_list));
-    const get_last = await draw_sectors().then(r => {
-        return r;
-    });
+    const get_last = draw_sectors();
     initial_load = true;
     return [get_data, get_secondary, get_last];
 }
