@@ -299,6 +299,42 @@ svg {
 }
 
 
+
+
+
+
+
+
+
+
+
+
+
+.entry_page_title{
+
+}
+
+
+
+
+
+#title{
+	pointer-events: none;
+}
+
+#title-box{
+	position: absolute;
+	font-size: 0.8em;
+	width:100%;
+	text-align: center;
+	pointer-events: none;
+}
+
+#title-box>div{
+	display:inline-block;
+	/*border:1px white dotted;*/
+}
+
 #plot{
 	position:relative;
 	top:0;
@@ -307,15 +343,80 @@ svg {
 	left:0;
 }
 
-#plot_bar{
-	/*border:2px blue dotted;*/
+#times-bar{
 	width:100%;
+}
 
+#graph-obj-bar{
+	position: relative;
+	display:none;
+}
+
+#q-nav-bar{
+	background-color: #0f1621;
+	height:24px;
+	min-height:24px;
+	/*padding: 6px 12px;*/
+	/*display:none;*/
+}
+
+
+#nav-buttons{
+	display: flex;
+	justify-content: center;
+	text-align: center;
+}
+
+.st0{
+	fill:context-fill;
+}
+
+.button{
+	display:flex;
+	padding-left: 8px;
+	opacity:0.75;
+	white-space: nowrap;
+
+}
+
+.button:hover{
+	opacity:1.0;
+}
+
+.button div {
+	display: inline-block;
+	/*font-size:0.8em;*/
+	/*line-height: 1.2em;*/
+	vertical-align: center;
+	pointer-events: all;
+}
+
+.button svg{
+	top:3px;
+	position:relative;
+	display: inline-block;
+	fill:context-fill;
+	width:18px;
+	height:18px;
+	padding-right: 4px;
+	vertical-align: center;
+	pointer-events: all;
+}
+
+
+
+.bar{
+	background-color: rgba(0,120,0,0.1);
+	width:100%;
+}
+
+.plot-major-axis{
+	position:absolute;
 }
 
 .time-container{
 	/*border:2px blue dotted;*/
-	padding: 12px 12px 0;
+	padding: 6px 12px;
 }
 
 .time-container .time-element{
@@ -338,21 +439,16 @@ svg {
 	display: none;
 }
 
-#overlay{
-	background-color: rgba(0,120,0,0.1);
-	position:absolute;
-	top:0;
-	right:0;
-	bottom:60px;
-	left:0;
-}
+/*#overlay{*/
+/*	background-color: rgba(0,120,0,0.1);*/
+/*	position:absolute;*/
+/*	top:0;*/
+/*	right:0;*/
+/*	bottom:60px;*/
+/*	left:0;*/
+/*}*/
 
-.entry_page_title{
-	position:absolute;
-	font-size: 0.8em;
-	width:100%;
-	text-align: center;
-}
+
 
 #obs{
 	background-color: rgba(0,120,0,0.1);
@@ -409,5 +505,28 @@ svg {
 }
 
 .page-text{
+	font-size: 0.6em;
 	padding: 40px;
+	white-space: pre-line;
+}
+
+
+
+
+#graph-mark{
+	position: absolute;
+	border-left:1px green dotted;
+	pointer-events: none;
+}
+
+#graph-mark-value{
+	position: absolute;
+	border:1px green dotted;
+	border-radius:4px;
+	font-family: heavy_data, sans-serif;
+	pointer-events: none;
+	background-color:black;
+	color:lightgreen;
+	padding:0 4px 2px;
+	font-size:0.8em;
 }

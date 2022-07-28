@@ -6,7 +6,9 @@ import {keyControls} from './keys.js';
 import * as util from './obspkg-lite-util.js';
 import {loader as fetchAll} from './data-loader.js';
 import {post_loader as fetchPOST} from './data-loader.js';
-import {norm_val, title_case} from "./obspkg-lite-util.js";
+import {norm_val, title_case, to_lexical_range} from "./obspkg-lite-util.js";
+import {graph} from "./obspkg-lite-dom-graph-util";
+
 // import {Line2} from 'three/examples/jsm/lines/Line2.js';
 // import {LineMaterial} from "three/examples/jsm/lines/LineMaterial";
 // import {LineGeometry} from "three/examples/jsm/lines/LineGeometry";
@@ -57,7 +59,7 @@ vars.info = {
             this.screen_position.b.copy(this.screen_position.a);
         }
     },
-    drag_position: function(delta_x, delta_y){
+    drag_position: function (delta_x, delta_y) {
         vw.set(delta_x, delta_y);
         this.screen_position.a.add(vw);
         this.screen_position.b.copy(this.screen_position.a);
@@ -84,6 +86,7 @@ vars.info = {
         this.dom_element.style.top = (this.screen_position.b.y - (this.rect.height / 2)).toFixed(2) + 'px';
     },
 }
+
 vars.info.init();
 
 vars.selecta = {
@@ -91,32 +94,32 @@ vars.selecta = {
     focus_obj: null,
     moved: null,
     wudi: {
-        times: {years:['all'], months:['all'], has_default:'all', selected:[], loaded:[], required:[]},
-        points: {hover:[], selected:[]},
+        times: {years: ['all'], months: ['all'], has_default: 'all', selected: [], loaded: [], required: []},
+        points: {hover: [], selected: []},
         points_in_view: [],
-        times_select: function(type, element=null){
+        times_select: function (type, element = null) {
             this.times.required = [];
-            if(this.times[type].includes(this.times.has_default)) this.times[type] = [];
+            if (this.times[type].includes(this.times.has_default)) this.times[type] = [];
 
-            if(element){
+            if (element) {
                 const pos = this.times[type].indexOf(element.data);
-                if(pos === -1) {
+                if (pos === -1) {
                     this.times[type].push(element.data);
-                }else{
-                    this.times[type].splice(pos,1);
+                } else {
+                    this.times[type].splice(pos, 1);
                 }
             }
 
-            if(this.times[type].length === 0 && !this.times[type].includes(this.times.has_default)){
+            if (this.times[type].length === 0 && !this.times[type].includes(this.times.has_default)) {
                 this.times[type].push(this.times.has_default);
             }
 
 
-            for(let y of this.times.years){
-                if(y !== 'all' && this.times.months[0] === 'all') this.times.required.push(y.toString());
-                for(let m of this.times.months){
-                    const month = y+String(m).padStart(2, '0');
-                    if(m !== 'all') this.times.required.push(month);
+            for (let y of this.times.years) {
+                if (y !== 'all' && this.times.months[0] === 'all') this.times.required.push(y.toString());
+                for (let m of this.times.months) {
+                    const month = y + String(m).padStart(2, '0');
+                    if (m !== 'all') this.times.required.push(month);
                 }
             }
 
@@ -126,31 +129,47 @@ vars.selecta = {
 
             wudi_get_data(this.times.required);
 
-            //obs_handler({'T':Object.entries(this.times)});
+            obs_handler({'T': Object.entries(this.times)});
 
             vars.dom_time[type].map((y) => y.set_state(this.times[type].includes(y.data)));
 
-        },
-        point_select: function(pid){
-            const pos = this.points.selected.indexOf(pid);
-            if(pos === -1){
-                this.points.selected.push(pid);
-                wudi_get_point_detail(this.points.selected);
+            if (this.times.years[0] !== 'all') {
+                const years_grp = [...this.times.years];
+                const months_grp = [...this.times.months];
+                title.innerHTML = 'Mean daily observations of WUDI for ' + util.to_lexical_range(years_grp) + ' ' + util.to_lexical_range(months_grp, 'mo');
+                document.getElementById('months_container').style.display = 'flex';
+                windowRedraw();
             }else{
-                this.points.selected.splice(pos,1);
+                title.innerHTML = 'Mean daily observations of WUDI from 1979 to 2020';
+                document.getElementById('months_container').style.display = 'none';
+                windowRedraw();
             }
 
+        },
+        point_select: function (pid) {
+            const pos = this.points.selected.indexOf(pid);
+            // console.log(pos);
 
-
+            if (pos === -1) {
+                this.points.selected.push(pid);
+                //wudi_point_select_state(vars.selecta.wudi.points.hover[0], true, true);
+                wudi_point_select_state(pid, true, true);
+            } else {
+                this.points.selected.splice(pos, 1);
+                //wudi_point_select_state(vars.selecta.wudi.points.hover[0], false, true);
+                wudi_point_select_state(pid, false, true);
+            }
+            wudi_get_point_detail(this.points.selected);
+            //obs_handler({'T':Object.entries(this.points.selected)});
         }
     },
     eco_region: {
-        hover:null,
-        chosen:null
+        hover: null,
+        chosen: null
     },
-    protected_region:{
-        hover:null,
-        chosen:null
+    protected_region: {
+        hover: null,
+        chosen: null
     }
 }
 
@@ -242,16 +261,18 @@ class Sector {
     }
 
     check_layers() {
-        const required = Object.entries(this.meta).filter(k => k[1].hasOwnProperty(this.level) && k[1][this.level] === null && this.enabled.includes(k[0]));
-        if (required.length) {
-            const objects_list = required.map(k => ({
-                url: `${this.path}/${k[0]}-${this.level}.json`,
-                type: 'json',
-                name: k[0],
-                level: this.level
-            }));
-            //console.log(this.name, objects_list);
-            fetchAll(objects_list, loader_notify).then(object_list => this.load_layers(object_list));
+        if(this.meta){
+            const required = Object.entries(this.meta).filter(k => k[1].hasOwnProperty(this.level) && k[1][this.level] === null && this.enabled.includes(k[0]));
+            if (required.length) {
+                const objects_list = required.map(k => ({
+                    url: `${this.path}/${k[0]}-${this.level}.json`,
+                    type: 'json',
+                    name: k[0],
+                    level: this.level
+                }));
+                //console.log(this.name, objects_list);
+                fetchAll(objects_list, loader_notify).then(object_list => this.load_layers(object_list));
+            }
         }
         // const objects_list = this.get_src(this.level);
         // if(objects_list.length) fetchAll(objects_list).then(object_list => this.load_layers(object_list));
@@ -305,7 +326,7 @@ class Sector {
 }
 
 class domTimeElement {
-    constructor(id, time_type, label, data, auto_select=false){
+    constructor(id, time_type, label, data, auto_select = false) {
         this.dom_element = null;
         this.label = label;
         this.id = id;
@@ -317,27 +338,27 @@ class domTimeElement {
         this.set_state(this.selected);
     }
 
-    init(){
+    init() {
         const el = document.getElementById('time_element_temp').cloneNode(true);
         this.dom_element = el;
         el.innerHTML = this.label;
-        el.setAttribute('id', 'time-'+this.type+'-'+this.id);
+        el.setAttribute('id', 'time-' + this.type + '-' + this.id);
         el.setAttribute('data-id', this.data);
         el.addEventListener('click', this.dom_select.bind(el, this));
-        document.getElementById(this.type+'_container').appendChild(el);
+        document.getElementById(this.type + '_container').appendChild(el);
         //if(this.is_auto_selected) el.classList.toggle('selected');
     }
 
-    set_state(bool){
+    set_state(bool) {
         this.selected = bool;
-        if(bool){
+        if (bool) {
             this.dom_element.classList.add('selected');
-        }else{
+        } else {
             this.dom_element.classList.remove('selected');
         }
     }
 
-    dom_select(bound, e){
+    dom_select(bound, e) {
         obs_handler(e.target.dataset);
         vars.selecta.wudi.times_select(bound.type, bound);///engage()
     }
@@ -345,24 +366,24 @@ class domTimeElement {
 }
 
 vars.dom_time = {
-    years:[],
-    months:[],
-    populate: function(type){
-        if(type === 'years'){
-            const test_time = new domTimeElement(0,'years','ALL 40 YEARS','all', true);
+    years: [],
+    months: [],
+    populate: function (type) {
+        if (type === 'years') {
+            const test_time = new domTimeElement(0, 'years', 'ALL 40 YEARS', 'all', true);
             this.years.push(test_time);
-            for(let t = 1980; t<2021; t++){
-                const label = "'"+t.toString().substr(2,2);
-                const test_time = new domTimeElement(t,'years',label,t);
+            for (let t = 1980; t < 2021; t++) {
+                const label = "'" + t.toString().substr(2, 2);
+                const test_time = new domTimeElement(t, 'years', label, t);
                 this.years.push(test_time);
             }
             vars.selecta.wudi.times_select('years');
-        }else if(type === 'months'){
-            const test_time = new domTimeElement(0,'months','ALL MONTHS','all', true);
+        } else if (type === 'months') {
+            const test_time = new domTimeElement(0, 'months', 'ALL MONTHS', 'all', true);
             this.months.push(test_time);
-            for(let t = 1; t<13; t++){
+            for (let t = 1; t < 13; t++) {
                 const label = String(t).padStart(2, '0');///"'"+t.toString().substr(2,2);
-                const test_time = new domTimeElement(t,'months',label,t);
+                const test_time = new domTimeElement(t, 'months', label, t);
                 this.months.push(test_time);
             }
             vars.selecta.wudi.times_select('months');
@@ -371,23 +392,20 @@ vars.dom_time = {
 }
 
 
-
-
-
-
 vars.user.mouse.raw = new THREE.Vector3(0, 0, 0);
 vars.sectors_loaded = false;
-vars.loader_notify = {ct:0, list:[]};
+vars.loader_notify = {ct: 0, list: []};
+
+
 
 let ww, wh, camera, scene, renderer, stats, gridHelper, cube;
 let map_container, map_plane, visible_dimensions, camera_distance, root_plane, pos_mark_1, pos_mark_2, pos_mark_3, pos_mark_4,
-    axes_helper, arrow_helper_1, arrow_helper_2, arrow_helper_3, arrow_helper_4, grid_lines, grid_resolution, map_sectors_group, wudi_instances;
+    axes_helper, arrow_helper_1, arrow_helper_2, arrow_helper_3, arrow_helper_4, grid_lines, grid_resolution, map_sectors_group, ref_marker;
 let cam_dot_y, cam_dot_x, cam_dot_z, camera_scale;
 let active_keys = [];
 let axis_planes = [];
 let pos_marks_array = [];
 let ticks = {};
-
 
 
 const z_mants = [0.25, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0];
@@ -404,6 +422,7 @@ const utility_color = new THREE.Color();
 
 const instance_dummy = new THREE.Object3D();
 
+const display_inline_array = ['none', 'inline-block'];
 const display_array = ['none', 'block'];
 
 const ray_caster = new THREE.Raycaster();
@@ -446,6 +465,11 @@ const axis_markers_count = 25;
 const plot = document.getElementById('plot');
 const obs = document.getElementById('obs');
 const title = document.getElementById('title');
+const title_box = document.getElementById('title-box');
+const x_major_axis = document.getElementById('x-axis');
+const y_major_axis = document.getElementById('y-axis');
+const graph_bar = document.getElementById("graph-obj-bar");
+const q_nav_bar = document.getElementById("q-nav-bar");
 
 const coords_from_array = (array, add_z = 0.0) => {
     const build_coords = (coords_flat) => {
@@ -523,11 +547,35 @@ const visibleAtZDepth = (depth, camera) => {
     return {'h': vis_ht, 'w': vis_ht * camera.aspect};
 };
 
+const mod_HSL = (rgb_color, L_value) => {
+    const hsl = {}
+    rgb_color.getHSL(hsl);
+    rgb_color.setHSL(hsl.h, 1.0, L_value);
+}
+
+function dom_button_check_box_set_state(id, state){
+    const button = document.getElementById(id);
+    button.querySelector('#check-box-0').style.display = display_inline_array[+!state];
+    button.querySelector('#check-box-1').style.display = display_inline_array[+state];
+    button.setAttribute('data-state', state);
+}
+
+function dom_button_check_click(e){
+    const parent = e.target.closest('.button');
+    const b_state = parent.dataset.state === 'true';
+    dom_button_check_box_set_state(parent.id, !b_state);
+    if(parent.dataset.layer){
+         const wudi_layer = scene.getObjectByName('wudi_'+parent.dataset.layer);
+         wudi_layer.visible = !b_state;
+    }
+
+}
+
 function obs_handler(obj) {
     let lex = Object.entries(obj).map(e => {
-        if(Array.isArray(e[1])){
+        if (Array.isArray(e[1])) {
             return `${e[0]}</br> ${e[1].join('</br>')}`
-        }else{
+        } else {
             return `${e[0]}: ${e[1]}`
         }
     });
@@ -550,7 +598,7 @@ function make_map_container(bounds) {
     const material = new THREE.MeshBasicMaterial({color: 0x36332D, side: THREE.DoubleSide});
     map_plane = new THREE.Mesh(geometry, material);
     container.rotateX(Math.PI / -2);
-    container.position.set(-map_center.x, -0.01, map_center.y);
+    container.position.set(-map_center.x, -0.01, map_center.y-vars.view.map_vertical_deg_offset);
     container.add(map_plane);
     vars.map.offset = {
         x: map_center.x,
@@ -569,7 +617,7 @@ function make_map_container(bounds) {
     return container;
 }
 
-function make_markers_divs() {
+function make_ticks_divs() {
     const marks = [];
     for (let i = 0; i < axis_markers_count; i++) {
         const mark = document.createElement('div');
@@ -610,7 +658,6 @@ function make_hexagonal_shape(scale = 1.0) {
     const a_geometry = new THREE.BufferGeometry();
     a_geometry.setAttribute('position', new THREE.BufferAttribute(v, 3));
     a_geometry.setIndex([0, 1, 2, 2, 3, 0, 3, 4, 5, 5, 0, 3]);
-    //a_geometry.rotateX(Math.PI / -2);
     return a_geometry;
 }
 
@@ -666,17 +713,21 @@ function rayIntersectionWithXZPlane(rayOrigin, rayDirection, planeY) {
     return new THREE.Vector3(xIntersect, planeY, zIntersect);
 }
 
-function apply_adaptive_scale(inst, v, v_lim, index){
+function apply_adaptive_scale(inst, v, v_lim, index, sign) {
     //#//TODO must re-normalize to scale.
     inst.getMatrixAt(index, mu);
     mu.decompose(vw, qu, vu);
-    const value = (v / v_lim);
+    const value = v_lim === 0 || v === 0 ? (0.0001) : (v / v_lim);
     vu.setZ(value * vars.bar_scale);
-    vu.setY((1-camera_scale)*vars.bar_scale_width);
+    vu.setY((1 - camera_scale) * vars.bar_scale_width);
     mu.compose(vw, qu, vu);
     inst.setMatrixAt(index, mu);
-    utility_color.fromArray(inst.userData.td.base_color).multiplyScalar(Math.abs(value));
-    inst.setColorAt(index, utility_color.clone());
+
+    if (!inst.userData.td.color_default[index].selected) {
+        utility_color.fromArray(inst.userData.td.base_color).multiplyScalar(Math.abs(value));
+        inst.setColorAt(index, utility_color.clone());
+        inst.userData.td.color_default[index].color = utility_color.toArray();
+    }
     return true;
 }
 
@@ -685,36 +736,44 @@ function adaptive_scaling_wudi() {
     const wudi = scene.getObjectByName('wudi');
 
     if (wudi && wudi.children.length && vars.selecta.wudi.times.selected.length) {
-        const test = wudi.children[0].userData.td;
-        let index;
-        let cherf = 0;
-        const visible = {set:[],up:[],down:[]};
+        const wudi_up = scene.getObjectByName('wudi_up');
+        const wudi_down = scene.getObjectByName('wudi_down');
 
-        for(let c = 0; c < test.position.length; c++){
-            index = vars.data.wudi_index[c];
+        const test = wudi.children[0].userData.td;
+        let index, data_index;
+        let cherf = 0;
+        const visible = {set: [], up: [], down: []};
+
+        for (let c = 0; c < test.position.length; c++) {
+            data_index = vars.data.wudi_index[c];
+            //const r_index = wudi_up.userData.td.index.indexOf(index);
             vw.fromArray(test.position[c]);
             map_container.localToWorld(vw);
             //#//TODO make depend on distance from view also.
             if (camera_frustum.containsPoint(vw)) {
-                visible.set.push([c, index, cherf]);
-                visible.up.push([vars.data.wudi_data.current[index][0]]);
-                visible.down.push([vars.data.wudi_data.current[index][1]]);
+                visible.set.push([c, data_index, cherf]);
+                visible.up.push([vars.data.wudi_data.current[data_index][0]]);
+                visible.down.push([vars.data.wudi_data.current[data_index][1]]);
                 cherf++;
+            }else{
+                if (wudi_up.userData.td.color_default[c] && wudi_up.userData.td.color_default[c].selected) {
+                    //deselect point!
+                    //console.log(data_index,c);
+                    vars.selecta.wudi.point_select(data_index);
+                }
             }
         }
 
-        const wudi_up = scene.getObjectByName('wudi_up');
-        const wudi_down = scene.getObjectByName('wudi_down');
 
         const lim = [Math.max(...visible.up), Math.min(...visible.down)];
 
-        for(let v of visible.set){
-            ///console.log(visible.up[v[2]], lim[0], v[0]);
-            apply_adaptive_scale(wudi_up, visible.up[v[2]], lim[0], v[0]);
-            apply_adaptive_scale(wudi_down, visible.down[v[2]], lim[1], v[0]);
+        for (let v of visible.set) {
+            //DEBUG /// if (v[0] === 1085) console.log(visible.up[v[2]][0], visible.down[v[2]][0], lim, v[0]);
+            apply_adaptive_scale(wudi_up, visible.up[v[2]][0], lim[0], v[0], 1.0);
+            apply_adaptive_scale(wudi_down, visible.down[v[2]][0], lim[1], v[0], -1.0);
         }
 
-        //obs_handler({L:[visible.set.length, visible.up[0], visible.down[0]],LIM:lim});
+        obs_handler({LIM: lim});
 
         wudi_up.instanceMatrix.needsUpdate = true;
         wudi_up.instanceColor.needsUpdate = true;
@@ -727,34 +786,129 @@ function adaptive_scaling_wudi() {
     return true;
 }
 
-function get_point_data_matrix(data_index){
+const wudi_dub_selecta = {
+    object: new THREE.Group(),
+    line_material: new THREE.LineBasicMaterial({color: vars.colors.dub_selecta}),
+    buff: new Float32Array([1,0,0,-1,0,0]),
+    geom: null,
+    mark: [],
+    dub_line: null,
+    make: (e) => {
+        wudi_dub_selecta.geom = new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(wudi_dub_selecta.buff, 3));
+        wudi_dub_selecta.dub_line = new THREE.LineSegments(wudi_dub_selecta.geom, wudi_dub_selecta.line_material);
+        for(let c=0;c<2;c++) {
+            const ref_geom = make_hexagonal_shape(0.01);
+            const ref_mat = new THREE.MeshBasicMaterial({color: vars.colors.dub_selecta});
+            ref_marker = new THREE.Mesh(ref_geom, ref_mat);
+            ref_marker.rotateX(Math.PI / -2);
+            wudi_dub_selecta.mark.push(ref_marker);
+            wudi_dub_selecta.object.add(ref_marker);
+        }
+        wudi_dub_selecta.object.add(wudi_dub_selecta.dub_line);
+        wudi_dub_selecta.object.visible = false;
+    },
+    set: (p1, p2) =>{
+        wudi_dub_selecta.object.visible = true;
+        const position = wudi_dub_selecta.geom.getAttribute('position');
+        position.setXYZ(0, p1.x,p1.y,p1.z);
+        position.setXYZ(1, p2.x,p2.y,p2.z);
+        wudi_dub_selecta.geom.attributes.position.needsUpdate = true;
+        wudi_dub_selecta.dub_line.geometry.computeBoundingSphere();
+
+        for(let c=0;c<2;c++) {
+            wudi_dub_selecta.mark[c].position.set(position.array[c * 3], position.array[c * 3 + 1], position.array[c * 3 + 2]);
+        }
+    }
+}
+
+wudi_dub_selecta.make(null);
+
+
+
+function wudi_point_select_state(index, state, set_select = null) {
+    const wudi_up = scene.getObjectByName('wudi_up');
+    const wudi_down = scene.getObjectByName('wudi_down');
+    const r_index = wudi_up.userData.td.index.indexOf(index);
+
+    if (state) {
+        utility_color.fromArray(wudi_up.userData.td.base_color);
+        mod_HSL(utility_color, 0.6);
+        wudi_up.setColorAt(r_index, utility_color.clone());
+        utility_color.fromArray(wudi_down.userData.td.base_color);
+        mod_HSL(utility_color, 0.6);
+        wudi_down.setColorAt(r_index, utility_color.clone());
+
+    } else if (!wudi_up.userData.td.color_default[r_index].selected) {
+        utility_color.fromArray(wudi_up.userData.td.color_default[r_index].color);
+        wudi_up.setColorAt(r_index, utility_color.clone());
+        utility_color.fromArray(wudi_down.userData.td.color_default[r_index].color);
+        wudi_down.setColorAt(r_index, utility_color.clone());
+
+    }
+
+    if (set_select) {
+        wudi_up.userData.td.color_default[r_index].selected = state;
+        wudi_down.userData.td.color_default[r_index].selected = state;
+    }
+
+    wudi_up.instanceColor.needsUpdate = true;
+    wudi_down.instanceColor.needsUpdate = true;
+    //inst.userData.td.intrinsic[index].color = utility_color.toArray();
+}
+
+function get_point_selection_state(data_index, inst_index) {
     //data_index should be of type array.
     //this is a way to get a 2d average of point-data.
     //: ex time[1980,1981] , points[234,235,236]
 
-    const r_sum = (arr, modu, s=0) => {
+    const r_sum = (arr, modu, s = 0) => {
         for (let i = 0; i < arr.length; i++) s += arr[i];
-        return Math.round(s/modu);
+        return Math.round(s / modu);
     }
+    //const wudi = scene.getObjectByName('wudi_points');
+    const pt = vars.data.wudi_points.raw.data[inst_index];//.slice(6,8);
+    vw.set(pt[1],pt[0],0.0);//fromArray(wudi.userData.td.position[inst_index]);
+    vk.set(pt[5],pt[4],0.0);//.fromArray(wudi.userData.td.position[inst_index+1]);
 
-    const r_avg = {'times':vars.selecta.wudi.times.selected,'days':[],'up':[],'down':[],'events':[]};
+    vu.subVectors(vk,vw);
+    vc.crossVectors(vu,z_in).negate();//.add(vw);//.normalize();
+    vc.add(vu.multiplyScalar(0.5).add(vw));
 
-    data_index.map(dp => {
-        for(let d of vars.selecta.wudi.times.selected){
-            const data_point = vars.data.wudi_data[d].data[dp];
-            r_avg.days.push(vars.data.wudi_data[d].meta.siz);
-            r_avg.up.push(data_point[0]);
-            r_avg.down.push(Math.abs(data_point[1]));
-            r_avg.events.push(data_point[2])
-        }
-    });
+    map_container.localToWorld(vc);
+    ref_marker.position.copy(vc);
 
-    r_avg.days = r_sum(r_avg.days, r_avg.times.length);
-    r_avg.up = r_sum(r_avg.up, data_index.length*r_avg.times.length);
-    r_avg.down = r_sum(r_avg.down, data_index.length*r_avg.times.length);
-    r_avg.events = r_sum(r_avg.events, data_index.length*r_avg.times.length);
+    map_container.localToWorld(vw);
+    map_container.localToWorld(vk);
+    wudi_dub_selecta.set(vw,vk);
 
-    return Object.entries(r_avg);
+    let stats = null;
+    if(vars.debug_tool_state) {
+        stats = {'times': vars.selecta.wudi.times.selected, 'days': [], 'up': [], 'down': [], 'events': []};
+
+        data_index.map(dp => {
+            for (let d of vars.selecta.wudi.times.selected) {
+                const data_point = vars.data.wudi_data[d].data[dp];
+                stats.days.push(vars.data.wudi_data[d].meta.siz);
+                stats.up.push(data_point[0]);
+                stats.down.push(Math.abs(data_point[1]));
+                stats.events.push(data_point[2])
+            }
+        });
+
+        stats.pid = data_index;
+        stats.iid = inst_index;
+        stats.days = r_sum(stats.days, stats.times.length);
+        stats.up = r_sum(stats.up, data_index.length * stats.times.length);
+        stats.down = r_sum(stats.down, data_index.length * stats.times.length);
+        stats.events = r_sum(stats.events, data_index.length * stats.times.length);
+        stats.locat = vars.data.wudi_points.raw.data[inst_index].slice(6, 8);
+    }else{
+        stats = {'wudi':`${data_index}-g${pt[6]}`};
+    }
+    // r_avg.pos = p_pos;
+    //inst.userData.td.intrinsic[index].color = utility_color.toArray();
+
+    return Object.entries(stats);
 }
 
 function interactionAction() {
@@ -777,10 +931,11 @@ function interactionAction() {
         },
         wudi_points: (index = null) => {
             const data_index = vars.data.wudi_index[index];
-            const lst = get_point_data_matrix([data_index]);
+            if (vars.selecta.wudi.points.hover.length) wudi_point_select_state(vars.selecta.wudi.points.hover[0], false);
+            wudi_point_select_state(data_index, true);
             vars.selecta.wudi.points.hover = [data_index];
             return {
-                text: lst
+                text: get_point_selection_state([data_index], index)
             }
         },
         wudi_up: (index = null) => {
@@ -800,6 +955,7 @@ function interactionAction() {
         let len = ints.length;
         let ids = [];
         let result = [];
+        let wudi_polled = false;
         let name = null;
         let instance_id = null;
         for (let i = 0; i < len; i++) {
@@ -815,13 +971,20 @@ function interactionAction() {
                         index = ints[i].object.userData.index;
                     }
 
-                    const ref = filter.hasOwnProperty(ints[i].object.name) ? filter[ints[i].object.name](index) : null;
-                    if (ref){
-                        result.push(ref);
-                        obs_handler({obj:ints[i].object.name, i:index});
+                    const is_wudi = ints[i].object.name.indexOf('wudi') !== -1;
+
+                    if(( is_wudi && !wudi_polled ) || !is_wudi) {
+
+                        const ref = filter.hasOwnProperty(ints[i].object.name) ? filter[ints[i].object.name](index) : null;
+                        if (ref) {
+                            result.push(ref);
+                            if (is_wudi) wudi_polled = true;
+                        }
+
                     }
                     ids.push(instance_id ? instance_id : name);
                 }
+
                 instance_id = null;
             }
         }
@@ -831,19 +994,21 @@ function interactionAction() {
     const has_intersections = make_clean(intersects);
     vars.selecta.intersect = has_intersections.length > 0;
 
-    if(vars.selecta.intersect){
+    if (vars.selecta.intersect) {
         vars.info.set_state(true);
         vars.info.set_text(has_intersections);
         vars.info.set_position(vars.user.mouse.screen.x, vars.user.mouse.screen.y, 'mouse');
         vars.selecta.focus_obj = 'intersection';
     }
 
-    if(vars.selecta.moved){
+    if (vars.selecta.moved) {
         vars.selecta.eco_region.hover = null;
         vars.selecta.moved = false;
     }
 
-    if(!vars.selecta.intersect) {
+    if (!vars.selecta.intersect) {
+        if (vars.selecta.wudi.points.hover.length) wudi_point_select_state(vars.selecta.wudi.points.hover[0], false);
+
         const eco_regions = scene.getObjectByName('eco_regions'); ///AREAS
         if (eco_regions && eco_regions.children.length) {
             const eco = eco_regions.children
@@ -873,7 +1038,7 @@ function interactionAction() {
             }
         }
 
-        if(vars.selecta.focus_obj === 'intersection'){
+        if (vars.selecta.focus_obj === 'intersection') {
             vars.info.set_state(false);
         }
     }
@@ -885,10 +1050,10 @@ function translateAction(type, actual_xy, delta_xy, object) {
     let dx, dy;
     run_camera();
 
-    if(type === 'init'){
-        dx = vars.view.width/2;
-        dy = vars.view.height/2;
-    }else{
+    if (type === 'init') {
+        dx = vars.view.width / 2;
+        dy = vars.view.height / 2;
+    } else {
         dx = actual_xy[0];
         dy = actual_xy[1];
     }
@@ -900,18 +1065,9 @@ function translateAction(type, actual_xy, delta_xy, object) {
     vars.user.mouse.screen = {x: dx, y: dy};
     document.body.style.cursor = 'pointer';
 
-    //console.log(vars.user.mouse.raw);//.normalize());
-
-    //obs_handler({'translateAction':type, dx:dx, dy:dy, raw:vars.user.mouse.raw.toArray()});
-
     m_ray_origin.copy(new THREE.Vector3(vars.user.mouse.raw.x, vars.user.mouse.raw.y, 0.0)).unproject(camera);
     m_ray_pos.copy(new THREE.Vector3(vars.user.mouse.raw.x, vars.user.mouse.raw.y, 1.0)).unproject(camera);
     m_ray_dir.copy(m_ray_pos.sub(m_ray_origin));
-
-    // if(type === 'init') {
-    //     newMouseDown.copy(rayIntersectionWithXZPlane(m_ray_origin, m_ray_dir, 0.0));
-    //     user_position.copy(mouseDownCameraPosition.sub(newMouseDown.sub(lastMouseDown)));
-    // }
 
     if (type === 'down') {
         lastMouseDown.copy(rayIntersectionWithXZPlane(m_ray_origin, m_ray_dir, 0.0));
@@ -949,22 +1105,23 @@ function translateAction(type, actual_xy, delta_xy, object) {
 
     if (type === 'clicked') {
 
-        if(vars.selecta.wudi.points.hover.length){
+        if (vars.selecta.wudi.points.hover.length) {
             vars.selecta.wudi.point_select(vars.selecta.wudi.points.hover[0]);
+
             vars.selecta.wudi.points.hover = [];
         }
-
 
         vars.user.mouse.clicked = true;
     }
 
     if (type === 'move') {
+        window.scrollTo(0, 0);
         interactionAction();
+        //obs_handler({wp:vars.selecta.wudi.points.hover});
     }
 
 
-
-    if(type === 'init'){
+    if (type === 'init') {
         interactionAction();
     }
 
@@ -1020,16 +1177,22 @@ function translateAction(type, actual_xy, delta_xy, object) {
     pos_mark_4.position.copy(mouse_plane_pos);
     grid_lines.position.copy(mouse_plane_pos);
 
-        //#// adaptive scaling of wudi data:
-    if (type !== 'move'){  //} && type !== 'init') {
+    //#// adaptive scaling of wudi data:
+    if (type !== 'move') {  //} && type !== 'init') {
         adaptive_scaling_wudi();
     }
 
 }
 
+function toggle_debug_tools_state(override=null){
+    vars.debug_tool_state = override !== null ? override : !vars.debug_tool_state;
+    stats.dom.style.display = display_array[+vars.debug_tool_state];
+    obs.style.display = display_array[+vars.debug_tool_state];
+}
+
 function keyAction(raw) {
     active_keys = raw;
-    // console.log(active_keys);
+
     if (raw.includes('Space')) {
         cam_base_pos.set(0, 0, 10);
         cam_pos.set(0, 0, 0);
@@ -1040,6 +1203,13 @@ function keyAction(raw) {
         run_ticks();
     }
 
+    if (raw.includes('Tab')) {
+        if(!vars.previous_keys.includes('Tab')) {
+            toggle_debug_tools_state();
+        }
+    }
+
+    vars.previous_keys = [...active_keys];
 }
 
 function run_camera() {
@@ -1095,30 +1265,30 @@ function run_camera() {
     //visible_dimensions = visibleAtZDepth(-camera_distance, camera);
 }
 
-function run_ticks_axes(axis, tick_index, swap=null){
-    const basis = {x:'x', z:'z'};
+function run_ticks_axes(axis, tick_index, swap = null) {
+    const basis = {x: 'x', z: 'z'};
     const axes = [axis_dir_x, axis_dir_y];
 
-    if(swap){
+    if (swap) {
         basis.x = 'z';
         basis.z = 'x';
     }
 
     const tick_n = Math.round((user_position_round[basis[axis]]) / grid_resolution) * grid_resolution + ((tick_index - ((axis_markers_count - 1) / 2)) * grid_resolution);
 
-    if(basis[axis] === 'x'){
-        vw.set(tick_n,0,-30*Math.sign(axes[0].z));
-        vk.set(0,0,axes[0].z);
-    }else{
-        vw.set(-30*Math.sign(axes[1].x),0,tick_n);
-        vk.set(axes[1].x,0,0);
+    if (basis[axis] === 'x') {
+        vw.set(tick_n, 0, -30 * Math.sign(axes[0].z));
+        vk.set(0, 0, axes[0].z);
+    } else {
+        vw.set(-30 * Math.sign(axes[1].x), 0, tick_n);
+        vk.set(axes[1].x, 0, 0);
     }
 
-    if(axis === 'z') {
-        if(vw.dot(cam_right) < 0){
+    if (axis === 'z') {
+        if (vw.dot(cam_right) < 0) {
             vk.negate();
-            if(vk.x !== 0) vw.x *= -1.0;
-            if(vk.z !== 0) vw.z *= -1.0;
+            if (vk.x !== 0) vw.x *= -1.0;
+            if (vk.z !== 0) vw.z *= -1.0;
         }
 
     }
@@ -1129,10 +1299,10 @@ function run_ticks_axes(axis, tick_index, swap=null){
     //         arrow_helper_2.setDirection(vk);
     //     }
     // }
-            // if (tick_index === ((axis_markers_count - 1) / 2)) {
-        //     arrow_helper_3.position.copy(vw);
-        //     arrow_helper_3.setDirection(vk);
-        // }
+    // if (tick_index === ((axis_markers_count - 1) / 2)) {
+    //     arrow_helper_3.position.copy(vw);
+    //     arrow_helper_3.setDirection(vk);
+    // }
 
     return tick_n;
 }
@@ -1142,28 +1312,28 @@ function run_ticks() {
     vw.set(0, 0, Math.sign(camera_projected.z));
     vk.set(Math.sign(camera_projected.x), 0, 0);
 
-    if(camera_projected.angleTo(vk) < camera_projected.angleTo(vw)){
+    if (camera_projected.angleTo(vk) < camera_projected.angleTo(vw)) {
         swap = true;
     }
 
-    if(Math.abs(camera_projected.x) < 0.01 || Math.abs(camera_projected.z) < 0.01) {
+    if (Math.abs(camera_projected.x) < 0.01 || Math.abs(camera_projected.z) < 0.01) {
         axis_dir_y.set(-Math.sign(cam_dot_z), 0, 0).normalize();
         axis_dir_x.set(0, 0, Math.sign(cam_dot_x)).normalize();
-    }else{
-        axis_dir_y.set(-1*Math.sign(camera_projected.x), 0, 0);
-        axis_dir_x.set(0, 0, -1*Math.sign(camera_projected.z));
+    } else {
+        axis_dir_y.set(-1 * Math.sign(camera_projected.x), 0, 0);
+        axis_dir_x.set(0, 0, -1 * Math.sign(camera_projected.z));
     }
 
     arrow_helper_4.setDirection(cam_right);
 
     for (let plane of axis_planes) {
-        if(swap){
+        if (swap) {
             ticks.card = plane.name === 'x' ? 'N' : 'E';
-        }else{
+        } else {
             ticks.card = plane.name === 'x' ? 'E' : 'N';
         }
         for (let m = 0; m < axis_markers_count; m++) {
-            plane.markers_geoms.children[m].position.set(0, 1, 0);
+            //plane.markers_geoms.children[m].position.set(0, 1, 0);
             ticks.n = run_ticks_axes(plane.name, m, swap);
 
             ray_caster.set(vw, vk);
@@ -1178,9 +1348,9 @@ function run_ticks() {
                 ticks.rect = plane.markers_divs[m].getBoundingClientRect();
                 if (plane.name === 'x') {
                     ticks.left = (vu.x - (ticks.rect.width / 2));
-                    ticks.top = (vars.view.height - (ticks.rect.height / 2));
+                    ticks.top = (vars.view.height - vars.view.x_axis_inset) - (ticks.rect.height / 2);
                 } else {
-                    ticks.left = 0;
+                    ticks.left = vars.view.y_axis_inset;
                     ticks.top = (vu.y - (ticks.rect.height / 2));
                 }
                 plane.markers_divs[m].style.left = ticks.left + 'px';
@@ -1413,12 +1583,11 @@ function plot_data(obj) {
 
 }
 
-function wudi_plot(obj){
+function wudi_plot(obj) {
     // points, up_bars, down_bars
     //#//BASIC POINTS:
     const group = new THREE.Group();
     group.name = 'wudi';
-
     const data = vars.data[obj.name].raw.data;
     const point_data_td = {
         len: data.length,
@@ -1426,7 +1595,7 @@ function wudi_plot(obj){
         color: data.map(v => [0.9, 0.5, 0.9]),
         position: data.map((v) => [v[3], v[2], 0.0]),
         raw: data.map(v => 0.0),
-        index: data.map(v => v[8]-1),
+        index: data.map(v => v[8] - 1),
     }
     vars.data.wudi_index = point_data_td.index;
     //console.log(point_data_td.index);
@@ -1452,15 +1621,15 @@ function wudi_plot(obj){
     group.add(instance);
 
     const bar_instances = [
-        {name:'wudi_down', len: data.length, base_color:[1.0, 0.0, 0.0], visible:true, sign:-1},
-        {name:'wudi_up', len: data.length, base_color:[0.0, 0.0, 1.0], visible:true, sign:1},
-        {name:'wudi_meta', len: data.length, base_color:[0,0,0], visible:false, sign:1}
+        {name: 'wudi_down', len: data.length, base_color: [1.0, 0.0, 0.0], visible: true, sign: -1},
+        {name: 'wudi_up', len: data.length, base_color: [0.0, 0.0, 1.0], visible: true, sign: 1},
+        {name: 'wudi_meta', len: data.length, base_color: [0, 0, 0], visible: false, sign: 1}
     ];
 
-    const bar_attributes = ['color','position','rotation','scale','value','raw','index'];
+    const bar_attributes = ['color', 'position', 'rotation', 'scale', 'value', 'raw', 'index', 'color_default'];
 
-    for(let bar of bar_instances) {
-        for(let a of bar_attributes) bar[a] = [];
+    for (let bar of bar_instances) {
+        for (let a of bar_attributes) bar[a] = [];
 
         for (let i = 0; i < data.length; i++) {
             const A = new THREE.Vector3(data[i][1], data[i][0], 0.0);
@@ -1469,10 +1638,11 @@ function wudi_plot(obj){
             bar.position.push([A.x, A.y, A.z]);
             bar.rotation.push(angle.toFixed(5));
             bar.scale.push(A.distanceTo(B));
-            bar.color.push([0.0,0.0,0.0]);
+            bar.color.push([0.0, 0.0, 0.0]);
             bar.value.push(0.005);
             bar.raw.push(0.0);
-            bar.index.push(data[i][8]-1);
+            bar.index.push(data[i][8] - 1);
+            bar.color_default.push({color: null, selected: false});
         }
     }
 
@@ -1512,34 +1682,105 @@ function wudi_plot(obj){
     return 'plotted';
 }
 
-function wudi_get_data(times_arr){
-    const post_obj_list = times_arr.map(t =>{
+function wudi_get_data(times_arr) {
+    const post_obj_list = times_arr.map(t => {
         return {
-            "url":"/wudi", "tim":`${t}`, "type":"json-ser", "name":"wudi_data", "tck":[0,0,t]
+            "url": "/wudi", "tim": `${t}`, "type": "json-ser", "name": "wudi_data", "tck": [0, 0, t]
         }
     });
     fetchPOST(post_obj_list).then(object_list => wudi_set_data(object_list));
+    if (vars.selecta.wudi.points.selected.length) wudi_get_point_detail(vars.selecta.wudi.points.selected);
     return true;
 }
 
-function wudi_get_point_detail(points_selected){
-
-    const post_obj_list = vars.selecta.wudi.times.selected.map(t =>{
-        return {
-            "url":"/wudi", "tim":`${t}`, "type":"json-ser", "name":"wudi_daily", "special":points_selected
+function wudi_get_point_detail(points_selected) {
+    const post_obj_list = [];
+    for (let t of vars.selecta.wudi.times.selected) {
+        const request_points_selected = [];
+        for (let p of points_selected) {
+            const time_slot = `${p}-${t}`;
+            if (!vars.wudi_point_cache.hasOwnProperty(time_slot)) {
+                vars.wudi_point_cache[time_slot] = 'waiting';
+                request_points_selected.push(p);
+            }
         }
-    });
-    fetchPOST(post_obj_list).then(object_list => wudi_set_chart_daily(object_list));
+        if (request_points_selected.length) {
+            post_obj_list.push({
+                "url": "/wudi", "tim": `${t}`, "type": "json-ser", "name": "wudi_daily", "special": request_points_selected
+            });
+        }
+    }
+
+    if (post_obj_list.length) {
+        fetchPOST(post_obj_list).then(object_list => wudi_set_chart_daily(object_list));
+    } else {
+        wudi_graph_chart_daily();
+    }
+
     return true;
 }
 
-function wudi_set_chart_daily(result_obj){
-    console.log(result_obj);
+function wudi_graph_chart_daily() {
+    const style_current = graph_bar.style.display;
 
+    if(vars.selecta.wudi.points.selected.length) {
+        const diagonal = vars.selecta.wudi.times.selected.map(t => {
+            return Math.max(...vars.selecta.wudi.points.selected.map(p => vars.wudi_point_cache[`${p}-${t}`].meta));
+        });
+
+        const max_len = Math.max(...diagonal);
+        const aggregate = new Array(max_len).fill(0);
+        let res_count = 0;
+        let mean = 0;
+        for (let t of vars.selecta.wudi.times.selected) {
+            for (let p of vars.selecta.wudi.points.selected) {
+                const time_slot = `${p}-${t}`;
+                vars.wudi_point_cache[time_slot].data.map((d, i) => {
+                    aggregate[i] += d[0];
+                    mean += d[0];
+                });
+                res_count++;
+            }
+        }
+
+        mean /= res_count;
+        const aggregate_avg = aggregate.map(a => Math.round((a / res_count) * 1000) / 1000);
+        const graph_obj = {
+            xlim: [0, max_len],
+            ylim: [Math.min(...aggregate_avg), Math.max(...aggregate_avg)],
+            mean: [mean / max_len],
+            data: aggregate_avg
+        }
+
+        graph(graph_obj, vars.view.width, vars.view.graph_obj_height);
+
+        graph_bar.style.display = 'block';
+    }else{
+        graph_bar.style.display = 'none';
+    }
+
+    if(style_current !== graph_bar.style.display) windowRedraw();
 
 }
 
-function wudi_set_data(obj_list){
+function wudi_set_chart_daily(result_obj) {
+    // console.log(result_obj);
+    // return;
+    result_obj.forEach(obj => {
+        const request_length = obj.special.length; ///number of points per time.
+        const asset_raw_length = obj.raw.data.length;
+        const general_length = asset_raw_length / request_length;/// > general_length ? asset_raw_length/request_length : general_length;
+        const subset_arrays = array_chuk(obj.raw.data, general_length);
+        subset_arrays.map((v, n) => {
+            const time_slot = `${obj.special[n]}-${obj.tim}`;
+            vars.wudi_point_cache[time_slot] = {'data': v, 'meta': v.length};
+        })
+    });
+
+    wudi_graph_chart_daily();
+}
+
+function wudi_set_data(obj_list) {
     if (!vars.data.hasOwnProperty('wudi_data')) vars.data.wudi_data = {points_count: 0, current: []};
     obj_list.forEach(obj => {
         console.log(obj);
@@ -1555,23 +1796,23 @@ function wudi_set_data(obj_list){
     return wudi_set_data_selection();
 }
 
-function wudi_set_data_selection(){
+function wudi_set_data_selection() {
 
     const points_count = vars.data.wudi_data.points_count;
     const times_count = vars.selecta.wudi.times.selected.length;
     const new_normals = [];
     const new_aggregated = [];
 
-    if(points_count === 0) return false;
+    if (points_count === 0) return false;
 
     console.log('wudi_set_data_selection', points_count, times_count);
     //CRAZY//
-    for(let i = 0; i < points_count; i++){
+    for (let i = 0; i < points_count; i++) {
         new_normals.push([0.0, 0.0, 0.0, 0.0, 0.0]);
         new_aggregated.push([0.0, 0.0, 0.0, 0.0, 0.0, []]);
     }
-    const meta_avg = {siz:0, u_me:0, d_me:0, u_mx:0, d_mx:0};
-    for(let t = 0; t < times_count; t++){
+    const meta_avg = {siz: 0, u_me: 0, d_me: 0, u_mx: 0, d_mx: 0};
+    for (let t = 0; t < times_count; t++) {
         const tn = vars.selecta.wudi.times.selected[t].toString();
         console.log(tn);
         const data = vars.data.wudi_data[tn].data;
@@ -1579,25 +1820,27 @@ function wudi_set_data_selection(){
 
 
         Object.entries(meta).map((k) => meta_avg[k[0]] += k[1]);
-        for(let i = 0; i < points_count; i++){
-            for(let d = 0; d < 3; d++) new_aggregated[i][d] += data[i][d];
+        for (let i = 0; i < points_count; i++) {
+            for (let d = 0; d < 3; d++) new_aggregated[i][d] += data[i][d];
             new_aggregated[i][3] += data[i][0];
             new_aggregated[i][4] += data[i][1];
-            if(Array.isArray(data[i][3])){
-                for(let ed of data[i][3]){
-                    if(ed) new_aggregated[i][5].push(tn+ed);
+            if (Array.isArray(data[i][3])) {
+                for (let ed of data[i][3]) {
+                    if (ed) new_aggregated[i][5].push(tn + ed);
                 }
-            }else{
-                if(data[i][3]) new_aggregated[i][5].push(tn+data[i][3]);
+            } else {
+                if (data[i][3]) new_aggregated[i][5].push(tn + data[i][3]);
             }
         }
     }
-    Object.keys(meta_avg).map(k=> meta_avg[k] = Math.round(meta_avg[k]/times_count));
-    const rel_meta = [meta_avg.u_mx, meta_avg.d_mx, 1, meta_avg.u_me, meta_avg.d_me];
-    for(let i = 0; i < points_count; i++){
-        for(let d = 0; d < 5; d++){
-            new_aggregated[i][d] = Math.round(new_aggregated[i][d]/times_count);
-            new_normals[i][d] = (Math.round((new_aggregated[i][d]/rel_meta[d])*10000)/10000)*Math.sign(rel_meta[d]);
+    Object.keys(meta_avg).map(k => meta_avg[k] = Math.round(meta_avg[k] / times_count));
+    //const rel_meta = [meta_avg.u_mx, meta_avg.d_mx, 1, meta_avg.u_me, meta_avg.d_me];
+    const rel_meta = [meta_avg.u_me, meta_avg.d_me, 1, meta_avg.u_mx, meta_avg.d_mx];
+
+    for (let i = 0; i < points_count; i++) {
+        for (let d = 0; d < 5; d++) {
+            new_aggregated[i][d] = Math.round(new_aggregated[i][d] / times_count);
+            new_normals[i][d] = (Math.round((new_aggregated[i][d] / rel_meta[d]) * 10000) / 10000) * Math.sign(rel_meta[d]);
         }
         new_aggregated[i].splice(3, 2);
     }
@@ -1608,7 +1851,7 @@ function wudi_set_data_selection(){
 
     const instance_names = ['wudi_up', 'wudi_down'];
 
-    for(let i = 0; i < instance_names.length; i++){
+    for (let i = 0; i < instance_names.length; i++) {
 
         const wudi_obj = scene.getObjectByName(instance_names[i]);
         const base_color = new THREE.Color().fromArray(wudi_obj.userData.td.base_color, 0);
@@ -1621,9 +1864,9 @@ function wudi_set_data_selection(){
             raw: []
         }
         //#//td.sign is already set.
-        for(let d = 0; d < points_count; d++){
+        for (let d = 0; d < points_count; d++) {
             const has_index = wudi_obj.userData.td.index.indexOf(d) !== -1;
-            if(has_index){
+            if (has_index) {
                 const value = new_normals[d][i];
                 const color = base_color.clone().multiplyScalar(Math.abs(value)).toArray();
                 data_td.value.push(value);
@@ -1646,10 +1889,15 @@ function wudi_set_data_selection(){
 function windowRedraw() {
     const w = window.innerWidth;
     const h = window.innerHeight;
+
+    let bars_height = 0;
+    const bars = [...document.querySelectorAll('.bar')];
+    bars.map((b) => { if(b.style.display !== 'none') bars_height += b.getBoundingClientRect().height });
+
     ww = w;
-    wh = h - vars.view.bottom_offset;
-    plot.style.width = (w) + 'px';
-    plot.style.height = (h - vars.view.bottom_offset) + 'px';
+    wh = (h - vars.view.bottom_buffer - bars_height);
+    plot.style.width = (ww) + 'px';
+    plot.style.height = (wh) + 'px';
 
     vars.view.width = ww;
     vars.view.height = wh;
@@ -1659,22 +1907,37 @@ function windowRedraw() {
         camera.updateProjectionMatrix();
         renderer.setSize(ww, wh);
         run_camera();
+        run_ticks();
     }
 
-    title.style.bottom = '100px';
+    x_major_axis.style['border-color'] = vars.colors.hex_css(vars.colors.chart_tick);
+    x_major_axis.style.opacity = '0.25';
+    x_major_axis.style.left = '0px';
+    x_major_axis.style.top = (vars.view.height-vars.view.x_axis_inset)+'px';
+    x_major_axis.style.width = vars.view.width+'px';
+    x_major_axis.style.height = '1px';
+
+    y_major_axis.style['border-color'] = vars.colors.hex_css(vars.colors.chart_tick);
+    y_major_axis.style.opacity = '0.25';
+    y_major_axis.style.left = (vars.view.y_axis_inset*2)+'px';
+    y_major_axis.style.top = '0px';
+    y_major_axis.style.height = vars.view.height+'px';
+    y_major_axis.style.width = '1px';
+
+    title_box.style.bottom = vars.view.title_bottom_offset+'px';
     plot.focus();
 }
 
-function loader_notify(count, message=null){
+function loader_notify(count, message = null) {
     vars.loader_notify.ct += count;
     //let what = {loading:vars.loader_notify.ct};
-    if(message && vars.loader_notify_messages){
+    if (message && vars.loader_notify_messages) {
         vars.loader_notify.list.push(`${message}(${count})`);
-        const what = {loading:vars.loader_notify.ct, list:vars.loader_notify.list};
+        const what = {loading: vars.loader_notify.ct, list: vars.loader_notify.list};
         //console.log(what);
         obs_handler(what);
     }
-    if(vars.loader_notify.ct === 0){
+    if (vars.loader_notify.ct === 0) {
         //load_complete('true');
     }
 }
@@ -1728,9 +1991,9 @@ function init() {
         p.visible = vars.position_marks_visible;
     });
 
-    axes_helper = new THREE.AxesHelper( 5 );
+    axes_helper = new THREE.AxesHelper(5);
     axes_helper.visible = vars.arrow_helper_visible;
-    scene.add( axes_helper );
+    scene.add(axes_helper);
 
     axis_planes.push({
         name: 'x',
@@ -1738,8 +2001,8 @@ function init() {
         position: new THREE.Vector3(0, -1, 0),
         up: new THREE.Vector3(),
         mark: make_position_mark(1.0),
-        markers_geoms: make_markers_group(),
-        markers_divs: make_markers_divs()
+        // markers_geoms: make_markers_group(),
+        markers_divs: make_ticks_divs()
     })
 
     axis_planes.push({
@@ -1748,11 +2011,12 @@ function init() {
         position: new THREE.Vector3(-1, 0, 0),
         up: new THREE.Vector3(),
         mark: make_position_mark(1.0),
-        markers_geoms: make_markers_group(),
-        markers_divs: make_markers_divs()
+        // markers_geoms: make_markers_group(),
+        markers_divs: make_ticks_divs()
     })
 
-    scene.add(axis_planes[0].markers_geoms);
+    // scene.add(axis_planes[0].markers_geoms);
+    // scene.add(axis_planes[1].markers_geoms);
 
 
     arrow_helper_1 = new THREE.ArrowHelper(vw, vk, 1, 0xFFFF00, 0.3, 0.3);
@@ -1773,6 +2037,12 @@ function init() {
     arrow_helper_4.visible = vars.arrow_helper_visible;
 
     scene.add(vars.user.group);
+
+    const ref_geom = make_hexagonal_shape(0.01);
+    const ref_mat = new THREE[vars.mats.mapMarkersMaterial.type](vars.mats.mapMarkersMaterial.dict);
+    ref_marker = new THREE.Mesh(ref_geom, ref_mat);
+    ref_marker.rotateX(Math.PI / -2);
+    scene.add(ref_marker);
     //vars.user.group.visible = false;
 
     stats = new Stats();
@@ -1805,6 +2075,20 @@ function init() {
 
     run_camera();
     run_ticks();
+
+    toggle_debug_tools_state(false);
+
+    scene.add(wudi_dub_selecta.object);
+
+    const buttons = [...document.querySelectorAll(".button")];
+    buttons.map(b => {
+        const svg_check_zero = document.getElementById("check-box-0").cloneNode(true);
+        const svg_check_one = document.getElementById("check-box-1").cloneNode(true);
+        b.insertBefore(svg_check_one, b.firstChild);
+        b.insertBefore(svg_check_zero, b.firstChild);
+        b.parentNode.addEventListener('mouseup', dom_button_check_click);
+        dom_button_check_box_set_state(b.id, true);
+    });
 
 }
 
@@ -1843,11 +2127,11 @@ const fetch_callback = (obj_list) => {
                 plot_data(obj);
                 break;
             case 'json-ser':
-                if(obj.name === 'wudi_points'){
+                if (obj.name === 'wudi_points') {
                     vars.data[obj.name] = obj;
                     wudi_plot(obj);
                 }
-                if(obj.name === 'wudi_data'){
+                if (obj.name === 'wudi_data') {
                     wudi_set_data([obj]);
                 }
                 break;
@@ -1859,13 +2143,13 @@ const fetch_callback = (obj_list) => {
 }
 
 let payload = [];
-for(let i = 0; i < 100; i++){
+for (let i = 0; i < 100; i++) {
     payload.push(i);
 }
 
 const post_obj_list = [
-    {"url":"/wudi", "table":"turn_table", "type":"json-ser", "name":"wudi_points", "tck":util.shuffle_array(payload)},
-    {"url":"/wudi", "tim":"40", "type":"json-ser", "name":"wudi_data", "tck":[0,0,0]}
+    {"url": "/wudi", "table": "turn_table", "type": "json-ser", "name": "wudi_points", "tck": util.shuffle_array(payload)},
+    {"url": "/wudi", "tim": "40", "type": "json-ser", "name": "wudi_data", "tck": [0, 0, 0]}
 ]
 
 const obj_list = [
@@ -1876,7 +2160,7 @@ const obj_list = [
 
 let initial_load = false;
 
-async function someFunction(){
+async function someFunction() {
     const get_secondary = await fetchAll(obj_list, loader_notify).then(object_list => fetch_callback(object_list));
     const get_data = await fetchPOST(post_obj_list, loader_notify).then(object_list => fetch_callback(object_list));
     const get_last = draw_sectors();
@@ -1884,8 +2168,8 @@ async function someFunction(){
     return [get_data, get_secondary, get_last];
 }
 
-async function load_complete(situation){
-    if(situation === 'true' && initial_load === true){
+async function load_complete(situation) {
+    if (situation === 'true' && initial_load === true) {
         adaptive_scaling_wudi();
         //obs_handler({R:situation, M:'fully loaded'});
         //console.log('has cake');
@@ -1901,7 +2185,7 @@ async function load_complete(situation){
         // const re_k = wudi_get_data('40').then(r => {
         //     console.log('B:', r);
         // });
-    }else{
+    } else {
         //obs_handler({R:situation, M:'load complete(?)'});
     }
     // adaptive_scaling_wudi();

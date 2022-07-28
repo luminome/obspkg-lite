@@ -23,5 +23,27 @@ const shuffle_array = (array) => {
     return array;
 }
 
-export {max_min, deg_to_km, norm_val, title_case, shuffle_array};
+const to_lexical_range = (numbers, type=null) => {
+	//http://jsfiddle.net/sandro_paganotti/4zx73csv/1/
+	const months_str = ['Jan', 'Fev', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aot', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const sorted = numbers.sort(function(a,b){return a-b;});
+    const first = sorted.shift();
+    return sorted.reduce(function(ranges, num){
+        if(num - ranges[0][1] <= 1){
+            ranges[0][1] = num;
+        } else {
+            ranges.unshift([num, num]);
+        }
+        return ranges;
+    },[[first,first]]).map(function(ranges){
+		if(ranges[0] === ranges[1]){
+			return type ? months_str[ranges[1]-1] : ranges[0].toString();
+		}else{
+			return type ? ranges.map(r => months_str[r-1]).join('-') : ranges[0]+'-'+ranges[1].toString().substr(2,2);
+		}
+    }).reverse();
+}
+
+
+export {max_min, deg_to_km, norm_val, title_case, shuffle_array, to_lexical_range};
 

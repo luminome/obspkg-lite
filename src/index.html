@@ -7,104 +7,8 @@
 	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
 	<link type="text/css" rel="stylesheet" href="./css/basic.css">
 	<link type="text/css" rel="stylesheet" href="./css/window.css">
-	<link type="text/css" rel="stylesheet" href="./css/wudi-css.css">
-
-<!--	<script type="text/javascript" src="http://localhost:3000/js/vendor/bokeh.js"></script>-->
-<!--	<script type="text/javascript" src="http://localhost:3000/js/vendor/bokeh-api.js"></script>-->
-
-<!--	<script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-2.4.3.min.js"></script>-->
-<!--	<script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-api-2.4.3.min.js"></script>-->
-<!--	<script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-gl-2.4.3.min.js"></script>-->
-<!--	<script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-widgets-2.4.3.min.js"></script>-->
-<!--	<script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-tables-2.4.3.min.js"></script>-->
-<!--	<script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-mathjax-2.4.3.min.js"></script>-->
-
-
-
 </head>
 <body>
-
-
-<!--<canvas id="drawing-canvas" height="1200" width="1200" style="display:none;">k</canvas>-->
-<!--<div id="drawing-characters" style="position:absolute;">helpre</div>-->
-
-<!--<div id="window_stack">-->
-<!--	<div id="menus_container_left">-->
-<!--		<div id="layers_ui">-->
-
-<!--			<div id="variable_setter_temp" class="template">-->
-<!--				<input class="var-text" type="text">-->
-<!--			</div>-->
-
-<!--			<div id="menu_header_temp" class="row menuheaderlabel template">-->
-<!--				<div class="menulabel column-label"></div>-->
-<!--				<span class="menukey column-button">x</span>-->
-<!--				<span class="menuspecial column-button">x</span>-->
-<!--			</div>-->
-<!--		</div>-->
-
-<!--	</div>-->
-
-<!--	<div id="menus_container_right">-->
-<!--		<div id="info_ui"></div>-->
-<!--	</div>-->
-
-<!--	<div id="info">hello</div>-->
-<!--</div>-->
-
-<!--<div id="nav_stack">-->
-<!--	-->
-<!--	<div id="nav_bar">-->
-<!--		<svg id="nav_svg" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"/>-->
-<!--	</div>-->
-<!--	-->
-<!--	<div id="load_bar"></div>-->
-
-<!--	<div id="controls_area">-->
-<!--		<div id="slider_temp" class="slider">-->
-<!--			<div class="slider-image-container">-->
-<!--				<canvas class="slider-image" width="300" height="32"></canvas>-->
-<!--				<div class="slider-marker"></div>-->
-<!--			</div>-->
-<!--			<div class="slider-label">-->
-<!--				<div class="label">hello</div>-->
-<!--				<div class="label-button">play</div>-->
-<!--				<div class="label-frame">hello</div>-->
-<!--			</div>-->
-
-<!--		</div>-->
-<!--	</div>-->
-<!--		-->
-<!--	<div id="view">-->
-<!--		<canvas id="view-area"></canvas>-->
-<!--	</div>-->
-
-<!--	<div id="main-view" class="container"></div>-->
-
-<!--	<div id="row_template" class="wudi-row hidden"></div>-->
-
-<!--	<div id="col_template" class="col hidden">-->
-<!--		<div class="label">time_code</div>-->
-<!--	</div>-->
-
-<!--	<div id="welcome"></div>-->
-<!--	-->
-<!--</div>-->
-
-<!--<div id="root"></div>-->
-
-
-<!--<script type="module" src="./js/landing-chart.js"></script>-->
-
-
-
-<!--<script type="module" src="./js/vendor/hover.ts"></script>-->
-<!--<div id="overlay">blanket</div>-->
-<!--<div id="plot">-->
-<!--	<canvas id="myChart" width="800" height="400"></canvas>-->
-<!--</div>-->
-
-<!--<div class="entry_page_title">Mean daily observations of WUDI from 1980 to 2020</div>-->
 
 
 <script type="module" src="./js/obspkg-lite.js"></script>
@@ -117,28 +21,80 @@
 		</div>
 		<div class="info-body"></div>
 	</div>
+	<div id="y-axis" class="plot-major-axis" style="border-left:1px green solid;"></div>
+	<div id="x-axis" class="plot-major-axis" style="border-top:1px green solid;"></div>
+	<div id="title-box">
+		<div id="title" class="entry_page_title">Mean daily observations of WUDI from 1980 to 2020</div>
+		<div id="upwelling" class="button" style="fill:#6666FF; color:#6666FF;" data-layer="up"><div>upwelling</div></div>
+		<div id="downwelling" class="button" style="fill:#FF4444; color:#FF4444;" data-layer="down"><div>downwelling</div></div>
+	</div>
 </div>
 
-<div id="plot_bar">
+<div id="q-nav-bar" class="bar">
+	<div id="nav-buttons" class="row">
+
+	</div>
+</div>
+
+<div id="graph-obj-bar" class="bar">
+	<canvas id="graph"></canvas>
+	<div id="graph-mark"></div>
+	<div id="graph-mark-value"></div>
+</div>
+
+<div id="times-bar" class="bar">
 	<div id="time_element_temp" class="time-element column-label">hi.</div>
 	<div id="years_container" class="row time-container"></div>
 	<div id="months_container" class="row time-container"></div>
 </div>
 
-<div id="title" class="entry_page_title">Mean daily observations of WUDI from 1980 to 2020</div>
+
 <div id="obs">hello</div>
 
 <!--<div id="dmark-seven" class="dmark">0.0</div>-->
 <!--<div id="dmark-eight" class="dmark">0.0</div>-->
 
 <div class="page-text">
-	Quelqu'un vient d'arriver dans votre société ? Un voisin vient de s'installer près de chez vous ? Un ami vous présente quelqu'un qui va partager du temps avec vous ? ... Pourquoi ne pas souhaiter la bienvenue à toutes ces personnes ? Souhaiter la bienvenue à votre nouveau collègue
-Un simple mot, un email, un lettre ou un SMS pour souhaiter la bienvenue fait toujours plaisir et permet de créer dès le départ une relation cordiale et bienveillante.
-Comme il n'est pas toujours facile de savoir quoi dire pour souhaiter la bienvenue à quelqu'un, Ideetexte.fr vous aide à trouver l'inspiration avec des exemple de texte et de messages de bienvenue.
+
+	À savoir:
+	<b>clicquez et balayez</b> pour vous déplacer.
+	<b>scroll</b> pour zoomer.
+	<b>maintenir la cléf (meta)</b> pour éffectuer des rotations de la vue.
+	<b>tappez la cléf (éspace)</b> pour re-centrer l'image.
+
+	<b>la série temporelle?</b> oui.
+
+	Quelqu'un vient d'arriver dans votre société ? Un voisin vient de s'installer près de chez vous ? Un ami vous présente quelqu'un qui va partager du temps avec vous ? ... Pourquoi ne pas souhaiter la bienvenue à toutes ces personnes ? Souhaiter la bienvenue à votre nouveau collègue ? Un simple mot, un email, un lettre ou un SMS pour souhaiter la bienvenue fait toujours plaisir et permet de créer dès le départ une relation cordiale et bienveillante.
+
+	Comme il n'est pas toujours facile de savoir quoi dire pour souhaiter la bienvenue à quelqu'un, basta.
 
 	Les emails de bienvenue sont l’une des étapes les plus importantes pour établir des relations durables avec de nouveaux clients ou prospects qui viennent de choisir votre entreprise. L’impression que laisse votre message de bienvenue/présentation a un impact énorme sur le succès de vos efforts globaux de marketing par email. Des études montrent cependant que seuls 57,7% des marques envoient des messages de bienvenue à leurs nouveaux clients
 
+</div>
+
+
+<div id="svg-elements" style="display:none;">
+
+	<svg id="check-box-0" width="256px" height="256px" viewBox="0 0 256 256">
+		<g>
+			<path class="st0" d="M196.5,246h-137C32.2,246,10,223.8,10,196.5v-137C10,32.2,32.2,10,59.5,10h137.1c27.3,0,49.5,22.2,49.5,49.5
+				v137.1C246,223.8,223.8,246,196.5,246z M59.5,33C44.8,33,33,44.8,33,59.5v137.1c0,14.6,11.9,26.5,26.5,26.5h137.1
+				c14.6,0,26.5-11.9,26.5-26.5V59.5c0-14.6-11.9-26.5-26.5-26.5H59.5z"/>
+		</g>
+	</svg>
+
+	<svg id="check-box-1" width="256px" height="256px" viewBox="0 0 256 256">
+		<g>
+			<path class="st0" d="M203.1,59l-6.1-6.1c-5.6-5.6-14.6-5.6-20.2,0L128,101.8L79.2,52.9c-5.6-5.6-14.6-5.6-20.2,0L52.9,59
+				c-5.6,5.6-5.6,14.6,0,20.2l48.8,48.8l-48.8,48.8c-5.6,5.6-5.6,14.6,0,20.2l6.1,6.1c5.6,5.6,14.6,5.6,20.2,0l48.8-48.8l48.8,48.8
+				c5.6,5.6,14.6,5.6,20.2,0l6.1-6.1c5.6-5.6,5.6-14.6,0-20.2L154.2,128l48.8-48.8C208.6,73.6,208.6,64.6,203.1,59z"/>
+			<path class="st0" d="M196.5,10H59.5C32.2,10,10,32.2,10,59.5v137.1c0,27.3,22.2,49.5,49.5,49.5h137.1c27.3,0,49.5-22.2,49.5-49.5
+				V59.5C246,32.2,223.8,10,196.5,10z M223,196.5c0,14.6-11.9,26.5-26.5,26.5H59.5C44.8,223,33,211.2,33,196.5V59.5
+				C33,44.8,44.8,33,59.5,33h137.1c14.6,0,26.5,11.9,26.5,26.5V196.5z"/>
+		</g>
+	</svg>
 
 </div>
+
 </body>
 </html>
