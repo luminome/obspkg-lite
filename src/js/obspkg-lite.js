@@ -1066,7 +1066,7 @@ function translateAction(type, actual_xy, delta_xy, object) {
 
     if (type === 'drag') {
         document.body.style.cursor = 'all-scroll';
-        if (active_keys.includes('MetaRight')) {
+        if (active_keys.includes('ShiftLeft') || active_keys.includes('ShiftRight')) {
             //object is cube
             object.rotateOnWorldAxis(y_up, delta_xy[0] / 100);
             object.rotateX(delta_xy[1] / 100);

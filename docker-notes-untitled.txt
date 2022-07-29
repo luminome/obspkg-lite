@@ -1,3 +1,9 @@
+HOVER EVENT SHOULD NOT BE PARADIGMAGTIC.
+
+tool for wudi_point_proximity is borked. (the most recent tool.)
+seriously all wrong.
+
+
 git rm -r --cached data_resources
 https://discourse.bokeh.org/t/wheelzoom-active-by-default-not-working/2509
 https://discourse.bokeh.org/t/select-callback-using-bokehjs-in-a-static-react-site/9103/5
