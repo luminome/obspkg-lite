@@ -154,11 +154,13 @@ vars.selecta = {
                 this.points.selected.push(pid);
                 //wudi_point_select_state(vars.selecta.wudi.points.hover[0], true, true);
                 wudi_point_select_state(pid, true, true);
+                move_map_to_point(pid);
             } else {
                 this.points.selected.splice(pos, 1);
                 //wudi_point_select_state(vars.selecta.wudi.points.hover[0], false, true);
                 wudi_point_select_state(pid, false, true);
             }
+
             wudi_get_point_detail(this.points.selected);
             //obs_handler({'T':Object.entries(this.points.selected)});
         }
@@ -193,7 +195,7 @@ class Sector {
 
         if (object.name === 'line_strings') {
             const mat = new THREE[vars.mats.line_strings.type](vars.mats.line_strings.dict);
-            mat.setValues({color: vars.colors.eco_regions.select[1]});
+            //mat.setValues({color: vars.colors.eco_regions.select[1]});
             const lines_group = new THREE.Group();
             const coord_arrays = coords_from_array(object.raw);
 
@@ -786,44 +788,21 @@ function adaptive_scaling_wudi() {
     return true;
 }
 
-const wudi_dub_selecta = {
-    object: new THREE.Group(),
-    line_material: new THREE.LineBasicMaterial({color: vars.colors.dub_selecta}),
-    buff: new Float32Array([1,0,0,-1,0,0]),
-    geom: null,
-    mark: [],
-    dub_line: null,
-    make: (e) => {
-        wudi_dub_selecta.geom = new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(wudi_dub_selecta.buff, 3));
-        wudi_dub_selecta.dub_line = new THREE.LineSegments(wudi_dub_selecta.geom, wudi_dub_selecta.line_material);
-        for(let c=0;c<2;c++) {
-            const ref_geom = make_hexagonal_shape(0.01);
-            const ref_mat = new THREE.MeshBasicMaterial({color: vars.colors.dub_selecta});
-            ref_marker = new THREE.Mesh(ref_geom, ref_mat);
-            ref_marker.rotateX(Math.PI / -2);
-            wudi_dub_selecta.mark.push(ref_marker);
-            wudi_dub_selecta.object.add(ref_marker);
-        }
-        wudi_dub_selecta.object.add(wudi_dub_selecta.dub_line);
-        wudi_dub_selecta.object.visible = false;
-    },
-    set: (p1, p2) =>{
-        wudi_dub_selecta.object.visible = true;
-        const position = wudi_dub_selecta.geom.getAttribute('position');
-        position.setXYZ(0, p1.x,p1.y,p1.z);
-        position.setXYZ(1, p2.x,p2.y,p2.z);
-        wudi_dub_selecta.geom.attributes.position.needsUpdate = true;
-        wudi_dub_selecta.dub_line.geometry.computeBoundingSphere();
+function move_map_to_point(pid){
+    const ref_pid = vars.data.wudi_index.indexOf(pid);
+    console.log(pid, ref_pid);
+    const wudi = scene.getObjectByName('wudi_points');
+    const pt = wudi.userData.td.position[ref_pid];
+    vc.fromArray(pt);
+    map_container.localToWorld(vc);
+    user_position.copy(vc);
 
-        for(let c=0;c<2;c++) {
-            wudi_dub_selecta.mark[c].position.set(position.array[c * 3], position.array[c * 3 + 1], position.array[c * 3 + 2]);
-        }
-    }
+    run_camera();
+    run_ticks();
+    refresh();
+    adaptive_scaling_wudi();
+    wudi_dub_selecta.set_from_point(pid);
 }
-
-wudi_dub_selecta.make(null);
-
-
 
 function wudi_point_select_state(index, state, set_select = null) {
     const wudi_up = scene.getObjectByName('wudi_up');
@@ -857,7 +836,7 @@ function wudi_point_select_state(index, state, set_select = null) {
 }
 
 function get_point_selection_state(data_index, inst_index) {
-    //data_index should be of type array.
+    //data_index should NOT be of type array.
     //this is a way to get a 2d average of point-data.
     //: ex time[1980,1981] , points[234,235,236]
 
@@ -865,21 +844,11 @@ function get_point_selection_state(data_index, inst_index) {
         for (let i = 0; i < arr.length; i++) s += arr[i];
         return Math.round(s / modu);
     }
-    //const wudi = scene.getObjectByName('wudi_points');
+
     const pt = vars.data.wudi_points.raw.data[inst_index];//.slice(6,8);
-    vw.set(pt[1],pt[0],0.0);//fromArray(wudi.userData.td.position[inst_index]);
-    vk.set(pt[5],pt[4],0.0);//.fromArray(wudi.userData.td.position[inst_index+1]);
 
-    vu.subVectors(vk,vw);
-    vc.crossVectors(vu,z_in).negate();//.add(vw);//.normalize();
-    vc.add(vu.multiplyScalar(0.5).add(vw));
-
-    map_container.localToWorld(vc);
-    ref_marker.position.copy(vc);
-
-    map_container.localToWorld(vw);
-    map_container.localToWorld(vk);
-    wudi_dub_selecta.set(vw,vk);
+    wudi_dub_selecta.set_from_point(data_index[0]);
+    q_nav.set_geo_region('g-'+pt[6], pt[8]-1);
 
     let stats = null;
     if(vars.debug_tool_state) {
@@ -905,8 +874,7 @@ function get_point_selection_state(data_index, inst_index) {
     }else{
         stats = {'wudi':`${data_index}-g${pt[6]}`};
     }
-    // r_avg.pos = p_pos;
-    //inst.userData.td.intrinsic[index].color = utility_color.toArray();
+
 
     return Object.entries(stats);
 }
@@ -1008,6 +976,7 @@ function interactionAction() {
 
     if (!vars.selecta.intersect) {
         if (vars.selecta.wudi.points.hover.length) wudi_point_select_state(vars.selecta.wudi.points.hover[0], false);
+        vars.selecta.wudi.points.hover = [];
 
         const eco_regions = scene.getObjectByName('eco_regions'); ///AREAS
         if (eco_regions && eco_regions.children.length) {
@@ -1046,6 +1015,28 @@ function interactionAction() {
     return true;
 }
 
+function refresh(){
+    map_sectors_group.children.forEach(s => {
+        vw.copy(s.userData.owner.objects.plane.userData.center);
+        map_sectors_group.localToWorld(vw);
+
+        root_plane.projectPoint(camera.position, vu);
+        vu.sub(camera.up);
+        vk.subVectors(user_position, vu).multiplyScalar(0.5 / vars.degree_scale);
+
+        camera_projected.copy(vk);
+
+        pos_mark_1.position.copy(vk.add(user_position));
+        const L = vw.distanceTo(vk);
+        if (L < (vars.levels * (vars.degree_scale)) + 2) {
+            let LV = Math.round((vars.levels - Math.round(L / vars.degree_scale)) * (Math.round(camera_scale * vars.levels) / vars.levels));
+            if (LV > 4) LV = 4;
+            if (LV < 0) LV = 0;
+            s.userData.owner.set_level(LV);
+        }
+    });
+}
+
 function translateAction(type, actual_xy, delta_xy, object) {
     let dx, dy;
     run_camera();
@@ -1059,7 +1050,6 @@ function translateAction(type, actual_xy, delta_xy, object) {
     }
 
     vars.user.mouse.state = type;
-
     vars.user.mouse.raw.x = (dx / vars.view.width) * 2 - 1;
     vars.user.mouse.raw.y = -(dy / vars.view.height) * 2 + 1;
     vars.user.mouse.screen = {x: dx, y: dy};
@@ -1104,19 +1094,17 @@ function translateAction(type, actual_xy, delta_xy, object) {
     }
 
     if (type === 'clicked') {
-
         if (vars.selecta.wudi.points.hover.length) {
             vars.selecta.wudi.point_select(vars.selecta.wudi.points.hover[0]);
-
             vars.selecta.wudi.points.hover = [];
         }
-
         vars.user.mouse.clicked = true;
     }
 
     if (type === 'move') {
-        window.scrollTo(0, 0);
+        //window.scrollTo(0, 0);
         interactionAction();
+
         //obs_handler({wp:vars.selecta.wudi.points.hover});
     }
 
@@ -1126,25 +1114,7 @@ function translateAction(type, actual_xy, delta_xy, object) {
     }
 
     camera_scale = 1 - (camera_distance / reset_default_z);
-    map_sectors_group.children.forEach(s => {
-        vw.copy(s.userData.owner.objects.plane.userData.center);
-        map_sectors_group.localToWorld(vw);
 
-        root_plane.projectPoint(camera.position, vu);
-        vu.sub(camera.up);
-        vk.subVectors(user_position, vu).multiplyScalar(0.5 / vars.degree_scale);
-
-        camera_projected.copy(vk);
-
-        pos_mark_1.position.copy(vk.add(user_position));
-        const L = vw.distanceTo(vk);
-        if (L < (vars.levels * (vars.degree_scale)) + 2) {
-            let LV = Math.round((vars.levels - Math.round(L / vars.degree_scale)) * (Math.round(camera_scale * vars.levels) / vars.levels));
-            if (LV > 4) LV = 4;
-            if (LV < 0) LV = 0;
-            s.userData.owner.set_level(LV);
-        }
-    });
 
     if (active_keys.includes('Tab')) {
         obs_handler({
@@ -1164,15 +1134,15 @@ function translateAction(type, actual_xy, delta_xy, object) {
         });
     }
 
-
     let zg = Math.floor(Math.log(camera_distance)) + 1;
     grid_resolution = z_mants[zg];
     run_ticks();
+    refresh();
 
     ray_caster.setFromCamera(vars.user.mouse.raw, camera);
     ray_caster.ray.intersectPlane(root_plane, vk);
     mouse_plane_pos.set(vk.x, vk.y, vk.z);
-    mouse_pos_map.set(mouse_plane_pos.x + vars.map.offset.x, Math.abs(mouse_plane_pos.z - vars.map.offset.y), 0.0);
+    mouse_pos_map.set(mouse_plane_pos.x + vars.map.offset.x, Math.abs((mouse_plane_pos.z - vars.map.offset.y) + vars.view.map_vertical_deg_offset), 0.0);
 
     pos_mark_4.position.copy(mouse_plane_pos);
     grid_lines.position.copy(mouse_plane_pos);
@@ -1583,6 +1553,7 @@ function plot_data(obj) {
 
 }
 
+//#// is this the place to begin outlining geo-regions? probably.
 function wudi_plot(obj) {
     // points, up_bars, down_bars
     //#//BASIC POINTS:
@@ -1598,7 +1569,18 @@ function wudi_plot(obj) {
         index: data.map(v => v[8] - 1),
     }
     vars.data.wudi_index = point_data_td.index;
-    //console.log(point_data_td.index);
+
+    const geo_regions = {};
+    data.map(d => {
+        const g = 'g-'+d[6];
+        if(!geo_regions.hasOwnProperty(g)) geo_regions[g] = [];
+        geo_regions[g].push(d[8] - 1);
+    });
+
+    vars.data.geo_regions = geo_regions;
+    console.log(vars.data.geo_regions);
+    // Object.entries(geo_regions).map((k,v,i) => console.log(k,v,i));
+    // //console.log(point_data_td.index);
 
     const geometry = make_hexagonal_shape(vars.wudi_point_scale); //wudi_point_scale
     geometry.deleteAttribute('uv');
@@ -1972,6 +1954,10 @@ function init() {
     renderer.setSize(ww, wh);
 
     root_plane = new THREE.Plane(y_up);
+    // vc.set(0,0,vars.view.map_vertical_deg_offset);
+    // root_plane.translate(vc);
+    //position.setY(vars.view.map_vertical_deg_offset);
+    // scene.add(root_plane);
 
     const col_xy = new THREE.Color("hsl(100, 0%, 35%)");
     const col_gd = new THREE.Color("hsl(100, 0%, 30%)");
@@ -2041,7 +2027,9 @@ function init() {
     const ref_geom = make_hexagonal_shape(0.01);
     const ref_mat = new THREE[vars.mats.mapMarkersMaterial.type](vars.mats.mapMarkersMaterial.dict);
     ref_marker = new THREE.Mesh(ref_geom, ref_mat);
+    ref_marker.name = 'ref_mark';
     ref_marker.rotateX(Math.PI / -2);
+    // ref_marker.position.set(12,12,12);
     scene.add(ref_marker);
     //vars.user.group.visible = false;
 
@@ -2072,12 +2060,9 @@ function init() {
     ray_caster.params.Points.threshold = 0.025;
 
     translateAction('init', null, null, cube);
-
-    run_camera();
-    run_ticks();
-
     toggle_debug_tools_state(false);
 
+    wudi_dub_selecta.make(null);
     scene.add(wudi_dub_selecta.object);
 
     const buttons = [...document.querySelectorAll(".button")];
@@ -2090,7 +2075,178 @@ function init() {
         dom_button_check_box_set_state(b.id, true);
     });
 
+    run_camera();
+    run_ticks();
 }
+
+
+const wudi_dub_selecta = {
+    object: new THREE.Group(),
+    line_material: new THREE.LineBasicMaterial({color: vars.colors.dub_selecta}),
+    buff: new Float32Array([1,0,0,-1,0,0]),
+    geom: null,
+    mark: [],
+    dub_line: null,
+    make: (e) => {
+        wudi_dub_selecta.geom = new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(wudi_dub_selecta.buff, 3));
+        wudi_dub_selecta.dub_line = new THREE.LineSegments(wudi_dub_selecta.geom, wudi_dub_selecta.line_material);
+        for(let c=0;c<2;c++) {
+            const ref_geom = make_hexagonal_shape(0.01);
+            const ref_mat = new THREE.MeshBasicMaterial({color: vars.colors.dub_selecta});
+            ref_marker = new THREE.Mesh(ref_geom, ref_mat);
+            ref_marker.rotateX(Math.PI / -2);
+            wudi_dub_selecta.mark.push(ref_marker);
+            wudi_dub_selecta.object.add(ref_marker);
+        }
+        wudi_dub_selecta.object.add(wudi_dub_selecta.dub_line);
+        wudi_dub_selecta.object.visible = false;
+    },
+    set: (p1, p2) =>{
+        wudi_dub_selecta.object.visible = true;
+        const position = wudi_dub_selecta.geom.getAttribute('position');
+        position.setXYZ(0, p1.x,p1.y,p1.z);
+        position.setXYZ(1, p2.x,p2.y,p2.z);
+        wudi_dub_selecta.geom.attributes.position.needsUpdate = true;
+        wudi_dub_selecta.dub_line.geometry.computeBoundingSphere();
+        for(let c=0;c<2;c++) {
+            wudi_dub_selecta.mark[c].position.set(position.array[c * 3], position.array[c * 3 + 1], position.array[c * 3 + 2]);
+        }
+    },
+    set_from_point: (pid) =>{
+        const t_ref = scene.getObjectByName('ref_mark');
+        const ref_point = vars.data.wudi_index.indexOf(pid);
+        const pt = vars.data.wudi_points.raw.data[ref_point];
+        vw.set(pt[1],pt[0],0.0);
+        vk.set(pt[5],pt[4],0.0);
+        vu.subVectors(vk,vw);
+        vc.crossVectors(vu,z_in).negate();
+        vc.add(vu.multiplyScalar(0.5).add(vw));
+        map_container.localToWorld(vc);
+        t_ref.position.copy(vc);
+        map_container.localToWorld(vw);
+        map_container.localToWorld(vk);
+        wudi_dub_selecta.set(vw,vk);
+    },
+}
+
+const q_nav = {
+    area_strip: q_nav_bar.querySelector('.area-strip'),
+    strip_canvas: q_nav_bar.querySelector('.strip-canvas'),
+    base_position: q_nav_bar.querySelector('.base-position'),
+    label: q_nav_bar.querySelector('.label'),
+    label_top: null,
+    offset: null,
+    offset_pixels: null,
+    region_length: null,
+    region_id: null,
+    region_width_px: null,
+    strip_canvases: {},
+    draw_strip: (reg_id, items) => {
+        const has_container = q_nav.area_strip.querySelector('.area-div-container');
+        if(has_container){
+             if(has_container.id === 'sg-'+reg_id){
+                 return;
+             }else{
+                 if(!q_nav.strip_canvases.hasOwnProperty(has_container.id)) {
+                     q_nav.strip_canvases[has_container.id] = has_container.cloneNode(true);
+                 }
+             }
+        }
+
+        if(q_nav.strip_canvases.hasOwnProperty('sg-'+reg_id)) {
+            q_nav.area_strip.innerHTML = '';
+            q_nav.area_strip.appendChild(q_nav.strip_canvases['sg-'+reg_id].cloneNode(true));
+        }else{
+            const container = document.createElement("div");
+            container.classList.add("area-div-container");
+            container.setAttribute('id', 'sg-'+reg_id);
+
+            for(let c = 0; c<items;c++){
+
+                const index = vars.data.wudi_index[c];
+                const plb = vars.data.wudi_assoc.raw.data[index];
+                //console.log(plb);
+
+                //vars.data.wudi_assoc
+
+                const r_div = document.createElement("div");
+                r_div.classList.add("area-div");
+
+                if(plb[1] !== null) r_div.classList.add("area-protected");
+
+                r_div.style.left = c*vars.q_nav.segment_width+'px';
+                container.appendChild(r_div);
+            }
+
+            q_nav.area_strip.innerHTML = '';
+            q_nav.area_strip.appendChild(container);
+        }
+
+    },
+    get_point: () => {
+        const rc = Math.round(q_nav.offset*q_nav.region_length)+1;
+        return rc > q_nav.region_length ? 1 : rc;
+    },
+    set_geo_region: (reg_id, point=null) => {
+        const r = vars.data.geo_regions[reg_id];
+        const r_pos = r.indexOf(point);
+
+
+
+        q_nav.region_id = reg_id;
+        q_nav.region_length = r.length;
+        q_nav.offset = r_pos/(r.length);
+        q_nav.offset_pixels = (vars.view.width*q_nav.offset);
+        q_nav.region_width_px = r.length*vars.q_nav.segment_width;//vars.view.width/2;
+        if(point !== null){
+            q_nav.reposition();
+        }
+
+        q_nav.draw_strip(q_nav.region_id, q_nav.region_length);
+    },
+    reposition: () => {
+        q_nav.label.innerHTML = `${q_nav.get_point()}/${q_nav.region_length}`;
+        q_nav.area_strip.style.width = (q_nav.region_width_px)+'px';
+        q_nav.area_strip.style.left = ((vars.view.width/2.0)-(q_nav.offset*q_nav.region_width_px))+'px';
+    },
+    init: () => {
+        dragControls(q_nav_bar, q_nav.event_handler, {}, {passive: true});
+        q_nav.label_top = (vars.view.q_nav_bar_height/2)+(q_nav.label.getBoundingClientRect().height/-2);
+        q_nav.label.style.top = q_nav.label_top+'px';
+        q_nav.label.style.left = (vars.view.width/2.0)+'px';
+        q_nav.base_position.style.left = (vars.view.width/2.0)+'px';
+
+        q_nav.strip_canvas.width = 0;//q_nav.region_width_px;
+        q_nav.strip_canvas.height = 0;//vars.view.q_nav_bar_height;
+    },
+    event_handler: (type, actual_xy, delta_xy, object) => {
+        obs_handler({q_nav:type, c:actual_xy});
+
+        if(type === 'drag'){
+            q_nav.offset_pixels += delta_xy[0];
+            const r_interval = Math.round((q_nav.offset_pixels/q_nav.region_width_px)*q_nav.region_length);
+            q_nav.offset = util.naturalize_on_loop(r_interval/q_nav.region_length, true);
+            q_nav.reposition();
+            move_map_to_point(vars.data.geo_regions[q_nav.region_id][q_nav.get_point()-1]);
+
+        }else if(type === 'clicked'){
+            const click_pos = (((vars.view.width/2.0)-(q_nav.offset*q_nav.region_width_px))-actual_xy[0])*-1;
+            const click_offset = (click_pos/q_nav.region_width_px);
+            const click_ref = Math.round(click_offset*q_nav.region_length);
+            if(click_ref >= 0 && click_ref < q_nav.region_length){
+                q_nav.offset = click_offset;
+                q_nav.reposition();
+                move_map_to_point(vars.data.geo_regions[q_nav.region_id][q_nav.get_point()-1]);
+            }
+            //obs_handler({q_nav:click_ref});
+        }else{
+            q_nav.offset_pixels = q_nav.offset*q_nav.region_width_px;///vars.view.width;
+        }
+    }
+}
+
+
+
 
 // 👉️ START EVERYTHING HERE
 vars.dom_time.populate('years');
@@ -2102,6 +2258,8 @@ windowRedraw();
 init();
 animate();
 windowRedraw();
+
+q_nav.init();
 
 // 👉️ LOADERS / PARSERS
 const array_auto = (str) => (new Function(`return [${str}];`)());
@@ -2131,6 +2289,11 @@ const fetch_callback = (obj_list) => {
                     vars.data[obj.name] = obj;
                     wudi_plot(obj);
                 }
+                if (obj.name === 'wudi_assoc') {
+
+                    vars.data[obj.name] = obj;
+                    console.log(obj);
+                }
                 if (obj.name === 'wudi_data') {
                     wudi_set_data([obj]);
                 }
@@ -2149,6 +2312,7 @@ for (let i = 0; i < 100; i++) {
 
 const post_obj_list = [
     {"url": "/wudi", "table": "turn_table", "type": "json-ser", "name": "wudi_points", "tck": util.shuffle_array(payload)},
+    {"url": "/wudi", "table": "assoc", "type": "json-ser", "name": "wudi_assoc", "tck": util.shuffle_array(payload)},
     {"url": "/wudi", "tim": "40", "type": "json-ser", "name": "wudi_data", "tck": [0, 0, 0]}
 ]
 

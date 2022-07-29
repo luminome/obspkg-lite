@@ -25,6 +25,7 @@ import config as conf
 import utilities as util
 from Bezier import CubicBezier
 
+import pickle
 
 # convert map geopackage to shapely multigeometry
 def parse_map_geometry() -> MultiPolygon:
@@ -1224,11 +1225,206 @@ def tests():
     pass
 
 
+def wudi_filter_a():
+    # df = pd.read_pickle(os.path.join(conf.assets_path, 'v2_wudi-Dataframe.pkl'))
+    # print(df.info())
+    # all_wudi_points = []
+    # for n in range(df.shape[0]):
+    #     point = Point(df.iloc[n].M_lon, df.iloc[n].M_lat)
+    #     all_wudi_points.append(point)
+    #
+    # places = pd.read_pickle(os.path.join(conf.assets_path, 'v2_places-Dataframe.pkl'))
+    # protected = pd.read_pickle(os.path.join(conf.assets_path, 'v2_protected_regions-Dataframe.pkl'))
+    # print(protected.info())
+    # print(places.info())
+    #
+    # r_meta_wudi = {}
+    # for w in range(df.shape[0]):
+    #     r_meta_wudi[w] = {'nearest_protected': [], 'within_protected': [], 'nearest_place': []}
+
+    def get_closest_places():
+        closest_places = []
+        cols = ['lon', 'lat']
+
+        for k, p in enumerate(all_wudi_points):
+            s_d = 1.0
+            dist = []
+            rf = places[[cols[0], cols[1]]][((places[cols[0]] > p.x - s_d) & (places[cols[0]] < p.x + s_d)) & ((places[cols[1]] > p.y - s_d) & (places[cols[1]] < p.y + s_d))]
+            for wi, row in rf.iterrows():
+                dist.append([k, wi, Point(row.lon, row.lat).distance(p)])
+            res = sorted(dist, key=lambda x: x[2])
+
+            if len(res) and res[0][2] < 0.25:
+                closest_places.append(res[0])
+
+            util.show_progress(f"places", k, len(all_wudi_points))
+
+        d_filter = {}
+        for r in closest_places:
+            if not r[1] in d_filter:
+                d_filter[r[1]] = []
+            d_filter[r[1]].append(r)
+
+        meta = []
+        for rf in d_filter.keys():
+            reso = sorted(d_filter[rf], key=lambda x: x[2])
+            meta.append(reso[0])
+
+        with open(os.path.join(conf.assets_path, 'v2_wudi_places_closest.pkl'), 'wb') as fp:
+            pickle.dump(meta, fp)
+
+        return meta
+
+    def get_closest_regions():
+        contained = []
+        closest_regions = []
+
+        for n, row in protected.iterrows():
+            dist = []
+            for k, p in enumerate(all_wudi_points):
+                dist.append([k, n, Point(protected.iloc[n].CENTROID).distance(p)])
+
+                if protected.iloc[n].geometry.contains(p):
+                    contained.append([k, n])
+
+            res = sorted(dist, key=lambda x: x[2])
+            closest_regions.append(res[0])
+
+            util.show_progress(f"protected", n, protected.shape[0])
+
+            # if n > 10:
+            #     break
+
+        p_filter = {}
+        for r in closest_regions:
+            if not r[0] in p_filter:
+                p_filter[r[0]] = []
+            p_filter[r[0]].append(r)
+
+        meta = []
+        for rf in p_filter.keys():
+            reso = sorted(p_filter[rf], key=lambda x: x[2])
+            meta.append(reso[0])
+            if len(reso):
+                r_meta_wudi[reso[0][0]]['nearest_protected'] = reso[0][1]
+
+        for r in contained:
+            if len(r):
+                r_meta_wudi[r[0]]['within_protected'].append(r[1])
+
+        with open(os.path.join(conf.assets_path, 'v2_wudi_protected_closest.pkl'), 'wb') as fp:
+            pickle.dump(r_meta_wudi, fp)
+
+        print(r_meta_wudi)
+
+    # r_meta = get_closest_places()
+    # print(r_meta)
+    #get_closest_regions()
+
+    # v2_places = pd.read_pickle(os.path.join(conf.assets_path, 'v2_wudi_places_closest.pkl'))
+    # v2_protec = pd.read_pickle(os.path.join(conf.assets_path, 'v2_wudi_protected_closest.pkl'))
+    #
+    # for k in v2_places:
+    #     v2_protec[k[0]]['nearest_place'] = k[1]
+    #
+    # for k in v2_protec.keys():
+    #     print(k, v2_protec[k])
+    #
+    # tabled = pd.DataFrame.from_dict(v2_protec)
+    # tabled_transposed = tabled.transpose()
+    # util.save_asset(tabled_transposed, 'v2_wudi_associated')
+
+    v2_assoc = pd.read_pickle(os.path.join(conf.assets_path, 'v2_wudi_associated-DataFrame.pkl'))
+    print(v2_assoc.info())
+
+    def pack(v):
+        #//print(v, v.__class__.__name__, 's')
+        if v.__class__.__name__ == 'list':
+            if not len(v):
+                return None
+            return ','.join([str(vi) for vi in v])
+        else:
+            if not v:
+                return None
+            if np.isnan(v):
+                return None
+            return int(v)
+
+    v2_assoc = v2_assoc.applymap(pack)
+
+    for w in range(v2_assoc.shape[0]):
+        print(v2_assoc.iloc[w].values)
+
+    dtypes = {
+        'nearest_protected': 'INT',
+        'within_protected': 'BLOB',
+        'nearest_place': 'INT'
+    }
+
+    conn = create_connection(conf.wudi_database_path)
+    v2_assoc.to_sql('wudi_assoc', conn, if_exists='replace', dtype=dtypes, index=False)
+    conn.close()
+
+
+
+    #
+    #     # mods = [['CENTROID', 'number', 'centroid'], ['COUNTRY', 'string', 'COUNTRY'], ['MED_REGION', 'string', 'MED_REGION']]
+    #     # for m in mods:
+    #     #     df[m[2]] = df[m[0]].apply(util.db_value_cleaner, args=(conf.db_float_precision, m[1],))
+    #
+    #     print(v2_assoc.iloc[w])
+    #     #
+    #     # for v in v2_assoc.iloc[w]:
+    #     #     print(v)
+    #
+    #         #print(v.apply(util.db_value_cleaner, args=(conf.db_float_precision,'number',)))
+    #
+    #     #print(list(v2_assoc.iloc[w].values))
+
+    exit()
+    #
+    # for n in range(places.shape[0]):
+    #     try:
+    #         dist = []
+    #         for k, p in enumerate(all_wudi_points):
+    #             dist.append([k, n, Point(places.iloc[n].lon, places.iloc[n].lat).distance(p)])
+    #
+    #         res = sorted(dist, key=lambda x: x[2])
+    #         closest_to_center.append(res[0])
+    #         util.show_progress(f"places", n, places.shape[0])
+    #     except KeyboardInterrupt:
+    #         print(closest_to_center)
+    #         pass
+    #
+    # with open('parrot.pkl', 'wb') as f:
+    #     pickle.dump(closest_to_center, f)
+    #
+    # print(closest_to_center)
+    #
+    # exit()
+    # contained = []
+    # closest_to_center = []
+    #
+    # for n in range(protected.shape[0]):
+    #     dist = []
+    #     for k, p in enumerate(all_wudi_points):
+    #         dist.append([k, n, Point(protected.iloc[n].CENTROID).distance(p)])
+    #         if protected.iloc[n].geometry.contains(p):
+    #             contained.append([k, n])
+    #
+    #     res = sorted(dist, key=lambda x: x[2])
+    #     closest_to_center.append(res[0])
+    #     util.show_progress(f"protected", n, protected.shape[0])
+    #
+    # print(contained)
+    # print(closest_to_center)
 #———————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
 if __name__ == '__main__':
     #//args: do_save_db: not None str, method: 'daily' or 'derivative', from_index, wipe
     #new_parser('save', method='aggregate', wipe='do_it')  #;//'get_aggregate')
     #new_parser('save', method='derivative')  #;//'get_aggregate')
 
-    tests()
+
+    wudi_filter_a()
+    #tests()
     exit()

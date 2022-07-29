@@ -1,5 +1,11 @@
 const km_deg = 110.948;
 
+function naturalize_on_loop(value, side = false) {
+	if (value > 1) return side ? value - 1 : 0;
+	if (value < 0) return side ? 1 + value : 1;
+	return value;
+}
+
 const max_min = (arr) => {
     return {max: Math.max(...arr), min: Math.min(...arr)};
 }
@@ -45,5 +51,5 @@ const to_lexical_range = (numbers, type=null) => {
 }
 
 
-export {max_min, deg_to_km, norm_val, title_case, shuffle_array, to_lexical_range};
+export {max_min, deg_to_km, norm_val, title_case, shuffle_array, to_lexical_range, naturalize_on_loop};
 

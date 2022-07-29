@@ -336,11 +336,12 @@ svg {
 }
 
 #plot{
-	position:relative;
+	/*position:relative;*/
 	top:0;
 	right:0;
 	bottom:80px;
 	left:0;
+	min-height:80%;
 }
 
 #times-bar{
@@ -353,12 +354,66 @@ svg {
 }
 
 #q-nav-bar{
+	position:relative;
 	background-color: #0f1621;
 	height:24px;
 	min-height:24px;
-	/*padding: 6px 12px;*/
-	/*display:none;*/
+	overflow: hidden;
 }
+
+#q-nav-bar .label{
+	position: absolute;
+	text-align: center;
+	font-size: 0.4em;
+	line-height:1.0em;
+	color:#666666;
+	pointer-events: none;
+	padding-left:4px;
+	/*background-color: rgba(0,120,0,0.1);*/
+	/*border:1px white dotted;*/
+}
+
+#q-nav-bar .base-position{
+	position: absolute;
+	width:2px;
+	background-color: yellowgreen;
+	height:24px;
+}
+
+#q-nav-bar .area-strip{
+	position: absolute;
+	background-color: #1c3554;
+	opacity:0.5;
+	height:24px;
+}
+
+#q-nav-bar .area-strip .strip-canvas{
+	display:none;
+}
+
+/*#q-nav-bar .area-strip .area-div{*/
+/*	position: absolute;*/
+/*	border-left:1px yellowgreen solid;*/
+/*	!*background-color: yellowgreen;*!*/
+/*	width:10px;*/
+/*	height:24px;*/
+/*}*/
+
+#q-nav-bar .area-strip .area-div-container .area-div{
+	position: absolute;
+	border-left:1px yellowgreen solid;
+	/*background-color: yellowgreen;*/
+	width:10px;
+	height:4px;
+}
+
+.area-protected{
+	background-color: turquoise;
+/*///#1e315c;*/
+	width:20px;
+	height:24px !important;
+}
+
 
 
 #nav-buttons{
@@ -406,7 +461,7 @@ svg {
 
 
 .bar{
-	background-color: rgba(0,120,0,0.1);
+	/*background-color: rgba(0,120,0,0.1);*/
 	width:100%;
 }
 
@@ -415,8 +470,8 @@ svg {
 }
 
 .time-container{
-	/*border:2px blue dotted;*/
-	padding: 6px 12px;
+	border-top:1px #1e315c solid;
+	/*padding: 6px 12px;*/
 }
 
 .time-container .time-element{
@@ -425,14 +480,17 @@ svg {
 	color: cornflowerblue;
 	white-space: nowrap;
 	text-align: center;
+	/*height:18px;*/
+	padding: 3px;
 }
 
 .time-container .time-element:not(:only-child, :last-child) {
-	border-right: 1px green dotted;
+	border-right: 1px #1e315c solid;
 }
 
 .time-container .time-element.selected{
-	color: powderblue;
+	color: white;
+	background-color: #1e315c;
 }
 
 #time_element_temp{

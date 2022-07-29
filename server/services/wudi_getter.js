@@ -6,11 +6,20 @@ const db = require('../services/wudi_db');
 
 function get_all(query = null) {
     try {
-        if (query.table) {
+        if (query.table === 'turn_table') {
             const meta = {};
             const data = db.query(`SELECT *, rowid
                                    FROM wudi_points
                                    WHERE eco != 0`, []);
+            return {
+                data,
+                meta,
+                query
+            }
+        }else if (query.table === 'assoc') {
+            const meta = {};
+            const data = db.query(`SELECT *, rowid
+                                   FROM wudi_assoc`, []);
             return {
                 data,
                 meta,
@@ -21,7 +30,7 @@ function get_all(query = null) {
             const fields = ["u_tl", "d_tl", "e_ct", "e_ls"];
             const fields_daily = ["rowid", "pid", "raw"];
             //const fields_daily = ["raw", "evt"];
-            if (query.tim === '40') fields.pop();
+            //if (query.tim === '40') fields.pop();
             let data = {none: null};
             let meta = {none: null};
 

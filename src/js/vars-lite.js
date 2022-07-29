@@ -13,6 +13,10 @@ const vars = {
 	depth_max: 5000.0,
 	levels:5,
 	min_zoom:0.125,
+	q_nav:{
+		segment_width: 20,
+		height:24
+	},
 	layers:{
 		allow:['line_strings'], //, 'contours'] ///, 'contours'] ///'polygons',
 	},
@@ -26,12 +30,13 @@ const vars = {
 	view: {
 		width: null,
 		height:null,
-		graph_obj_height:120,
-		bottom_buffer:12,
-		title_bottom_offset:32,
+		q_nav_bar_height: 24,
+		graph_obj_height: 120,
+		bottom_buffer: 12,
+		title_bottom_offset: 32,
 		map_vertical_deg_offset: 2.0,
-		bottom_offset:70,
-		bottom_bar_height:32,
+		bottom_offset: 70,
+		bottom_bar_height: 32,
 		x_axis_inset: 10,
 		y_axis_inset: 10
 	},
@@ -56,7 +61,7 @@ const vars = {
 		line_strings:{
 			type: 'LineBasicMaterial',
 			dict: {
-				color: 0xEEEEEE
+				color: 0x666666
 			}
 		}
 	},
