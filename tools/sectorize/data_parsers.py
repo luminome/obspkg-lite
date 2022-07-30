@@ -1225,22 +1225,101 @@ def tests():
     pass
 
 
+def places_filter_to_db():
+    df = pd.read_pickle(os.path.join(conf.assets_path, 'v2_places_fine-Dataframe.pkl'))
+    print(df.info())
+    for wi, row in df.iterrows():
+        print(wi, list(row.values))
+
+    dtypes = {
+        'lon': 'REAL',
+        'lat': 'REAL',
+        'region': 'INT',
+        'geo': 'INT',
+        'townLabel': 'TEXT',
+        'countryLabel': 'TEXT',
+        'area': 'REAL',
+        'population': 'INT',
+        'elevation': 'REAL',
+        'regionLabels': 'TEXT',
+        'waterLabels': 'TEXT',
+        'capital': 'TEXT',
+        'type': 'TEXT',
+        'place_id': 'INT'
+    }
+
+    conn = create_connection(conf.database_path)
+    df.to_sql('places_fine', conn, if_exists='replace', dtype=dtypes, index=False)
+    conn.close()
+
+
+def places_filter():
+    df = pd.read_pickle(os.path.join(conf.assets_path, 'v2_wudi_associated-Dataframe.pkl'))
+    places = pd.read_pickle(os.path.join(conf.assets_path, 'v2_places-Dataframe.pkl'))
+    print(df.info())
+    print(places.info())
+    #places_sel = places.where(df.nearest_place)
+
+    df_list = [int(v) for v in df.nearest_place if v is not None and not np.isnan(v)]
+
+    places_sel = places[places.index.isin(df_list)]  #df.nearest_place)
+    #//rpc = places.loc[~places_sel]
+    relevancy_check = 0
+    master_places_refix = {}
+
+    #['lon', 'lat', 'region', 'geo', 'townLabel', 'countryLabel', 'area', 'population', 'elevation', 'regionLabels', 'waterLabels', 'capital'] + type
+
+    fields = ['lon', 'lat', 'region', 'geo', 'townLabel', 'countryLabel', 'area', 'population', 'elevation', 'regionLabels', 'waterLabels', 'capital']
+    for wi, row in places_sel.iterrows():
+        pop_test = 0
+        place_type = None
+        place_dict = {}
+
+        if 'population' in row.tags:
+            pop_test = int(row.tags['population'])
+        if row.population:
+            pop_test = int(row.population)
+        if 'place' in row.tags:
+            place_type = row.tags['place']
+
+        if pop_test >= 1000:
+            for f in fields:
+                place_dict[f] = row[f]
+            place_dict['type'] = place_type
+            place_dict['population'] = pop_test
+            place_dict['place_id'] = wi
+            # kcr = [str(row[f]) for f in fields]
+            # print_out = '\t'.join([str(v) for v in kcr])
+            master_places_refix[relevancy_check] = place_dict
+            print(relevancy_check, place_dict)
+            relevancy_check += 1
+
+    tabled = pd.DataFrame.from_dict(master_places_refix)
+    tabled_transposed = tabled.transpose()
+    util.save_asset(tabled_transposed, 'v2_places_fine')
+
+        #if row.tags and 'population' in row.tags:
+        # if row.population:  # and int(row.population) > 2500:
+        #     print(relevancy_check, wi, row.townLabel, row.countryLabel, row.regionLabels, row.population )  #, row.tags['population'])  #list(row.values))
+            #print(list(row.values))
+
+    # print(places_sel)
+
+
 def wudi_filter_a():
-    # df = pd.read_pickle(os.path.join(conf.assets_path, 'v2_wudi-Dataframe.pkl'))
-    # print(df.info())
-    # all_wudi_points = []
-    # for n in range(df.shape[0]):
-    #     point = Point(df.iloc[n].M_lon, df.iloc[n].M_lat)
-    #     all_wudi_points.append(point)
-    #
-    # places = pd.read_pickle(os.path.join(conf.assets_path, 'v2_places-Dataframe.pkl'))
-    # protected = pd.read_pickle(os.path.join(conf.assets_path, 'v2_protected_regions-Dataframe.pkl'))
-    # print(protected.info())
-    # print(places.info())
-    #
-    # r_meta_wudi = {}
-    # for w in range(df.shape[0]):
-    #     r_meta_wudi[w] = {'nearest_protected': [], 'within_protected': [], 'nearest_place': []}
+    df = pd.read_pickle(os.path.join(conf.assets_path, 'v2_wudi-Dataframe.pkl'))
+
+    all_wudi_points = []
+    for n in range(df.shape[0]):
+        point = Point(df.iloc[n].M_lon, df.iloc[n].M_lat)
+        all_wudi_points.append(point)
+
+    places = pd.read_pickle(os.path.join(conf.assets_path, 'v2_places-Dataframe.pkl'))
+    protected = pd.read_pickle(os.path.join(conf.assets_path, 'v2_protected_regions-Dataframe.pkl'))
+
+    r_meta_wudi = {}
+    for w in range(df.shape[0]):
+        r_meta_wudi[w] = {'pid': w, 'adj_protected': None, 'nearest_protected': None, 'within_protected': None, 'nearest_place': None}
 
     def get_closest_places():
         closest_places = []
@@ -1268,58 +1347,126 @@ def wudi_filter_a():
         meta = []
         for rf in d_filter.keys():
             reso = sorted(d_filter[rf], key=lambda x: x[2])
-            meta.append(reso[0])
-
-        with open(os.path.join(conf.assets_path, 'v2_wudi_places_closest.pkl'), 'wb') as fp:
-            pickle.dump(meta, fp)
-
-        return meta
+            if len(reso):
+                r_meta_wudi[reso[0][0]]['nearest_place'] = reso[0][1]
+        #     meta.append(reso[0])
+        #
+        # with open(os.path.join(conf.assets_path, 'v2_wudi_places_closest.pkl'), 'wb') as fp:
+        #     pickle.dump(meta, fp)
+        #
+        # return meta
 
     def get_closest_regions():
         contained = []
         closest_regions = []
+        cols = {'lon': [], 'lat': []}
 
-        for n, row in protected.iterrows():
+        for wi, row in protected.iterrows():
+            cen = row['CENTROID']
+            cols['lon'].append(cen[0])
+            cols['lat'].append(cen[1])
+
+        protected['lon'] = cols['lon']
+        protected['lat'] = cols['lat']
+
+        print(protected.info())
+
+        cols = ['lon', 'lat']
+        filtered = {}
+
+        for k, p in enumerate(all_wudi_points):
+            s_d = 1.0
             dist = []
-            for k, p in enumerate(all_wudi_points):
-                dist.append([k, n, Point(protected.iloc[n].CENTROID).distance(p)])
+            rf = protected[((protected[cols[0]] > p.x - s_d) & (protected[cols[0]] < p.x + s_d)) & ((protected[cols[1]] > p.y - s_d) & (protected[cols[1]] < p.y + s_d))]
 
-                if protected.iloc[n].geometry.contains(p):
-                    contained.append([k, n])
+            contained = []
 
-            res = sorted(dist, key=lambda x: x[2])
-            closest_regions.append(res[0])
+            closest = None
 
-            util.show_progress(f"protected", n, protected.shape[0])
+            for wi, row in rf.iterrows():
+                dist.append([k, wi, Point(row.lon, row.lat).distance(p)])
+                if row.geometry.contains(p):
+                    contained.append(wi)
+                res = sorted(dist, key=lambda x: x[2])
+                closest = res[0]
 
+                if wi not in filtered:
+                    filtered[wi] = []
+                if closest[1] == wi:
+                    filtered[wi].append(closest)
+
+            if closest is not None:
+                r_meta_wudi[k]['nearest_protected'] = closest[1]
+            if len(contained):
+                r_meta_wudi[k]['within_protected'] = contained
+            util.show_progress(f"protected", k, len(all_wudi_points))
+            # print(k, closest, contained)
+
+        for k in filtered.keys():
+            res = sorted(filtered[k], key=lambda x: x[2])
+            if len(res):
+                r_meta_wudi[res[0][0]]['adj_protected'] = k
+                # print(k, res[0], res)
+
+
+            #     dist.append([k, wi, Point(row.lon, row.lat).distance(p)])
+            # res = sorted(dist, key=lambda x: x[2])
+
+        # for n, row in protected.iterrows():
+        #     contained = []
+        #     dist = []
+        #     for k, p in enumerate(all_wudi_points):
+        #         dist.append([k, n, Point(protected.iloc[n].CENTROID).distance(p)])
+        #         if protected.iloc[n].geometry.contains(p):
+        #             contained.append(k)
+        #
+        #     res = sorted(dist, key=lambda x: x[2])
+        #     closest_regions.append([res[0], contained])
+        #     print('reg', n, [res[0], contained])
+
+            #util.show_progress(f"protected", n, protected.shape[0])
             # if n > 10:
             #     break
 
-        p_filter = {}
-        for r in closest_regions:
-            if not r[0] in p_filter:
-                p_filter[r[0]] = []
-            p_filter[r[0]].append(r)
+        # exit()
+        #
+        #
+        # p_filter = {}
+        # for r in closest_regions:
+        #     if not r[0] in p_filter:
+        #         p_filter[r[0]] = []
+        #     p_filter[r[0]].append(r)
+        #
+        # meta = []
+        # for rf in p_filter.keys():
+        #     reso = sorted(p_filter[rf], key=lambda x: x[2])
+        #     meta.append(reso[0])
+        #     if len(reso):
+        #         r_meta_wudi[reso[0][0]]['nearest_protected'] = reso[0][1]
+        #
+        # for r in contained:
+        #     if len(r):
+        #         r_meta_wudi[r[0]]['within_protected'].append(r[1])
+        #
+        # with open(os.path.join(conf.assets_path, 'v2_wudi_protected_closest.pkl'), 'wb') as fp:
+        #     pickle.dump(r_meta_wudi, fp)
+        #
+        # print(r_meta_wudi)
 
-        meta = []
-        for rf in p_filter.keys():
-            reso = sorted(p_filter[rf], key=lambda x: x[2])
-            meta.append(reso[0])
-            if len(reso):
-                r_meta_wudi[reso[0][0]]['nearest_protected'] = reso[0][1]
+    #//CLEAN HERE
+    """
+    get_closest_places()
+    get_closest_regions()
 
-        for r in contained:
-            if len(r):
-                r_meta_wudi[r[0]]['within_protected'].append(r[1])
+    for k in r_meta_wudi.keys():
+        print(k, r_meta_wudi[k])
 
-        with open(os.path.join(conf.assets_path, 'v2_wudi_protected_closest.pkl'), 'wb') as fp:
-            pickle.dump(r_meta_wudi, fp)
+    tabled = pd.DataFrame.from_dict(r_meta_wudi)
+    tabled_transposed = tabled.transpose()
+    util.save_asset(tabled_transposed, 'v2_wudi_associated')
 
-        print(r_meta_wudi)
-
-    # r_meta = get_closest_places()
-    # print(r_meta)
-    #get_closest_regions()
+    exit()
+    """
 
     # v2_places = pd.read_pickle(os.path.join(conf.assets_path, 'v2_wudi_places_closest.pkl'))
     # v2_protec = pd.read_pickle(os.path.join(conf.assets_path, 'v2_wudi_protected_closest.pkl'))
@@ -1334,36 +1481,36 @@ def wudi_filter_a():
     # tabled_transposed = tabled.transpose()
     # util.save_asset(tabled_transposed, 'v2_wudi_associated')
 
-    v2_assoc = pd.read_pickle(os.path.join(conf.assets_path, 'v2_wudi_associated-DataFrame.pkl'))
-    print(v2_assoc.info())
-
-    def pack(v):
-        #//print(v, v.__class__.__name__, 's')
-        if v.__class__.__name__ == 'list':
-            if not len(v):
-                return None
-            return ','.join([str(vi) for vi in v])
-        else:
-            if not v:
-                return None
-            if np.isnan(v):
-                return None
-            return int(v)
-
-    v2_assoc = v2_assoc.applymap(pack)
-
-    for w in range(v2_assoc.shape[0]):
-        print(v2_assoc.iloc[w].values)
-
-    dtypes = {
-        'nearest_protected': 'INT',
-        'within_protected': 'BLOB',
-        'nearest_place': 'INT'
-    }
-
-    conn = create_connection(conf.wudi_database_path)
-    v2_assoc.to_sql('wudi_assoc', conn, if_exists='replace', dtype=dtypes, index=False)
-    conn.close()
+    # v2_assoc = pd.read_pickle(os.path.join(conf.assets_path, 'v2_wudi_associated-DataFrame.pkl'))
+    # print(v2_assoc.info())
+    #
+    # def pack(v):
+    #     #//print(v, v.__class__.__name__, 's')
+    #     if v.__class__.__name__ == 'list':
+    #         if not len(v):
+    #             return None
+    #         return ','.join([str(vi) for vi in v])
+    #     else:
+    #         if not v:
+    #             return None
+    #         if np.isnan(v):
+    #             return None
+    #         return int(v)
+    #
+    # v2_assoc = v2_assoc.applymap(pack)
+    #
+    # for w in range(v2_assoc.shape[0]):
+    #     print(v2_assoc.iloc[w].values)
+    #
+    # dtypes = {
+    #     'nearest_protected': 'INT',
+    #     'within_protected': 'BLOB',
+    #     'nearest_place': 'INT'
+    # }
+    #
+    # conn = create_connection(conf.wudi_database_path)
+    # v2_assoc.to_sql('wudi_assoc', conn, if_exists='replace', dtype=dtypes, index=False)
+    # conn.close()
 
 
 
@@ -1418,13 +1565,50 @@ def wudi_filter_a():
     #
     # print(contained)
     # print(closest_to_center)
+
+
+def wudi_df_to_db():
+    df = pd.read_pickle(os.path.join(conf.assets_path, 'v2_wudi_associated-Dataframe.pkl'))
+    print(df.info())
+
+    def pack(v):
+        #//print(v, v.__class__.__name__, 's')
+        if v.__class__.__name__ == 'list':
+            if not len(v):
+                return None
+            return ','.join([str(vi) for vi in v])
+        else:
+            if not v:
+                return None
+            if np.isnan(v):
+                return None
+            return int(v)
+
+    df = df.applymap(pack)
+
+    for wi, row in df.iterrows():
+        print(wi, list(row.values))
+
+    dtypes = {
+        'pid': 'INT',
+        'adj_protected': 'INT',
+        'nearest_protected': 'INT',
+        'within_protected': 'BLOB',
+        'nearest_place': 'INT'
+    }
+
+    conn = create_connection(conf.wudi_database_path)
+    df.to_sql('wudi_assoc', conn, if_exists='replace', dtype=dtypes, index=False)
+    conn.close()
+
 #———————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
 if __name__ == '__main__':
     #//args: do_save_db: not None str, method: 'daily' or 'derivative', from_index, wipe
     #new_parser('save', method='aggregate', wipe='do_it')  #;//'get_aggregate')
     #new_parser('save', method='derivative')  #;//'get_aggregate')
-
-
-    wudi_filter_a()
+    #places_filter_to_db()
+    wudi_df_to_db()
+    #places_filter()
+    #wudi_filter_a()
     #tests()
     exit()

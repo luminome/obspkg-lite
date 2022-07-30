@@ -18,7 +18,7 @@ function get_all(query = null) {
             }
         }else if (query.table === 'assoc') {
             const meta = {};
-            const data = db.query(`SELECT *, rowid
+            const data = db.query(`SELECT *
                                    FROM wudi_assoc`, []);
             return {
                 data,

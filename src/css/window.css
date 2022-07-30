@@ -383,7 +383,7 @@ svg {
 #q-nav-bar .area-strip{
 	position: absolute;
 	background-color: #1c3554;
-	opacity:0.5;
+	opacity:1.0;
 	height:24px;
 }
 
@@ -391,27 +391,45 @@ svg {
 	display:none;
 }
 
-/*#q-nav-bar .area-strip .area-div{*/
-/*	position: absolute;*/
-/*	border-left:1px yellowgreen solid;*/
-/*	!*background-color: yellowgreen;*!*/
-/*	width:10px;*/
-/*	height:24px;*/
-/*}*/
 
 #q-nav-bar .area-strip .area-div-container .area-div{
 	position: absolute;
-	border-left:1px yellowgreen solid;
+	border-left:1px gray solid;
 	/*background-color: yellowgreen;*/
 	width:10px;
 	height:4px;
 }
 
+
+#q-nav-bar .area-strip .area-div-container .area-div .svg-minimized{
+	width:20px;
+	height:20px;
+	/*position:absolute;*/
+	opacity:0.5;
+}
+
+.area-acg-place{
+	fill:yellow;
+}
+
+.area-acg-protected{
+	fill:teal;
+}
+
+.area-acg-protected-inside{
+	fill:turquoise;
+}
+
 .area-protected{
 	background-color: turquoise;
-/*///#1e315c;*/
 	width:20px;
 	height:24px !important;
+}
+
+.area-place{
+	background-color: yellow;
+	width:10px;
+	height:10px !important;
 }
 
 

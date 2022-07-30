@@ -790,7 +790,7 @@ function adaptive_scaling_wudi() {
 
 function move_map_to_point(pid){
     const ref_pid = vars.data.wudi_index.indexOf(pid);
-    console.log(pid, ref_pid);
+    ///console.log(pid, ref_pid);
     const wudi = scene.getObjectByName('wudi_points');
     const pt = wudi.userData.td.position[ref_pid];
     vc.fromArray(pt);
@@ -917,6 +917,13 @@ function interactionAction() {
                 text: 'eco_region (general) ' + index
             }
         },
+        places_data: (index = null) => {
+            const figure = vars.data.places_data.raw.data[index];
+            return {
+                head: `${title_case(figure[4])}`,
+                text: [...figure.slice(5,figure.length-1).filter(m => m !== null)]
+            }
+        }
     }
 
     function make_clean(ints) {
@@ -1416,37 +1423,48 @@ function plot_data(obj) {
         is_instance = true;
 
         const datum = {
-            len: vars.data[obj.name].raw.length - 1,
+            len: null,
             color: [],
             position: [],
             sample_normal: [],
             sample_raw: []
         }
 
-        for (let i = 1; i < vars.data[obj.name].raw.length; i++) {
-            datum.color.push([0.0, 1.0, 1.0]);
-            datum.position.push([vars.data[obj.name].raw[i][obj.geom_index][0], vars.data[obj.name].raw[i][obj.geom_index][1], 0.0]);
+        if (obj.name === 'places_data') {
+            ///custom json-ser from db based
+            datum.len = vars.data[obj.name].raw.data.length -1;
+            const pop = util.find_scale(obj.raw.data, 7);
+            vars.data[obj.name].lookup_table = {};
+
+            for (let i = 0; i < datum.len; i++) {
+                datum.color.push([0.9, 0.9, 0.0]);
+                datum.position.push([vars.data[obj.name].raw.data[i][0], vars.data[obj.name].raw.data[i][1], 0.0]);
+                let norm = norm_val(vars.data[obj.name].raw.data[i][7], pop.min, pop.avg);
+                if (norm > 4.0) norm = 4.0;
+                if (norm < 0.5) norm = 0.5;
+                datum.sample_raw.push(norm);
+                vars.data[obj.name].lookup_table[vars.data[obj.name].raw.data[i][13]] = i;
+            }
         }
 
         if (obj.name === 'protected_regions') {
-            const areas = obj.raw.reduce((sv, e, i) => {
-                if (i > 0 && e[6] !== null) {
-                    sv[0].push(e[6]);
-                    sv[1] += e[6];
-                }
+            ///custom text-based
+            datum.len = vars.data[obj.name].raw.length - 1;
+
+            for (let i = 1; i < vars.data[obj.name].raw.length; i++) {
+                datum.color.push([0.0, 1.0, 1.0]);
+                datum.position.push([vars.data[obj.name].raw[i][obj.geom_index][0], vars.data[obj.name].raw[i][obj.geom_index][1], 0.0]);
                 datum.sample_raw.push(1.0);
-                return sv;
-            }, [[], 0.0]);
-            const max_area = Math.max(...areas[0]);
-            const min_area = Math.min(...areas[0]);
-            const avg_area = areas[1] / areas[0].length;
-            //console.log(avg_area, min_area, max_area, areas);
-            const set_size = obj.raw.map((e, i) => {
+            }
+
+            const area = util.find_scale(obj.raw, 6);
+
+            obj.raw.map((e, i) => {
                 if (i > 0 && e[6] !== null) {
-                    let norm = norm_val(e[6], min_area, avg_area);//*avg_area;
+                    let norm = norm_val(e[6], area.min, area.avg);
                     if (norm > 4.0) norm = 4.0;
                     if (norm < 1) norm = 1.0;
-                    datum.sample_raw[i] = norm;/// > 5.0 ? 5.0 : norm;
+                    datum.sample_raw[i] = norm;
                 }
             })
         }
@@ -1467,16 +1485,13 @@ function plot_data(obj) {
         const instance = new THREE.InstancedMesh(geometry, material, datum.len);
         instance.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         instance.name = obj.name;
-
-        if (obj.name === 'protected_regions') instance.userData.type = 'scaled_point';
-
+        instance.userData.type = 'scaled_point';
+        //if (obj.name === 'protected_regions') instance.userData.type = 'scaled_point';
         instance.userData.td = datum;
-
         group.add(instance);
 
     } else {
-        //#//for datasets with polygonal geometries
-        //#//MAKE WORK FOR MULTIPOLYS
+        //for text-based datasets with polygonal geometries
         console.log(obj);
         vars.data[obj.name].raw.forEach((l_obj, i) => {
             if (i > 0) {
@@ -1514,7 +1529,6 @@ function plot_data(obj) {
                     element.userData.index = i;
                     element.userData.data = vars.data[obj.name].raw[i];
 
-
                     element.userData.selected = (state) => {
                         element.material.setValues({color: vars.colors[obj.name].select[+state]});
                         element.position.setZ(+state * 0.01);
@@ -1544,13 +1558,9 @@ function plot_data(obj) {
     }
 
     map_container.add(group);
-
     if (is_instance) {
         draw_data_instanced(group);
     }
-
-    //
-
 }
 
 //#// is this the place to begin outlining geo-regions? probably.
@@ -1876,6 +1886,8 @@ function windowRedraw() {
     const bars = [...document.querySelectorAll('.bar')];
     bars.map((b) => { if(b.style.display !== 'none') bars_height += b.getBoundingClientRect().height });
 
+    q_nav_bar.style.height = vars.view.q_nav_bar_height+'px';
+
     ww = w;
     wh = (h - vars.view.bottom_buffer - bars_height);
     plot.style.width = (ww) + 'px';
@@ -2129,7 +2141,11 @@ const wudi_dub_selecta = {
     },
 }
 
+//#// source of many indexing problems
 const q_nav = {
+    q_nav_event: (e) => {
+        obs_handler({e:e.target});
+    },
     area_strip: q_nav_bar.querySelector('.area-strip'),
     strip_canvas: q_nav_bar.querySelector('.strip-canvas'),
     base_position: q_nav_bar.querySelector('.base-position'),
@@ -2141,8 +2157,11 @@ const q_nav = {
     region_id: null,
     region_width_px: null,
     strip_canvases: {},
-    draw_strip: (reg_id, items) => {
+    draw_strip: (reg_id, items, start_index) => {
         const has_container = q_nav.area_strip.querySelector('.area-div-container');
+        const svg_circle = document.getElementById('basic-circle');
+        const svg_inside_circle = document.getElementById('within-circle');
+
         if(has_container){
              if(has_container.id === 'sg-'+reg_id){
                  return;
@@ -2159,22 +2178,85 @@ const q_nav = {
         }else{
             const container = document.createElement("div");
             container.classList.add("area-div-container");
+
             container.setAttribute('id', 'sg-'+reg_id);
+            const places_instance = scene.getObjectByName('places_data').children[0];
+            const protected_instance = scene.getObjectByName('protected_regions').children[0];
 
             for(let c = 0; c<items;c++){
-
-                const index = vars.data.wudi_index[c];
-                const plb = vars.data.wudi_assoc.raw.data[index];
-                //console.log(plb);
-
-                //vars.data.wudi_assoc
-
                 const r_div = document.createElement("div");
                 r_div.classList.add("area-div");
 
-                if(plb[1] !== null) r_div.classList.add("area-protected");
+                let index = null;
+                if(reg_id === 'g-1'){
+                    index = vars.data.wudi_index[start_index+c];
+                }else{
+                    index = start_index+c;
+                }
+
+                const plb = vars.data.wudi_assoc.raw.data[index];
+
+                const _has_protected = plb[1] !== null;
+                const _has_inside_protected = plb[3] !== null;
+                const _has_place = plb[4] === null ? false: vars.data.places_data.lookup_table.hasOwnProperty(plb[4]);
+
+                if(_has_protected) {
+                    const protected_scale = protected_instance.userData.td.sample_raw[plb[1]];
+                    const circle = svg_circle.cloneNode(true);
+                    circle.setAttribute('id','');
+                    circle.classList.add('svg-minimized');
+                    circle.classList.add('area-acg-protected');
+                    circle.querySelector('circle').setAttribute('r', (64/4)*protected_scale);
+                    circle.addEventListener('mouseover', q_nav.q_nav_event);
+                    r_div.appendChild(circle);
+                }
+
+                if(_has_inside_protected) {
+                    let has = null
+                    if(Array.isArray(plb[3])){
+                        has = plb[3][0];
+                    }else{
+                        has = plb[3];
+                    }
+
+                    const protected_scale = protected_instance.userData.td.sample_raw[has];
+                    const circle = svg_inside_circle.cloneNode(true);
+                    circle.setAttribute('id','');
+                    circle.classList.add('svg-minimized');
+                    circle.classList.add('area-acg-protected-inside');
+                    //circle.querySelector('circle').setAttribute('r', (64/4)*protected_scale);
+                    circle.addEventListener('mouseover', q_nav.q_nav_event);
+                    r_div.appendChild(circle);
+                }
+
+                if(_has_place){
+                    const place_data_index = vars.data.places_data.lookup_table[plb[4]];
+                    const place_scale = places_instance.userData.td.sample_raw[place_data_index];
+                    const circle = svg_circle.cloneNode(true);
+                    circle.setAttribute('id','');
+                    circle.classList.add('svg-minimized');
+                    circle.classList.add('area-acg-place');
+                    circle.querySelector('circle').setAttribute('r', (64/5)*place_scale);
+                    circle.addEventListener('mouseover', q_nav.q_nav_event);
+                    r_div.appendChild(circle);
+                }
+
+
+                // //const plb = vars.data.wudi_assoc.raw.data[index];
+                //
+                // if(plb[4] !== null){
+                //     if(vars.data.places_data.lookup_table.hasOwnProperty(plb[4])){
+                //         r_div.classList.add("area-place");
+                //     }
+                // }
+                //
+                //
+                //
+                //
+                // if(plb[1] !== null) r_div.classList.add("area-protected");
 
                 r_div.style.left = c*vars.q_nav.segment_width+'px';
+
                 container.appendChild(r_div);
             }
 
@@ -2191,8 +2273,6 @@ const q_nav = {
         const r = vars.data.geo_regions[reg_id];
         const r_pos = r.indexOf(point);
 
-
-
         q_nav.region_id = reg_id;
         q_nav.region_length = r.length;
         q_nav.offset = r_pos/(r.length);
@@ -2202,7 +2282,8 @@ const q_nav = {
             q_nav.reposition();
         }
 
-        q_nav.draw_strip(q_nav.region_id, q_nav.region_length);
+        q_nav.draw_strip(q_nav.region_id, q_nav.region_length, r[0]);
+        //console.log('start_index', r[0]);
     },
     reposition: () => {
         q_nav.label.innerHTML = `${q_nav.get_point()}/${q_nav.region_length}`;
@@ -2216,11 +2297,14 @@ const q_nav = {
         q_nav.label.style.left = (vars.view.width/2.0)+'px';
         q_nav.base_position.style.left = (vars.view.width/2.0)+'px';
 
+        q_nav.base_position.style.height = vars.view.q_nav_bar_height+'px';
+        q_nav.area_strip.style.height = vars.view.q_nav_bar_height+'px';
+
         q_nav.strip_canvas.width = 0;//q_nav.region_width_px;
         q_nav.strip_canvas.height = 0;//vars.view.q_nav_bar_height;
     },
     event_handler: (type, actual_xy, delta_xy, object) => {
-        obs_handler({q_nav:type, c:actual_xy});
+        //obs_handler({q_nav:type, c:actual_xy});
 
         if(type === 'drag'){
             q_nav.offset_pixels += delta_xy[0];
@@ -2285,12 +2369,17 @@ const fetch_callback = (obj_list) => {
                 plot_data(obj);
                 break;
             case 'json-ser':
+                console.log('json-ser', obj.name);
+                if (obj.name === 'places_data'){
+                    vars.data[obj.name] = obj;
+                    console.log('what places_data', obj);
+                    plot_data(obj);
+                }
                 if (obj.name === 'wudi_points') {
                     vars.data[obj.name] = obj;
                     wudi_plot(obj);
                 }
                 if (obj.name === 'wudi_assoc') {
-
                     vars.data[obj.name] = obj;
                     console.log(obj);
                 }
@@ -2313,7 +2402,8 @@ for (let i = 0; i < 100; i++) {
 const post_obj_list = [
     {"url": "/wudi", "table": "turn_table", "type": "json-ser", "name": "wudi_points", "tck": util.shuffle_array(payload)},
     {"url": "/wudi", "table": "assoc", "type": "json-ser", "name": "wudi_assoc", "tck": util.shuffle_array(payload)},
-    {"url": "/wudi", "tim": "40", "type": "json-ser", "name": "wudi_data", "tck": [0, 0, 0]}
+    {"url": "/wudi", "tim": "40", "type": "json-ser", "name": "wudi_data", "tck": [0, 0, 0]},
+    {"url": "/map", "table": "places_fine", "type": "json-ser", "name": "places_data", "style":"point", "tck": [0, 0, 0]}
 ]
 
 const obj_list = [

@@ -30,7 +30,7 @@ const vars = {
 	view: {
 		width: null,
 		height:null,
-		q_nav_bar_height: 24,
+		q_nav_bar_height: 48,
 		graph_obj_height: 120,
 		bottom_buffer: 12,
 		title_bottom_offset: 32,

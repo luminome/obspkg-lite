@@ -14,6 +14,24 @@ const deg_to_km = (v) => (v * km_deg);
 
 const norm_val = (val, mi, ma) => (val - mi) / (ma - mi);
 
+
+const find_scale = (data, index) => {
+    const group = data.reduce((sv, e, i) => {
+        if (i > 0 && e[index] !== null) {
+            sv[0].push(e[index]);
+            sv[1] += e[index];
+        }
+        return sv;
+    }, [[], 0.0]);
+
+    return {
+        'max':Math.max(...group[0]),
+        'min':Math.min(...group[0]),
+        'avg':group[1] / group[0].length
+    }
+}
+
+
 const title_case = (str) => {
   return str.toLowerCase().replace(/(^|\s)\S/g, s => s.toUpperCase());
 }
@@ -51,5 +69,5 @@ const to_lexical_range = (numbers, type=null) => {
 }
 
 
-export {max_min, deg_to_km, norm_val, title_case, shuffle_array, to_lexical_range, naturalize_on_loop};
+export {max_min, deg_to_km, norm_val, title_case, shuffle_array, to_lexical_range, naturalize_on_loop, find_scale};
 
