@@ -1,7 +1,8 @@
 import * as THREE from 'three/build/three.module.js';
 import Stats from 'three/examples/jsm/libs/stats.module.js';
 import {vars} from "./vars-lite";
-import {dragControls} from './drags.js';
+//import {dragControls} from './drags.js';
+import {dragControls} from '../../static/e5/js/drags-lite-beta.js';
 import {keyControls} from './keys.js';
 import * as util from './obspkg-lite-util.js';
 import {loader as fetchAll} from './data-loader.js';
@@ -14,6 +15,7 @@ import {graph} from "./obspkg-lite-dom-graph-util";
 // import {LineGeometry} from "three/examples/jsm/lines/LineGeometry";
 
 document.body.style['background-color'] = vars.colors.hex_css(vars.colors.window);
+
 vars.data = {};
 
 vars.info = {
@@ -114,7 +116,6 @@ vars.selecta = {
                 this.times[type].push(this.times.has_default);
             }
 
-
             for (let y of this.times.years) {
                 if (y !== 'all' && this.times.months[0] === 'all') this.times.required.push(y.toString());
                 for (let m of this.times.months) {
@@ -138,11 +139,11 @@ vars.selecta = {
                 const months_grp = [...this.times.months];
                 title.innerHTML = 'Mean daily observations of WUDI for ' + util.to_lexical_range(years_grp) + ' ' + util.to_lexical_range(months_grp, 'mo');
                 document.getElementById('months_container').style.display = 'flex';
-                windowRedraw();
+                if(vars.view.init_state) windowRedraw();
             }else{
                 title.innerHTML = 'Mean daily observations of WUDI from 1979 to 2020';
                 document.getElementById('months_container').style.display = 'none';
-                windowRedraw();
+                if(vars.view.init_state) windowRedraw();
             }
 
         },
@@ -154,6 +155,7 @@ vars.selecta = {
                 this.points.selected.push(pid);
                 //wudi_point_select_state(vars.selecta.wudi.points.hover[0], true, true);
                 wudi_point_select_state(pid, true, true);
+
                 move_map_to_point(pid);
             } else {
                 this.points.selected.splice(pos, 1);
@@ -370,7 +372,7 @@ class domTimeElement {
 vars.dom_time = {
     years: [],
     months: [],
-    populate: function (type) {
+    populate: async function (type) {
         if (type === 'years') {
             const test_time = new domTimeElement(0, 'years', 'ALL 40 YEARS', 'all', true);
             this.years.push(test_time);
@@ -384,12 +386,13 @@ vars.dom_time = {
             const test_time = new domTimeElement(0, 'months', 'ALL MONTHS', 'all', true);
             this.months.push(test_time);
             for (let t = 1; t < 13; t++) {
-                const label = String(t).padStart(2, '0');///"'"+t.toString().substr(2,2);
+                const label = String(t).padStart(2, '0');
                 const test_time = new domTimeElement(t, 'months', label, t);
                 this.months.push(test_time);
             }
             vars.selecta.wudi.times_select('months');
         }
+        return true;
     }
 }
 
@@ -398,9 +401,22 @@ vars.user.mouse.raw = new THREE.Vector3(0, 0, 0);
 vars.sectors_loaded = false;
 vars.loader_notify = {ct: 0, list: []};
 
+const bounds = document.getElementById('bounds');
+const plot = document.getElementById('plot');
+const obs = document.getElementById('obs');
+const title = document.getElementById('title');
+const title_box = document.getElementById('title-box');
+const x_major_axis = document.getElementById('x-axis');
+const y_major_axis = document.getElementById('y-axis');
+const graph_bar = document.getElementById("graph-obj-bar");
+const q_nav_bar = document.getElementById("q-nav-bar");
 
+// const bars = [...document.querySelectorAll('.bar')];
+// bars.map((b) => {
+//     b.style.visibility = 'hidden';
+// });
 
-let ww, wh, camera, scene, renderer, stats, gridHelper, cube;
+let camera, scene, renderer, stats, gridHelper, cube;
 let map_container, map_plane, visible_dimensions, camera_distance, root_plane, pos_mark_1, pos_mark_2, pos_mark_3, pos_mark_4,
     axes_helper, arrow_helper_1, arrow_helper_2, arrow_helper_3, arrow_helper_4, grid_lines, grid_resolution, map_sectors_group, ref_marker;
 let cam_dot_y, cam_dot_x, cam_dot_z, camera_scale;
@@ -408,6 +424,22 @@ let active_keys = [];
 let axis_planes = [];
 let pos_marks_array = [];
 let ticks = {};
+
+
+let ww = window.innerWidth;
+let wh = window.innerHeight;
+
+console.log(ww, wh);
+// let bars_height = 0;
+// const bars = [...document.querySelectorAll('.bar')];
+// bars.map((b) => { if(b.style.display !== 'none') bars_height += b.getBoundingClientRect().height });
+//
+// q_nav_bar.style.height = vars.view.q_nav_bar_height+'px';
+//
+// ww = w;
+// wh = (h - vars.view.bottom_buffer - bars_height);
+
+
 
 
 const z_mants = [0.25, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0];
@@ -462,16 +494,9 @@ const m_ray_dir = new THREE.Vector3(0, 0, 0);
 
 const camera_frustum = new THREE.Frustum();
 const camera_frustum_m = new THREE.Matrix4();
-const axis_markers_count = 25;
+const axis_markers_count = 21;
 
-const plot = document.getElementById('plot');
-const obs = document.getElementById('obs');
-const title = document.getElementById('title');
-const title_box = document.getElementById('title-box');
-const x_major_axis = document.getElementById('x-axis');
-const y_major_axis = document.getElementById('y-axis');
-const graph_bar = document.getElementById("graph-obj-bar");
-const q_nav_bar = document.getElementById("q-nav-bar");
+
 
 const coords_from_array = (array, add_z = 0.0) => {
     const build_coords = (coords_flat) => {
@@ -712,7 +737,7 @@ function rayIntersectionWithXZPlane(rayOrigin, rayDirection, planeY) {
     const ySlope = (planeY - rayOrigin.y) / rayDirection.y;
     const xIntersect = rayDirection.x * ySlope + rayOrigin.x;
     const zIntersect = rayDirection.z * ySlope + rayOrigin.z;
-    return new THREE.Vector3(xIntersect, planeY, zIntersect);
+    return vc.set(xIntersect, planeY, zIntersect);
 }
 
 function apply_adaptive_scale(inst, v, v_lim, index, sign) {
@@ -736,7 +761,7 @@ function apply_adaptive_scale(inst, v, v_lim, index, sign) {
 function adaptive_scaling_wudi() {
     // return;
     const wudi = scene.getObjectByName('wudi');
-
+    //console.log('adaptive_scaling_wudi', wudi, wudi.children.length);
     if (wudi && wudi.children.length && vars.selecta.wudi.times.selected.length) {
         const wudi_up = scene.getObjectByName('wudi_up');
         const wudi_down = scene.getObjectByName('wudi_down');
@@ -768,14 +793,14 @@ function adaptive_scaling_wudi() {
 
 
         const lim = [Math.max(...visible.up), Math.min(...visible.down)];
-
+        //console.log("visible.set", visible.set);
         for (let v of visible.set) {
             //DEBUG /// if (v[0] === 1085) console.log(visible.up[v[2]][0], visible.down[v[2]][0], lim, v[0]);
             apply_adaptive_scale(wudi_up, visible.up[v[2]][0], lim[0], v[0], 1.0);
             apply_adaptive_scale(wudi_down, visible.down[v[2]][0], lim[1], v[0], -1.0);
         }
 
-        obs_handler({LIM: lim});
+        //obs_handler({LIM: lim});
 
         wudi_up.instanceMatrix.needsUpdate = true;
         wudi_up.instanceColor.needsUpdate = true;
@@ -848,7 +873,7 @@ function get_point_selection_state(data_index, inst_index) {
     const pt = vars.data.wudi_points.raw.data[inst_index];//.slice(6,8);
 
     wudi_dub_selecta.set_from_point(data_index[0]);
-    q_nav.set_geo_region('g-'+pt[6], pt[8]-1);
+    const setnav = q_nav.set_geo_region('g-'+pt[6], pt[8]-1);
 
     let stats = null;
     if(vars.debug_tool_state) {
@@ -1023,7 +1048,7 @@ function interactionAction() {
 }
 
 function refresh(){
-    map_sectors_group.children.forEach(s => {
+    if(map_sectors_group.children.length) map_sectors_group.children.forEach(s => {
         vw.copy(s.userData.owner.objects.plane.userData.center);
         map_sectors_group.localToWorld(vw);
 
@@ -1044,9 +1069,208 @@ function refresh(){
     });
 }
 
+const touches_mid = {
+    x:null,
+    y:null,
+    last:{
+        x:0,
+        y:0
+    },
+    delta:{
+        x:0,
+        y:0
+    },
+    origin:{
+        x:0,
+        y:0
+    },
+    origin_last:{
+        x:0,
+        y:0
+    },
+    origin_delta:{
+        x:0,
+        y:0
+    }
+};
+
+function event_handler(type, evt_object){
+    run_camera();
+
+    if(type !== 'init' && type !== 'touch') obs_handler({
+        plot: type,
+        act:Object.entries(evt_object.actual),
+        del:Object.entries(evt_object.delta),
+        whl:evt_object.wheel_delta !== null ? Object.entries(evt_object.wheel_delta) : null,
+        btn:evt_object.button,
+        map_s:map_sectors_group.children.length})
+
+    let action, roto_x, roto_y, pos_x, pos_y, delta_x, delta_y, scale_z;
+
+    if (type === 'init') {
+        pos_x = vars.view.width / 2;
+        pos_y = vars.view.height / 2;
+    }
+
+    if(type === 'touch'){
+        obs_handler({touch: evt_object.action});
+        action = evt_object.action;
+
+        const primary = evt_object.touches[0];
+
+        if(evt_object.touches.length > 1){
+            const secondary = evt_object.touches[1];
+            const x_o = primary.x - secondary.x;
+            const y_o = primary.y - secondary.y;
+            touches_mid.last.x = touches_mid.x;
+            touches_mid.last.y = touches_mid.y;
+            touches_mid.x = primary.x-(x_o/2);
+            touches_mid.y = primary.y-(y_o/2);
+            touches_mid.delta.x = touches_mid.last.x === null ? 0 : touches_mid.x - touches_mid.last.x;
+            touches_mid.delta.y = touches_mid.last.y === null ? 0 : touches_mid.y - touches_mid.last.y;
+
+            if(evt_object.action === 'secondary-down'){
+                touches_mid.origin.x = touches_mid.x;
+                touches_mid.origin.y = touches_mid.y;
+            }
+
+            touches_mid.origin_delta.x = touches_mid.origin_last.x - (touches_mid.origin.x - touches_mid.x);
+            touches_mid.origin_delta.y = touches_mid.origin_last.y - (touches_mid.origin.y - touches_mid.y);
+            touches_mid.origin_last.x = touches_mid.origin.x - touches_mid.x;
+            touches_mid.origin_last.y = touches_mid.origin.y - touches_mid.y;
+
+            roto_x = evt_object.angle_delta;
+            roto_y = touches_mid.origin_delta.y / 100.0;
+            pos_x = touches_mid.x;
+            pos_y = touches_mid.y;
+            delta_x = touches_mid.delta.x;
+            delta_y = touches_mid.delta.y;
+            scale_z = 1.0 + evt_object.dist_delta;
+
+        }else{
+            pos_x = primary.x;
+            pos_y = primary.y;
+            delta_x = primary.x_d;
+            delta_y = primary.y_d;
+            touches_mid.x = null;
+            touches_mid.y = null;
+        }
+
+        obs_handler({
+            touch: evt_object.action,
+            roto_x: roto_x,
+            roto_y: roto_y,
+            pos_x: pos_x,
+            pos_y: pos_y,
+            scale_z: scale_z,
+            leg: evt_object.lag
+        });
+        //return;
+
+    }else if(type !== 'init'){
+        pos_x = evt_object.actual.x;
+        pos_y = evt_object.actual.y;
+        action = type;
+
+        // if (type === 'down') {
+        //     action = 'down';
+        // }
+        if (evt_object.down === true) {
+            if (evt_object.button === 2 || active_keys.includes('ShiftLeft') || active_keys.includes('ShiftRight')) {
+                roto_x = evt_object.delta.x / 200.0;
+                roto_y = evt_object.delta.y / 200.0;
+            }else{
+                delta_x = evt_object.delta.x;
+                delta_y = evt_object.delta.y;
+            }
+        }
+        if (action === 'scroll'){
+            scale_z = 1 + (evt_object.wheel_delta.y / 200.0);
+        }
+    }
+
+    vars.user.mouse.state = action;
+    vars.user.mouse.raw.x = (pos_x / vars.view.width) * 2 - 1;
+    vars.user.mouse.raw.y = -(pos_y / vars.view.height) * 2 + 1;
+    vars.user.mouse.screen = {x: pos_x, y: pos_y};
+    document.body.style.cursor = 'pointer';
+
+    m_ray_origin.set(vars.user.mouse.raw.x, vars.user.mouse.raw.y, 0.0).unproject(camera);
+    m_ray_pos.set(vars.user.mouse.raw.x, vars.user.mouse.raw.y, 1.0).unproject(camera);
+    m_ray_dir.copy(m_ray_pos.sub(m_ray_origin));
+
+    if (type === 'init') {
+        console.log('init fired');
+        interactionAction();
+    }else{
+        if (action === 'down' || action === 'secondary-down' || action === 'secondary-up') {
+            lastMouseDown.copy(rayIntersectionWithXZPlane(m_ray_origin, m_ray_dir, 0.0));
+            mouseDownCameraPosition.copy(user_position);
+        }
+        if (roto_x && roto_y) {
+            cube.rotateOnWorldAxis(y_up, roto_x);
+            cube.rotateX(roto_y);
+            cube.updateMatrixWorld();
+            vars.info.set_state(false);
+            vars.selecta.moved = true;
+        }
+        if (delta_x && delta_y) {
+            newMouseDown.copy(rayIntersectionWithXZPlane(m_ray_origin, m_ray_dir, 0.0));
+            user_position.copy(mouseDownCameraPosition.sub(newMouseDown.sub(lastMouseDown)));
+            vars.info.drag_position(delta_x, delta_y);
+            vars.selecta.moved = true;
+        }
+        if(scale_z){
+            if (cam_base_pos.z < vars.min_zoom) {
+                cam_base_pos.z = vars.min_zoom;
+            } else {
+                cam_base_pos.multiplyScalar(scale_z);
+                vk.subVectors(mouse_plane_pos, user_position);
+                user_position.add(vk.multiplyScalar((1 - scale_z)));
+                vars.selecta.moved = true;
+            }
+        }
+    }
+
+
+    camera_scale = 1 - (camera_distance / reset_default_z);
+    const zg = Math.floor(Math.log(camera_distance)) + 1;
+    grid_resolution = z_mants[zg];
+
+    ray_caster.setFromCamera(vars.user.mouse.raw, camera);
+    ray_caster.ray.intersectPlane(root_plane, vk);
+    mouse_plane_pos.set(vk.x, vk.y, vk.z);
+    mouse_pos_map.set(mouse_plane_pos.x + vars.map.offset.x, Math.abs((mouse_plane_pos.z - vars.map.offset.y) + vars.view.map_vertical_deg_offset), 0.0);
+
+    pos_mark_4.position.copy(mouse_plane_pos);
+    grid_lines.position.copy(mouse_plane_pos);
+
+    if (action === 'move' || action === 'touch-hover') {
+        interactionAction();
+    }
+
+    if (action !== 'move' && action !== 'init') {
+
+        adaptive_scaling_wudi();
+        //run_camera();
+        run_ticks();
+        refresh();
+    }
+
+    if (action === 'click' || action === 'touch-click') {
+        if (vars.selecta.wudi.points.hover.length) {
+            vars.selecta.wudi.point_select(vars.selecta.wudi.points.hover[0]);
+            vars.selecta.wudi.points.hover = [];
+        }
+        vars.user.mouse.clicked = true;
+    }
+
+}
+
 function translateAction(type, actual_xy, delta_xy, object) {
     let dx, dy;
     run_camera();
+
 
     if (type === 'init') {
         dx = vars.view.width / 2;
@@ -1061,6 +1285,11 @@ function translateAction(type, actual_xy, delta_xy, object) {
     vars.user.mouse.raw.y = -(dy / vars.view.height) * 2 + 1;
     vars.user.mouse.screen = {x: dx, y: dy};
     document.body.style.cursor = 'pointer';
+
+    ray_caster.setFromCamera(vars.user.mouse.raw, camera);
+    ray_caster.ray.intersectPlane(root_plane, vk);
+    mouse_plane_pos.set(vk.x, vk.y, vk.z);
+    mouse_pos_map.set(mouse_plane_pos.x + vars.map.offset.x, Math.abs((mouse_plane_pos.z - vars.map.offset.y) + vars.view.map_vertical_deg_offset), 0.0);
 
     m_ray_origin.copy(new THREE.Vector3(vars.user.mouse.raw.x, vars.user.mouse.raw.y, 0.0)).unproject(camera);
     m_ray_pos.copy(new THREE.Vector3(vars.user.mouse.raw.x, vars.user.mouse.raw.y, 1.0)).unproject(camera);
@@ -1110,17 +1339,17 @@ function translateAction(type, actual_xy, delta_xy, object) {
 
     if (type === 'move') {
         //window.scrollTo(0, 0);
-        interactionAction();
+        //interactionAction();
 
         //obs_handler({wp:vars.selecta.wudi.points.hover});
     }
 
 
     if (type === 'init') {
-        interactionAction();
+        //interactionAction();
     }
 
-    camera_scale = 1 - (camera_distance / reset_default_z);
+
 
 
     if (active_keys.includes('Tab')) {
@@ -1141,15 +1370,14 @@ function translateAction(type, actual_xy, delta_xy, object) {
         });
     }
 
-    let zg = Math.floor(Math.log(camera_distance)) + 1;
+
+    camera_scale = 1 - (camera_distance / reset_default_z);
+    const zg = Math.floor(Math.log(camera_distance)) + 1;
     grid_resolution = z_mants[zg];
     run_ticks();
     refresh();
 
-    ray_caster.setFromCamera(vars.user.mouse.raw, camera);
-    ray_caster.ray.intersectPlane(root_plane, vk);
-    mouse_plane_pos.set(vk.x, vk.y, vk.z);
-    mouse_pos_map.set(mouse_plane_pos.x + vars.map.offset.x, Math.abs((mouse_plane_pos.z - vars.map.offset.y) + vars.view.map_vertical_deg_offset), 0.0);
+
 
     pos_mark_4.position.copy(mouse_plane_pos);
     grid_lines.position.copy(mouse_plane_pos);
@@ -1236,7 +1464,7 @@ function run_camera() {
 
     vars.user.group.position.copy(user_position);
     user_position_round.copy(user_position).round();//.multiplyScalar(vars.degree_scale);
-    grid_lines.position.copy(user_position);
+    //grid_lines.position.copy(user_position);
     pos_mark_2.position.copy(user_position_round);
 
     //visible_dimensions = visibleAtZDepth(-camera_distance, camera);
@@ -1671,6 +1899,7 @@ function wudi_plot(obj) {
     // // run_camera();
 
     draw_data_instanced(group);
+    console.log(group);
     return 'plotted';
 }
 
@@ -1745,7 +1974,7 @@ function wudi_graph_chart_daily() {
         }
 
         graph(graph_obj, vars.view.width, vars.view.graph_obj_height);
-
+        graph_bar.classList.remove('hidden');
         graph_bar.style.display = 'block';
     }else{
         graph_bar.style.display = 'none';
@@ -1878,23 +2107,38 @@ function wudi_set_data_selection() {
 
 }
 
-function windowRedraw() {
+function windowRedraw(first_run=null) {
+    console.log("windowRedraw fired.");
+    window.scrollTo(0, 0);
+
     const w = window.innerWidth;
     const h = window.innerHeight;
 
-    let bars_height = 0;
-    const bars = [...document.querySelectorAll('.bar')];
-    bars.map((b) => { if(b.style.display !== 'none') bars_height += b.getBoundingClientRect().height });
-
     q_nav_bar.style.height = vars.view.q_nav_bar_height+'px';
 
+    let bars_height = 0;
+    const bars = [...document.querySelectorAll('.bar')];
+
+
+    bars.map(b => {
+        const bbox = b.getBoundingClientRect();//offsetHeight;//
+        if(b.style.display !== 'none') bars_height += bbox.height;
+        b.classList.remove('hidden');
+        console.log(b, bbox);
+    });
+
+
+
     ww = w;
-    wh = (h - vars.view.bottom_buffer - bars_height);
-    plot.style.width = (ww) + 'px';
-    plot.style.height = (wh) + 'px';
+    wh = ((h - vars.view.bottom_buffer) - bars_height);
+
+    plot.style.width = ww + 'px';
+    plot.style.height = wh + 'px';
 
     vars.view.width = ww;
     vars.view.height = wh;
+
+    console.log(ww, wh, bars_height);
 
     if (camera) {
         camera.aspect = ww / wh;
@@ -1919,7 +2163,21 @@ function windowRedraw() {
     y_major_axis.style.width = '1px';
 
     title_box.style.bottom = vars.view.title_bottom_offset+'px';
-    plot.focus();
+    title_box.classList.remove('hidden');
+
+    if(!vars.view.init_state){
+        const buttons = [...document.querySelectorAll(".button")];
+        buttons.map(b => {
+        const svg_check_zero = document.getElementById("check-box-0").cloneNode(true);
+        const svg_check_one = document.getElementById("check-box-1").cloneNode(true);
+        b.insertBefore(svg_check_one, b.firstChild);
+        b.insertBefore(svg_check_zero, b.firstChild);
+        b.parentNode.addEventListener('mouseup', dom_button_check_click);
+        dom_button_check_box_set_state(b.id, true);
+    });
+    }
+
+    //plot.focus();
 }
 
 function loader_notify(count, message = null) {
@@ -2054,12 +2312,15 @@ function init() {
     scene.add(map_container);
     map_plane.visible = false;
 
-    dragControls(renderer.domElement, translateAction, cube, {passive: true});
+    //dragControls(renderer.domElement, translateAction, cube, {passive: true});
+
+    dragControls(renderer.domElement, event_handler);//, cube, {passive: false, capture: true});
+
     keyControls(window, keyAction);
 
     grid_lines = make_grid_lines();
     scene.add(grid_lines);
-    plot.appendChild(renderer.domElement);
+
 
     visible_dimensions = visibleAtZDepth(-default_z, camera);
     cam_base_pos.z = ((default_z / visible_dimensions.w) * vars.map.dims.w) + 2.0;
@@ -2071,24 +2332,23 @@ function init() {
     ray_caster.params.Line.threshold = 0.005;
     ray_caster.params.Points.threshold = 0.025;
 
-    translateAction('init', null, null, cube);
-    toggle_debug_tools_state(false);
+    event_handler('init', null);
+
+    toggle_debug_tools_state(true);
+
 
     wudi_dub_selecta.make(null);
     scene.add(wudi_dub_selecta.object);
 
-    const buttons = [...document.querySelectorAll(".button")];
-    buttons.map(b => {
-        const svg_check_zero = document.getElementById("check-box-0").cloneNode(true);
-        const svg_check_one = document.getElementById("check-box-1").cloneNode(true);
-        b.insertBefore(svg_check_one, b.firstChild);
-        b.insertBefore(svg_check_zero, b.firstChild);
-        b.parentNode.addEventListener('mouseup', dom_button_check_click);
-        dom_button_check_box_set_state(b.id, true);
-    });
+
+
+    plot.appendChild(renderer.domElement);
 
     run_camera();
     run_ticks();
+
+
+    vars.view.init_state = true;
 }
 
 
@@ -2147,7 +2407,7 @@ const q_nav = {
         obs_handler({e:e.target});
     },
     area_strip: q_nav_bar.querySelector('.area-strip'),
-    strip_canvas: q_nav_bar.querySelector('.strip-canvas'),
+    // strip_canvas: q_nav_bar.querySelector('.strip-canvas'),
     base_position: q_nav_bar.querySelector('.base-position'),
     label: q_nav_bar.querySelector('.label'),
     label_top: null,
@@ -2157,6 +2417,11 @@ const q_nav = {
     region_id: null,
     region_width_px: null,
     strip_canvases: {},
+    current_position:null,
+    touch_trace:{
+        pos_x: null,
+        delta_x: null
+    },
     draw_strip: (reg_id, items, start_index) => {
         const has_container = q_nav.area_strip.querySelector('.area-div-container');
         const svg_circle = document.getElementById('basic-circle');
@@ -2195,65 +2460,54 @@ const q_nav = {
                 }
 
                 const plb = vars.data.wudi_assoc.raw.data[index];
-
                 const _has_protected = plb[1] !== null;
                 const _has_inside_protected = plb[3] !== null;
                 const _has_place = plb[4] === null ? false: vars.data.places_data.lookup_table.hasOwnProperty(plb[4]);
+                const allowed = true;
 
-                if(_has_protected) {
-                    const protected_scale = protected_instance.userData.td.sample_raw[plb[1]];
-                    const circle = svg_circle.cloneNode(true);
-                    circle.setAttribute('id','');
-                    circle.classList.add('svg-minimized');
-                    circle.classList.add('area-acg-protected');
-                    circle.querySelector('circle').setAttribute('r', (64/4)*protected_scale);
-                    circle.addEventListener('mouseover', q_nav.q_nav_event);
-                    r_div.appendChild(circle);
-                }
-
-                if(_has_inside_protected) {
-                    let has = null
-                    if(Array.isArray(plb[3])){
-                        has = plb[3][0];
-                    }else{
-                        has = plb[3];
+                if(allowed) {
+                    if (_has_protected) {
+                        const protected_scale = protected_instance.userData.td.sample_raw[plb[1]];
+                        const circle = svg_circle.cloneNode(true);
+                        circle.setAttribute('id', '');
+                        circle.classList.add('svg-minimized');
+                        circle.classList.add('area-acg-protected');
+                        circle.querySelector('circle').setAttribute('r', (60 / 4) * protected_scale);
+                        circle.addEventListener('mouseover', q_nav.q_nav_event, false);
+                        r_div.appendChild(circle);
                     }
 
-                    const protected_scale = protected_instance.userData.td.sample_raw[has];
-                    const circle = svg_inside_circle.cloneNode(true);
-                    circle.setAttribute('id','');
-                    circle.classList.add('svg-minimized');
-                    circle.classList.add('area-acg-protected-inside');
-                    //circle.querySelector('circle').setAttribute('r', (64/4)*protected_scale);
-                    circle.addEventListener('mouseover', q_nav.q_nav_event);
-                    r_div.appendChild(circle);
+                    if (_has_inside_protected) {
+                        let has = null
+                        if (Array.isArray(plb[3])) {
+                            has = plb[3][0];
+                        } else {
+                            has = plb[3];
+                        }
+
+                        const protected_scale = protected_instance.userData.td.sample_raw[has];
+                        const circle = svg_circle.cloneNode(true);
+                        ///const circle = svg_inside_circle.cloneNode(true);
+                        circle.setAttribute('id', '');
+                        circle.classList.add('svg-minimized');
+                        circle.classList.add('area-acg-protected-inside');
+                        circle.querySelector('circle').setAttribute('r', (60 / 4) * protected_scale);
+                        circle.addEventListener('mouseover', q_nav.q_nav_event, false);
+                        r_div.appendChild(circle);
+                    }
+
+                    if (_has_place) {
+                        const place_data_index = vars.data.places_data.lookup_table[plb[4]];
+                        const place_scale = places_instance.userData.td.sample_raw[place_data_index];
+                        const circle = svg_circle.cloneNode(true);
+                        circle.setAttribute('id', '');
+                        circle.classList.add('svg-minimized');
+                        circle.classList.add('area-acg-place');
+                        circle.querySelector('circle').setAttribute('r', (60 / 5) * place_scale);
+                        circle.addEventListener('mouseover', q_nav.q_nav_event, false);
+                        r_div.appendChild(circle);
+                    }
                 }
-
-                if(_has_place){
-                    const place_data_index = vars.data.places_data.lookup_table[plb[4]];
-                    const place_scale = places_instance.userData.td.sample_raw[place_data_index];
-                    const circle = svg_circle.cloneNode(true);
-                    circle.setAttribute('id','');
-                    circle.classList.add('svg-minimized');
-                    circle.classList.add('area-acg-place');
-                    circle.querySelector('circle').setAttribute('r', (64/5)*place_scale);
-                    circle.addEventListener('mouseover', q_nav.q_nav_event);
-                    r_div.appendChild(circle);
-                }
-
-
-                // //const plb = vars.data.wudi_assoc.raw.data[index];
-                //
-                // if(plb[4] !== null){
-                //     if(vars.data.places_data.lookup_table.hasOwnProperty(plb[4])){
-                //         r_div.classList.add("area-place");
-                //     }
-                // }
-                //
-                //
-                //
-                //
-                // if(plb[1] !== null) r_div.classList.add("area-protected");
 
                 r_div.style.left = c*vars.q_nav.segment_width+'px';
 
@@ -2264,60 +2518,111 @@ const q_nav = {
             q_nav.area_strip.appendChild(container);
         }
 
+        plot.focus();
+        return false;
     },
     get_point: () => {
         const rc = Math.round(q_nav.offset*q_nav.region_length)+1;
         return rc > q_nav.region_length ? 1 : rc;
     },
+    optimise_strip: () => {
+        const nav_parts = q_nav.area_strip.querySelectorAll('.area-div');
+        const r_w = q_nav.offset*q_nav.region_width_px;
+        if(nav_parts) [...nav_parts].map(n => {
+            const cond = (Math.abs(r_w-parseInt(n.style.left)) <= (vars.view.width/2.0));
+            n.style.display = ['none','block'][+cond];
+        });
+    },
     set_geo_region: (reg_id, point=null) => {
-        const r = vars.data.geo_regions[reg_id];
-        const r_pos = r.indexOf(point);
+        if(point !== null && point !== q_nav.current_position){
+            console.log('q_nav called set_geo_region');
+            const r = vars.data.geo_regions[reg_id];
+            const r_pos = r.indexOf(point);
 
-        q_nav.region_id = reg_id;
-        q_nav.region_length = r.length;
-        q_nav.offset = r_pos/(r.length);
-        q_nav.offset_pixels = (vars.view.width*q_nav.offset);
-        q_nav.region_width_px = r.length*vars.q_nav.segment_width;//vars.view.width/2;
-        if(point !== null){
+            q_nav.region_id = reg_id;
+            q_nav.region_length = r.length;
+            q_nav.offset = r_pos/(r.length);
+            q_nav.offset_pixels = (vars.view.width*q_nav.offset);
+            q_nav.region_width_px = r.length*vars.q_nav.segment_width;
+
             q_nav.reposition();
+            q_nav.current_position = point;
+            q_nav.draw_strip(q_nav.region_id, q_nav.region_length, r[0]);
+            q_nav.optimise_strip();
         }
 
-        q_nav.draw_strip(q_nav.region_id, q_nav.region_length, r[0]);
-        //console.log('start_index', r[0]);
+        return false;
     },
     reposition: () => {
+        console.log('q_nav called reposition');
+        q_nav.optimise_strip();
         q_nav.label.innerHTML = `${q_nav.get_point()}/${q_nav.region_length}`;
         q_nav.area_strip.style.width = (q_nav.region_width_px)+'px';
-        q_nav.area_strip.style.left = ((vars.view.width/2.0)-(q_nav.offset*q_nav.region_width_px))+'px';
+        q_nav.area_strip.style.left = ((vars.view.width/2.0)-((q_nav.offset*q_nav.region_width_px)-(vars.q_nav.segment_width/2)))+'px';
+        return false;
     },
     init: () => {
-        dragControls(q_nav_bar, q_nav.event_handler, {}, {passive: true});
+        dragControls(q_nav_bar, q_nav.event_handler);//, {}, {passive: true});
         q_nav.label_top = (vars.view.q_nav_bar_height/2)+(q_nav.label.getBoundingClientRect().height/-2);
         q_nav.label.style.top = q_nav.label_top+'px';
         q_nav.label.style.left = (vars.view.width/2.0)+'px';
-        q_nav.base_position.style.left = (vars.view.width/2.0)+'px';
+        q_nav.base_position.style.left = (vars.view.width/2.0)-(vars.q_nav.segment_width/2.0)+'px';
 
+        alert((vars.view.width/2.0));
+
+        q_nav.base_position.style.width = (vars.q_nav.segment_width)+'px';
         q_nav.base_position.style.height = vars.view.q_nav_bar_height+'px';
         q_nav.area_strip.style.height = vars.view.q_nav_bar_height+'px';
-
-        q_nav.strip_canvas.width = 0;//q_nav.region_width_px;
-        q_nav.strip_canvas.height = 0;//vars.view.q_nav_bar_height;
+        // q_nav.strip_canvas.width = 0;//q_nav.region_width_px;
+        // q_nav.strip_canvas.height = 0;//vars.view.q_nav_bar_height;
+        return false;
     },
-    event_handler: (type, actual_xy, delta_xy, object) => {
-        //obs_handler({q_nav:type, c:actual_xy});
+    event_handler: (type, evt_object_n) => {
+        const r_interval = Math.round((q_nav.offset_pixels/q_nav.region_width_px)*q_nav.region_length);
+        let pos_x, delta_x, action;
 
-        if(type === 'drag'){
-            q_nav.offset_pixels += delta_xy[0];
-            const r_interval = Math.round((q_nav.offset_pixels/q_nav.region_width_px)*q_nav.region_length);
+        if(type === 'touch'){
+            action = evt_object_n.action;
+            if(evt_object_n.touches.length){
+                const primary = evt_object_n.touches[0];
+                pos_x = primary.x;
+                delta_x = primary.x_d;
+                q_nav.touch_trace.pos_x = primary.x;
+                q_nav.touch_trace.delta_x = primary.x_d;
+            }else{
+                pos_x = q_nav.touch_trace.pos_x;
+                delta_x = q_nav.touch_trace.delta_x;
+            }
+        }else{
+            action = type;
+            pos_x = evt_object_n.actual.x;
+            delta_x = evt_object_n.delta.x;
+        }
+
+        obs_handler({q_nav: action, p:pos_x, d:delta_x});
+
+        if(action === 'drag'){
+            q_nav.offset_pixels += delta_x;
             q_nav.offset = util.naturalize_on_loop(r_interval/q_nav.region_length, true);
             q_nav.reposition();
             move_map_to_point(vars.data.geo_regions[q_nav.region_id][q_nav.get_point()-1]);
 
-        }else if(type === 'clicked'){
-            const click_pos = (((vars.view.width/2.0)-(q_nav.offset*q_nav.region_width_px))-actual_xy[0])*-1;
+        }else if(action === 'click' || action === 'touch-click'){
+
+            const pfx = (vars.view.width/2.0)-pos_x;
+            // alert(pfx);
+
+            const fx = (vars.view.width/2.0) - Math.round(pfx/vars.q_nav.segment_width)*vars.q_nav.segment_width;///-(vars.q_nav.segment_width/2);
+
+
+
+
+            const click_pos = (((vars.view.width/2.0)-(q_nav.offset*q_nav.region_width_px))-fx)*-1;
+
             const click_offset = (click_pos/q_nav.region_width_px);
             const click_ref = Math.round(click_offset*q_nav.region_length);
-            if(click_ref >= 0 && click_ref < q_nav.region_length){
+
+            if(click_ref >= 0 && click_ref <= q_nav.region_length){
                 q_nav.offset = click_offset;
                 q_nav.reposition();
                 move_map_to_point(vars.data.geo_regions[q_nav.region_id][q_nav.get_point()-1]);
@@ -2326,24 +2631,11 @@ const q_nav = {
         }else{
             q_nav.offset_pixels = q_nav.offset*q_nav.region_width_px;///vars.view.width;
         }
+
+        return false;
     }
 }
 
-
-
-
-// 👉️ START EVERYTHING HERE
-vars.dom_time.populate('years');
-vars.dom_time.populate('months');
-
-window.addEventListener('resize', windowRedraw);
-windowRedraw();
-
-init();
-animate();
-windowRedraw();
-
-q_nav.init();
 
 // 👉️ LOADERS / PARSERS
 const array_auto = (str) => (new Function(`return [${str}];`)());
@@ -2400,10 +2692,10 @@ for (let i = 0; i < 100; i++) {
 }
 
 const post_obj_list = [
+    {"url": "/map", "table": "places_fine", "type": "json-ser", "name": "places_data", "style":"point", "tck": [0, 0, 0]},
     {"url": "/wudi", "table": "turn_table", "type": "json-ser", "name": "wudi_points", "tck": util.shuffle_array(payload)},
     {"url": "/wudi", "table": "assoc", "type": "json-ser", "name": "wudi_assoc", "tck": util.shuffle_array(payload)},
     {"url": "/wudi", "tim": "40", "type": "json-ser", "name": "wudi_data", "tck": [0, 0, 0]},
-    {"url": "/map", "table": "places_fine", "type": "json-ser", "name": "places_data", "style":"point", "tck": [0, 0, 0]}
 ]
 
 const obj_list = [
@@ -2423,8 +2715,15 @@ async function someFunction() {
 }
 
 async function load_complete(situation) {
+
+    // console.log(situation);
+    // console.log(map_container);
+    console.log('FINAL LOAD');
+    adaptive_scaling_wudi();
+
+
     if (situation === 'true' && initial_load === true) {
-        adaptive_scaling_wudi();
+        //adaptive_scaling_wudi();
         //obs_handler({R:situation, M:'fully loaded'});
         //console.log('has cake');
         //adaptive_scaling_wudi();
@@ -2434,7 +2733,6 @@ async function load_complete(situation) {
         // wudi_set_data(model[0])
         //const res = wudi_get_data('40').then(object_list => wudi_set_data(object_list[0]));
         //wudi_set_data(res[0]);
-
         //console.log(res);
         // const re_k = wudi_get_data('40').then(r => {
         //     console.log('B:', r);
@@ -2445,5 +2743,50 @@ async function load_complete(situation) {
     // adaptive_scaling_wudi();
 }
 
-const k = someFunction().then(r => load_complete(r));
+
+
+
+// 👉️ START EVERYTHING HERE
+const delay = ms => new Promise(res => setTimeout(res, ms));
+
+async function times_populate(){
+    const years = document.getElementById('years_container');
+    const months = document.getElementById('months_container');
+
+    await vars.dom_time.populate('years');
+    years.style.display = 'none';
+    years.style.display = 'flex';
+
+    await vars.dom_time.populate('months');
+    months.style.display = 'none';
+    //months.style.display = 'flex';
+    //await delay(10);
+    return true;
+}
+
+function load_secondary(r){
+    vars.info.dom_element.classList.remove('hidden');
+    obs.classList.remove('hidden');
+    windowRedraw(true);
+
+    init();
+    animate();
+    q_nav.init();
+    // bounds.style.display = 'block';
+    const k = someFunction().then(r => load_complete(r));
+}
+
+
+window.addEventListener('DOMContentLoaded', (event) => {
+    // toggle_debug_tools_state(false);
+    // bounds.style.display = 'none';
+    console.log('DOM fully loaded and parsed');
+    window.addEventListener('resize', windowRedraw);
+
+
+    const finish_dom = times_populate().then(r => load_secondary(r));
+
+
+});
+
 

@@ -147,7 +147,7 @@ svg {
 .row {
 	display: flex;
 	flex-direction: row;
-	flex-wrap: wrap;
+	flex-wrap: nowrap;
 }
 
 .column-label {
@@ -335,22 +335,45 @@ svg {
 	/*border:1px white dotted;*/
 }
 
+#bounds{
+
+	display: block;
+    box-sizing: border-box;
+    /*border: 1px blue dotted;*/
+    width: 100vw;
+    height: 100vh;
+    overflow: visible;
+	/*background-color: red;*/
+}
+
+
+.hidden{
+	visibility: hidden;
+}
+
 #plot{
 	position:relative;
 	top:0;
 	right:0;
 	bottom:80px;
 	left:0;
-	min-height:80%;
+	/*min-height:80%;*/
 }
 
 #times-bar{
-	width:100%;
+	box-sizing: border-box;
+	/*display: flex;*/
+	/*align-items: flex-start;*/
+	/*flex-direction: row;*/
+	width: 100vw;
+	/*max-height: 24px;*/
+	border:1px red solid;
+	/*overflow:hidden;*/
 }
 
 #graph-obj-bar{
 	position: relative;
-	display:none;
+	display: none;
 }
 
 #q-nav-bar{
@@ -375,13 +398,15 @@ svg {
 
 #q-nav-bar .base-position{
 	position: absolute;
-	width:2px;
+	width:20px;
 	background-color: yellowgreen;
 	height:24px;
+	opacity:0.3;
 }
 
 #q-nav-bar .area-strip{
 	position: absolute;
+	display: block;
 	background-color: #1c3554;
 	opacity:1.0;
 	height:24px;
@@ -394,10 +419,10 @@ svg {
 
 #q-nav-bar .area-strip .area-div-container .area-div{
 	position: absolute;
-	border-left:1px gray solid;
+	border-left:1px #0f1621 solid;
 	/*background-color: yellowgreen;*/
-	width:10px;
-	height:4px;
+	width:20px;
+	height:100%;
 }
 
 
@@ -405,7 +430,8 @@ svg {
 	width:20px;
 	height:20px;
 	/*position:absolute;*/
-	opacity:0.5;
+	opacity:1.0;
+	/*display:none;*/
 }
 
 .area-acg-place{
@@ -413,7 +439,9 @@ svg {
 }
 
 .area-acg-protected{
-	fill:teal;
+	stroke:teal;
+	stroke-width: 8.0;
+	fill:none;
 }
 
 .area-acg-protected-inside{
@@ -480,7 +508,8 @@ svg {
 
 .bar{
 	/*background-color: rgba(0,120,0,0.1);*/
-	width:100%;
+	width:100vw;
+	/*border:1px cornflowerblue solid;*/
 }
 
 .plot-major-axis{
@@ -489,6 +518,8 @@ svg {
 
 .time-container{
 	border-top:1px #1e315c solid;
+	width:100vw;
+	height:auto;
 	/*padding: 6px 12px;*/
 }
 
@@ -498,7 +529,6 @@ svg {
 	color: cornflowerblue;
 	white-space: nowrap;
 	text-align: center;
-	/*height:18px;*/
 	padding: 3px;
 }
 
@@ -587,12 +617,11 @@ svg {
 }
 
 
-
-
 #graph-mark{
 	position: absolute;
 	border-left:1px green dotted;
 	pointer-events: none;
+	display:inherit;
 }
 
 #graph-mark-value{
@@ -605,4 +634,5 @@ svg {
 	color:lightgreen;
 	padding:0 4px 2px;
 	font-size:0.8em;
+	display:inherit;
 }

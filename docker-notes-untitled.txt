@@ -102,5 +102,5 @@ docker push gcr.io/shaped-aegis-351710/node-obspkg
 JULY:
 docker build -t node-obspkg-lite .
 docker run -d -p 3000:3000 node-obspkg-lite (test)
-docker tag node-obspkg gcr.io/shaped-aegis-351710/node-obspkg-lite
+docker tag node-obspkg-lite gcr.io/shaped-aegis-351710/node-obspkg-lite
 docker push gcr.io/shaped-aegis-351710/node-obspkg-lite

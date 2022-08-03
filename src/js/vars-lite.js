@@ -28,6 +28,7 @@ const vars = {
 		selection: null
 	},
 	view: {
+		init_state: false,
 		width: null,
 		height:null,
 		q_nav_bar_height: 48,
