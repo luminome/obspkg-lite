@@ -1,6 +1,7 @@
 const vars = {
 	// window_color: 0x0f1621,
 	previous_keys: [],
+	helpers_active: false,
 	debug_tool_state: false,
 	static_path:'./data',
 	grid_visible: false,
@@ -18,7 +19,7 @@ const vars = {
 		height:24
 	},
 	layers:{
-		allow:['line_strings'], //, 'contours'] ///, 'contours'] ///'polygons',
+		allow:['line_strings', 'contours'] ///, 'contours'] ///'polygons',
 	},
 	map:{
 		test_bounds: [-7.0, 29.0, 37.0, 49.0]
@@ -33,7 +34,7 @@ const vars = {
 		height:null,
 		q_nav_bar_height: 48,
 		graph_obj_height: 120,
-		bottom_buffer: 12,
+		bottom_buffer: 24,
 		title_bottom_offset: 32,
 		map_vertical_deg_offset: 2.0,
 		bottom_offset: 70,
@@ -79,7 +80,7 @@ const vars = {
 			select: [0x660066, 0xFF00FF]
 		},
 		iso_bath:{
-			select: [0x444444, 0xFF00FF]
+			select: [0x3333FF, 0x3333FF]
 		},
 		hex_css: (c, alpha=null) => {
 			return alpha === null ? '#'+c.toString(16) : '#'+c.toString(16)+(Math.round(alpha*255).toString(16))

@@ -32,16 +32,11 @@
 		</div>
 	</div>
 
-
-
-
-
 <!--	<div id="times-bar" class="bar hidden">-->
 <!--		<div id="time_element_temp" class="time-element column-label"></div>-->
 <!--		<div id="years_container" class="row time-container"></div>-->
 <!--		<div id="months_container" class="row time-container"></div>-->
 <!--	</div>-->
-
 
 	<div id="time_element_temp" class="time-element column-label"></div>
 	<div id="years_container" class="bar row time-container hidden"></div>
@@ -70,21 +65,48 @@
 <!--<div id="dmark-eight" class="dmark">0.0</div>-->
 
 <div class="page-text">
+	<div class="pre">
+		À savoir:
+		<b>clicquez et balayez</b> pour vous déplacer.
+		<b>scroll</b> pour zoomer.
+		<b>maintenir la cléf (shift) ou utiliser le bouton-souris de droite</b> pour éffectuer des rotations de la vue.
+		<b>tappez la cléf (éspace)</b> pour re-centrer l'image.
+	</div>
 
-	À savoir:
-	<b>clicquez et balayez</b> pour vous déplacer.
-	<b>scroll</b> pour zoomer.
-	<b>maintenir la cléf (shift)</b> pour éffectuer des rotations de la vue.
-	<b>tappez la cléf (éspace)</b> pour re-centrer l'image.
+	<div class="legend-items">
+		<div>
+			<div id="legend-obs"></div>
+			<div>Point d'observation.</div>
+		</div>
+		<div>
+			<div id="legend-obs-normal" class="legend-item-svg"></div>
+			<div>Normale du point d'observation.</div>
+		</div>
+		<div>
+			<div id="place"></div>
+			<div>Endroit a proximité de 25km du point d'observation.</div>
+		</div>
+		<div>
+			<div id="mpa"></div>
+			<div>Zone Marine Protegée (MPA) proximité de 25km du point d'observation.</div>
+		</div>
+		<div>
+			<div id="mpa-interior"></div>
+			<div>Zone Marine Protegée (MPA) qui contient le point d'observation.</div>
+		</div>
+	</div>
+	<div class="pre">
+		frontend:
+		camera on coastline
+		optimise rotation on mobile
+		review of vertical ticks inversion at low view
+		implement the events to be visible.
 
-	<b>la série temporelle?</b> oui.
-
-	Quelqu'un vient d'arriver dans votre société ? Un voisin vient de s'installer près de chez vous ? Un ami vous présente quelqu'un qui va partager du temps avec vous ? ... Pourquoi ne pas souhaiter la bienvenue à toutes ces personnes ? Souhaiter la bienvenue à votre nouveau collègue ? Un simple mot, un email, un lettre ou un SMS pour souhaiter la bienvenue fait toujours plaisir et permet de créer dès le départ une relation cordiale et bienveillante.
-
-	Comme il n'est pas toujours facile de savoir quoi dire pour souhaiter la bienvenue à quelqu'un, basta.
-
-	Les emails de bienvenue sont l’une des étapes les plus importantes pour établir des relations durables avec de nouveaux clients ou prospects qui viennent de choisir votre entreprise. L’impression que laisse votre message de bienvenue/présentation a un impact énorme sur le succès de vos efforts globaux de marketing par email. Des études montrent cependant que seuls 57,7% des marques envoient des messages de bienvenue à leurs nouveaux clients
-
+		backend:
+		rebuild map outlines for lower resolution.
+		rebuild map depths for lower resolution.
+		decide about MPA rendering.
+	</div>
 </div>
 
 
@@ -113,6 +135,10 @@
 		<circle class="st0" cx="64" cy="64" r="60"/>
 	</svg>
 
+	<svg id="basic-hexagon" width="128px" height="128px" viewBox="0 0 128 128">
+		<polygon class="st0" points="111.89,91.649 111.89,36.351 64,8.701 16.11,36.351 16.11,91.649 64,119.299 "/>
+	</svg>
+
 	<svg id="within-circle" width="128px" height="128px" viewBox="0 0 128 128">
 		<path class="st0" d="M64,0C28.7,0,0,28.7,0,64c0,35.3,28.7,64,64,64s64-28.7,64-64C128,28.7,99.3,0,64,0z M64,119.2
 			C33.5,119.2,8.8,94.5,8.8,64c0-28.7,21.9-52.3,50-54.9v39.4L46,40.3c-2.4-1.5-5.5-0.8-7.1,1.5c-1.5,2.4-0.8,5.5,1.5,7.1L64,64
@@ -123,6 +149,32 @@
 	</svg>
 
 </div>
+
+<!--type="x-shader/x-vertex"-->
+<script id="vertexShader" type="vert">
+	uniform float depth;
+	varying float vOpacity;
+	#//attribute vec3 color;
+	#//varying vec3 vColor;
+
+	void main() {
+		#//vec3 pos = position;
+		#//vColor = color;
+		vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
+		vOpacity = 1.0 - (1.0 / (depth / -mvPosition.z));
+		gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+	}
+</script>
+<!--type="x-shader/x-fragment"-->
+<script id="fragmentShader" type="frag">
+	uniform vec3 color;
+	varying float vOpacity;
+	varying vec3 vColor;
+	void main() {
+		gl_FragColor = vec4( color, vOpacity );
+		if( gl_FragColor.a < 0.05) discard;
+	}
+</script>
 
 </body>
 </html>

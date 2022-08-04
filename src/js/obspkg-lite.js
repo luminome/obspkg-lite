@@ -139,11 +139,11 @@ vars.selecta = {
                 const months_grp = [...this.times.months];
                 title.innerHTML = 'Mean daily observations of WUDI for ' + util.to_lexical_range(years_grp) + ' ' + util.to_lexical_range(months_grp, 'mo');
                 document.getElementById('months_container').style.display = 'flex';
-                if(vars.view.init_state) windowRedraw();
+                if(vars.view.init_state) window_redraw();
             }else{
                 title.innerHTML = 'Mean daily observations of WUDI from 1979 to 2020';
                 document.getElementById('months_container').style.display = 'none';
-                if(vars.view.init_state) windowRedraw();
+                if(vars.view.init_state) window_redraw();
             }
 
         },
@@ -213,20 +213,58 @@ class Sector {
         }
 
         if (object.name === 'contours') {
-            const mat = new THREE[vars.mats.contours.type](vars.mats.contours.dict);
+            // return;
+            //const mat = new THREE[vars.mats.contours.type](vars.mats.contours.dict);
+
+
+            const mvat = new THREE.ShaderMaterial({
+                uniforms: {
+                  depth: {
+                    value: 5
+                  },
+                  color: {
+                    value: new THREE.Color(0x3333FF)
+                  }
+                },
+                vertexShader: document.getElementById('vertexShader').textContent,
+                fragmentShader: document.getElementById('fragmentShader').textContent,
+                transparent: true,
+                blending: THREE.NormalBlending, ///AdditiveBlending,
+                depthTest: false
+            });
+
+            //
+            // then populating the
+            //
+            //  var colors = new Float32Array(segments * 4 * 2);
+            // array with color + alpha values (hence the number 4) and passing it to
+            //
+            // geometry.addAttribute('color', new THREE.BufferAttribute(colors, 4, true));
+
+
             object.raw.map(obj => {
                 const contour_depth = new THREE.Group();
                 const coord_arrays = coords_from_array(obj['line_strings'], obj['d'] / -vars.depth_max);
+                ///console.log(obj['d'] / -vars.depth_max);
+
                 for (let vertices of coord_arrays) {
+                    // const colors = new Float32Array(vertices.length * 3);
+                    // for (let i = 0; i<colors.length; i++) {
+                    //     colors[i] = 1.0-(obj['d'] / vars.depth_max);
+                    // }
+
                     const geometry = new THREE.BufferGeometry();
                     geometry.setAttribute('position', new THREE.BufferAttribute(Float32Array.from(vertices), 3));
-                    const contour = new THREE.Line(geometry, mat);
+                    ///geometry.computeVertexNormals();
+                    ///geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3, true));
+                    const contour = new THREE.Line(geometry, mvat);
                     contour_depth.add(contour);
                 }
 
                 contour_depth.name = 'contours';
                 contour_depth.userData.depth = obj['d'];
                 contour_depth.userData.level = object.level;
+                contour_depth.position.set(0,0,-0.0025);
                 this.group.add(contour_depth);
             });
         }
@@ -283,7 +321,7 @@ class Sector {
     }
 
     init() {
-        const material = new THREE.LineBasicMaterial({color: 0xff00ff, transparent: true, opacity: 0.0});
+        const material = new THREE.LineBasicMaterial({color: 0xff00ff, transparent: true, opacity: 1.0});
         const geometry = new THREE.BufferGeometry().setFromPoints(this.bounds);
         geometry.setIndex([0, 1, 2, 2, 3, 0]);
         geometry.computeVertexNormals();
@@ -294,7 +332,7 @@ class Sector {
         plane_line.name = this.id + `(${this.loc.toString()})`;
         plane_line.userData.center = this.center;
 
-        this.group.add(plane_line);
+        //this.group.add(plane_line);
         this.group.userData.owner = this;
         this.objects.plane = plane_line;
 
@@ -315,8 +353,8 @@ class Sector {
         //return false;
         if (this.level !== LV) {
             this.level = LV;
-            //this.objects.plane.material.setValues({opacity:(this.level/vars.levels)*0.5});
-            this.objects.plane.name = `${this.id}-(${this.level})`;//(<pre>${JSON.stringify(this.meta)}</pre>)`;
+            this.objects.plane.material.setValues({opacity:(this.level/vars.levels)*0.5});
+            this.objects.plane.name = `${this.id}-(${this.level})`;
             this.objects.plane.userData.level = this.level;
             this.check_layers();
             this.update();
@@ -443,7 +481,7 @@ console.log(ww, wh);
 
 
 const z_mants = [0.25, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0];
-let default_z = 10;
+let default_z = 20;
 let reset_default_z = 0.0;
 
 const cube_box = new THREE.BoxGeometry(2, 2, 2);
@@ -496,13 +534,38 @@ const camera_frustum = new THREE.Frustum();
 const camera_frustum_m = new THREE.Matrix4();
 const axis_markers_count = 21;
 
-
+const touches_mid = {
+    x:null,
+    y:null,
+    last:{
+        x:0,
+        y:0
+    },
+    delta:{
+        x:0,
+        y:0
+    },
+    origin:{
+        x:0,
+        y:0
+    },
+    origin_last:{
+        x:0,
+        y:0
+    },
+    origin_delta:{
+        x:0,
+        y:0
+    }
+};
 
 const coords_from_array = (array, add_z = 0.0) => {
     const build_coords = (coords_flat) => {
         let buffer = [];
-        for (let i = 0; i < coords_flat.length; i += 2) {
-            buffer.push(coords_flat[i], coords_flat[i + 1], add_z);
+        if(Array.isArray(coords_flat)) {
+            for (let i = 0; i < coords_flat.length; i += 2) {
+                buffer.push(coords_flat[i], coords_flat[i + 1], add_z);
+            }
         }
         return buffer;
     }
@@ -513,7 +576,6 @@ const coords_from_array = (array, add_z = 0.0) => {
             coords.push(build_coords(a[0]));
         } else {
             for (let b of a) {
-                //console.log(b.some(r => r.length === 1), b);
                 coords.push(build_coords(b));
             }
         }
@@ -824,7 +886,7 @@ function move_map_to_point(pid){
 
     run_camera();
     run_ticks();
-    refresh();
+    refresh_sectors();
     adaptive_scaling_wudi();
     wudi_dub_selecta.set_from_point(pid);
 }
@@ -1047,52 +1109,29 @@ function interactionAction() {
     return true;
 }
 
-function refresh(){
+function refresh_sectors(){
     if(map_sectors_group.children.length) map_sectors_group.children.forEach(s => {
         vw.copy(s.userData.owner.objects.plane.userData.center);
         map_sectors_group.localToWorld(vw);
 
         root_plane.projectPoint(camera.position, vu);
-        vu.sub(camera.up);
+        //vu.sub(camera.up);
         vk.subVectors(user_position, vu).multiplyScalar(0.5 / vars.degree_scale);
 
         camera_projected.copy(vk);
+        vk.add(user_position);
 
-        pos_mark_1.position.copy(vk.add(user_position));
+        if(vars.helpers_active) pos_mark_1.position.copy(vk);
         const L = vw.distanceTo(vk);
         if (L < (vars.levels * (vars.degree_scale)) + 2) {
-            let LV = Math.round((vars.levels - Math.round(L / vars.degree_scale)) * (Math.round(camera_scale * vars.levels) / vars.levels));
+            let LV = Math.floor(Math.pow(camera_scale, vars.levels)*(vars.levels));
+            //let LV = Math.round((vars.levels - Math.round(L / vars.degree_scale)) * (Math.round((camera_scale/2) * vars.levels) / vars.levels));
             if (LV > 4) LV = 4;
             if (LV < 0) LV = 0;
             s.userData.owner.set_level(LV);
         }
     });
 }
-
-const touches_mid = {
-    x:null,
-    y:null,
-    last:{
-        x:0,
-        y:0
-    },
-    delta:{
-        x:0,
-        y:0
-    },
-    origin:{
-        x:0,
-        y:0
-    },
-    origin_last:{
-        x:0,
-        y:0
-    },
-    origin_delta:{
-        x:0,
-        y:0
-    }
-};
 
 function event_handler(type, evt_object){
     run_camera();
@@ -1200,7 +1239,7 @@ function event_handler(type, evt_object){
     m_ray_dir.copy(m_ray_pos.sub(m_ray_origin));
 
     if (type === 'init') {
-        console.log('init fired');
+        console.log('event_handler init fired by init()');
         interactionAction();
     }else{
         if (action === 'down' || action === 'secondary-down' || action === 'secondary-up') {
@@ -1242,7 +1281,7 @@ function event_handler(type, evt_object){
     mouse_plane_pos.set(vk.x, vk.y, vk.z);
     mouse_pos_map.set(mouse_plane_pos.x + vars.map.offset.x, Math.abs((mouse_plane_pos.z - vars.map.offset.y) + vars.view.map_vertical_deg_offset), 0.0);
 
-    pos_mark_4.position.copy(mouse_plane_pos);
+    if(vars.helpers_active) pos_mark_4.position.copy(mouse_plane_pos);
     grid_lines.position.copy(mouse_plane_pos);
 
     if (action === 'move' || action === 'touch-hover') {
@@ -1254,7 +1293,7 @@ function event_handler(type, evt_object){
         adaptive_scaling_wudi();
         //run_camera();
         run_ticks();
-        refresh();
+        refresh_sectors();
     }
 
     if (action === 'click' || action === 'touch-click') {
@@ -1265,138 +1304,34 @@ function event_handler(type, evt_object){
         vars.user.mouse.clicked = true;
     }
 
-}
 
-function translateAction(type, actual_xy, delta_xy, object) {
-    let dx, dy;
-    run_camera();
+    const prefig = Math.floor(Math.pow(camera_scale, vars.levels)*(vars.levels+1));
+        //Math.floor(Math.log(camera_scale)*vars.levels)*vars.levels;
 
-
-    if (type === 'init') {
-        dx = vars.view.width / 2;
-        dy = vars.view.height / 2;
-    } else {
-        dx = actual_xy[0];
-        dy = actual_xy[1];
-    }
-
-    vars.user.mouse.state = type;
-    vars.user.mouse.raw.x = (dx / vars.view.width) * 2 - 1;
-    vars.user.mouse.raw.y = -(dy / vars.view.height) * 2 + 1;
-    vars.user.mouse.screen = {x: dx, y: dy};
-    document.body.style.cursor = 'pointer';
-
-    ray_caster.setFromCamera(vars.user.mouse.raw, camera);
-    ray_caster.ray.intersectPlane(root_plane, vk);
-    mouse_plane_pos.set(vk.x, vk.y, vk.z);
-    mouse_pos_map.set(mouse_plane_pos.x + vars.map.offset.x, Math.abs((mouse_plane_pos.z - vars.map.offset.y) + vars.view.map_vertical_deg_offset), 0.0);
-
-    m_ray_origin.copy(new THREE.Vector3(vars.user.mouse.raw.x, vars.user.mouse.raw.y, 0.0)).unproject(camera);
-    m_ray_pos.copy(new THREE.Vector3(vars.user.mouse.raw.x, vars.user.mouse.raw.y, 1.0)).unproject(camera);
-    m_ray_dir.copy(m_ray_pos.sub(m_ray_origin));
-
-    if (type === 'down') {
-        lastMouseDown.copy(rayIntersectionWithXZPlane(m_ray_origin, m_ray_dir, 0.0));
-        mouseDownCameraPosition.copy(user_position);
-    }
-
-    if (type === 'drag') {
-        document.body.style.cursor = 'all-scroll';
-        if (active_keys.includes('ShiftLeft') || active_keys.includes('ShiftRight')) {
-            //object is cube
-            object.rotateOnWorldAxis(y_up, delta_xy[0] / 100);
-            object.rotateX(delta_xy[1] / 100);
-            object.updateMatrixWorld();
-            vars.info.set_state(false);
-        } else {
-            newMouseDown.copy(rayIntersectionWithXZPlane(m_ray_origin, m_ray_dir, 0.0));
-            user_position.copy(mouseDownCameraPosition.sub(newMouseDown.sub(lastMouseDown)));
-            vars.info.drag_position(delta_xy[0], delta_xy[1]);
-        }
-        vars.selecta.moved = true;
-    }
-
-    if (type === 'zoom') {
-        document.body.style.cursor = 'n-resize';
-        if (cam_base_pos.z < vars.min_zoom) {
-            cam_base_pos.z = vars.min_zoom;
-        } else {
-            const zoom_factor = 1 + (delta_xy[0] / 200);
-            cam_base_pos.multiplyScalar(zoom_factor);
-            vk.subVectors(mouse_plane_pos, user_position);
-            user_position.add(vk.multiplyScalar((1 - zoom_factor)));
-        }
-        vars.selecta.moved = true;
-    }
-
-    if (type === 'clicked') {
-        if (vars.selecta.wudi.points.hover.length) {
-            vars.selecta.wudi.point_select(vars.selecta.wudi.points.hover[0]);
-            vars.selecta.wudi.points.hover = [];
-        }
-        vars.user.mouse.clicked = true;
-    }
-
-    if (type === 'move') {
-        //window.scrollTo(0, 0);
-        //interactionAction();
-
-        //obs_handler({wp:vars.selecta.wudi.points.hover});
-    }
-
-
-    if (type === 'init') {
-        //interactionAction();
-    }
-
-
-
-
-    if (active_keys.includes('Tab')) {
+    if (active_keys.includes('KeyI')) {
         obs_handler({
             cZ: camera_distance.toFixed(2),
-            UD: mouse_plane_pos.toArray().map(e => e.toFixed(2)).join(', '),
-            SW: visible_dimensions.w.toFixed(2),
-            SH: visible_dimensions.h.toFixed(2),
-            DY: cam_dot_y.toFixed(2),
-            DX: cam_dot_x.toFixed(2),
-            DZ: cam_dot_z.toFixed(2),
-            UR: user_position_round.toArray().map(e => e.toFixed(2)).join(', '),
-            UM: mouse_pos_map.toArray().map(e => e.toFixed(2)).join(', '),
-            GR: grid_resolution,
-            AS: (camera_distance / visible_dimensions.w).toFixed(2),
+            // UD: mouse_plane_pos.toArray().map(e => e.toFixed(2)).join(', '),
+            // SW: visible_dimensions.w.toFixed(2),
+            // SH: visible_dimensions.h.toFixed(2),
+            // DY: cam_dot_y.toFixed(2),
+            // DX: cam_dot_x.toFixed(2),
+            // DZ: cam_dot_z.toFixed(2),
+            // UR: user_position_round.toArray().map(e => e.toFixed(2)).join(', '),
+            // UM: mouse_pos_map.toArray().map(e => e.toFixed(2)).join(', '),
+            // GR: grid_resolution,
+            // AS: (camera_distance / visible_dimensions.w).toFixed(2),
             AF: camera_scale.toFixed(2),
+            AL: prefig.toFixed(2),
             AC: cam_base_pos.z.toFixed(2),
         });
     }
 
-
-    camera_scale = 1 - (camera_distance / reset_default_z);
-    const zg = Math.floor(Math.log(camera_distance)) + 1;
-    grid_resolution = z_mants[zg];
-    run_ticks();
-    refresh();
-
-
-
-    pos_mark_4.position.copy(mouse_plane_pos);
-    grid_lines.position.copy(mouse_plane_pos);
-
-    //#// adaptive scaling of wudi data:
-    if (type !== 'move') {  //} && type !== 'init') {
-        adaptive_scaling_wudi();
-    }
-
-}
-
-function toggle_debug_tools_state(override=null){
-    vars.debug_tool_state = override !== null ? override : !vars.debug_tool_state;
-    stats.dom.style.display = display_array[+vars.debug_tool_state];
-    obs.style.display = display_array[+vars.debug_tool_state];
 }
 
 function keyAction(raw) {
     active_keys = raw;
+    //console.log(raw);
 
     if (raw.includes('Space')) {
         cam_base_pos.set(0, 0, 10);
@@ -1415,6 +1350,12 @@ function keyAction(raw) {
     }
 
     vars.previous_keys = [...active_keys];
+}
+
+function toggle_debug_tools_state(override=null){
+    vars.debug_tool_state = override !== null ? override : !vars.debug_tool_state;
+    stats.dom.style.display = display_array[+vars.debug_tool_state];
+    obs.style.display = display_array[+vars.debug_tool_state];
 }
 
 function run_camera() {
@@ -1455,19 +1396,13 @@ function run_camera() {
         } else {
             //crucial bit of kung-fu
             plane.plane.set(camera_frustum.planes[1].normal, 0);
-            //plane.up.copy(camera_frustum.planes[5].normal);
         }
-
         plane.plane.translate(vw);
-        //plane.mark.position.set(vw.x, vw.y, vw.z);
     }
 
     vars.user.group.position.copy(user_position);
-    user_position_round.copy(user_position).round();//.multiplyScalar(vars.degree_scale);
-    //grid_lines.position.copy(user_position);
-    pos_mark_2.position.copy(user_position_round);
-
-    //visible_dimensions = visibleAtZDepth(-camera_distance, camera);
+    user_position_round.copy(user_position).round();
+    if(vars.helpers_active) pos_mark_2.position.copy(user_position_round);
 }
 
 function run_ticks_axes(axis, tick_index, swap = null) {
@@ -1495,20 +1430,7 @@ function run_ticks_axes(axis, tick_index, swap = null) {
             if (vk.x !== 0) vw.x *= -1.0;
             if (vk.z !== 0) vw.z *= -1.0;
         }
-
     }
-
-    // if(axis === 'x'){
-    //     if(tick_index === ((axis_markers_count - 1) / 2)){
-    //         arrow_helper_2.position.copy(vw);
-    //         arrow_helper_2.setDirection(vk);
-    //     }
-    // }
-    // if (tick_index === ((axis_markers_count - 1) / 2)) {
-    //     arrow_helper_3.position.copy(vw);
-    //     arrow_helper_3.setDirection(vk);
-    // }
-
     return tick_n;
 }
 
@@ -1529,7 +1451,7 @@ function run_ticks() {
         axis_dir_x.set(0, 0, -1 * Math.sign(camera_projected.z));
     }
 
-    arrow_helper_4.setDirection(cam_right);
+    if(vars.helpers_active) arrow_helper_4.setDirection(cam_right);
 
     for (let plane of axis_planes) {
         if (swap) {
@@ -1632,7 +1554,7 @@ function draw_data_instanced(instances_group) {
                 instance.setColorAt(i, z_color);
                 instance.setMatrixAt(i, instance_dummy.matrix);
             }
-            console.log(instance.id, instance.name);
+            //console.log(instance.id, instance.name);
             instance.instanceColor.needsUpdate = true;
             instance.instanceMatrix.needsUpdate = true;
 
@@ -1720,7 +1642,7 @@ function plot_data(obj) {
 
     } else {
         //for text-based datasets with polygonal geometries
-        console.log(obj);
+        //console.log(obj);
         vars.data[obj.name].raw.forEach((l_obj, i) => {
             if (i > 0) {
                 if (obj.style === 'mesh' || obj.style === 'line') {
@@ -1791,7 +1713,6 @@ function plot_data(obj) {
     }
 }
 
-//#// is this the place to begin outlining geo-regions? probably.
 function wudi_plot(obj) {
     // points, up_bars, down_bars
     //#//BASIC POINTS:
@@ -1816,7 +1737,7 @@ function wudi_plot(obj) {
     });
 
     vars.data.geo_regions = geo_regions;
-    console.log(vars.data.geo_regions);
+    // console.log(vars.data.geo_regions);
     // Object.entries(geo_regions).map((k,v,i) => console.log(k,v,i));
     // //console.log(point_data_td.index);
 
@@ -1899,7 +1820,7 @@ function wudi_plot(obj) {
     // // run_camera();
 
     draw_data_instanced(group);
-    console.log(group);
+    //console.log(group);
     return 'plotted';
 }
 
@@ -1980,7 +1901,7 @@ function wudi_graph_chart_daily() {
         graph_bar.style.display = 'none';
     }
 
-    if(style_current !== graph_bar.style.display) windowRedraw();
+    if(style_current !== graph_bar.style.display) window_redraw();
 
 }
 
@@ -2004,7 +1925,7 @@ function wudi_set_chart_daily(result_obj) {
 function wudi_set_data(obj_list) {
     if (!vars.data.hasOwnProperty('wudi_data')) vars.data.wudi_data = {points_count: 0, current: []};
     obj_list.forEach(obj => {
-        console.log(obj);
+        //console.log(obj);
         //#//updates and draws the instances
         const data = obj.raw.data;
         vars.data.wudi_data.points_count = data.length;
@@ -2026,7 +1947,7 @@ function wudi_set_data_selection() {
 
     if (points_count === 0) return false;
 
-    console.log('wudi_set_data_selection', points_count, times_count);
+    //console.log('wudi_set_data_selection', points_count, times_count);
     //CRAZY//
     for (let i = 0; i < points_count; i++) {
         new_normals.push([0.0, 0.0, 0.0, 0.0, 0.0]);
@@ -2035,7 +1956,7 @@ function wudi_set_data_selection() {
     const meta_avg = {siz: 0, u_me: 0, d_me: 0, u_mx: 0, d_mx: 0};
     for (let t = 0; t < times_count; t++) {
         const tn = vars.selecta.wudi.times.selected[t].toString();
-        console.log(tn);
+        //console.log(tn);
         const data = vars.data.wudi_data[tn].data;
         const meta = vars.data.wudi_data[tn].meta;
 
@@ -2107,8 +2028,8 @@ function wudi_set_data_selection() {
 
 }
 
-function windowRedraw(first_run=null) {
-    console.log("windowRedraw fired.");
+function window_redraw(first_run=null) {
+    console.log("window_redraw fired.");
     window.scrollTo(0, 0);
 
     const w = window.innerWidth;
@@ -2124,7 +2045,7 @@ function windowRedraw(first_run=null) {
         const bbox = b.getBoundingClientRect();//offsetHeight;//
         if(b.style.display !== 'none') bars_height += bbox.height;
         b.classList.remove('hidden');
-        console.log(b, bbox);
+        //console.log(b, bbox);
     });
 
 
@@ -2138,7 +2059,7 @@ function windowRedraw(first_run=null) {
     vars.view.width = ww;
     vars.view.height = wh;
 
-    console.log(ww, wh, bars_height);
+    //console.log(ww, wh, bars_height);
 
     if (camera) {
         camera.aspect = ww / wh;
@@ -2165,19 +2086,6 @@ function windowRedraw(first_run=null) {
     title_box.style.bottom = vars.view.title_bottom_offset+'px';
     title_box.classList.remove('hidden');
 
-    if(!vars.view.init_state){
-        const buttons = [...document.querySelectorAll(".button")];
-        buttons.map(b => {
-        const svg_check_zero = document.getElementById("check-box-0").cloneNode(true);
-        const svg_check_one = document.getElementById("check-box-1").cloneNode(true);
-        b.insertBefore(svg_check_one, b.firstChild);
-        b.insertBefore(svg_check_zero, b.firstChild);
-        b.parentNode.addEventListener('mouseup', dom_button_check_click);
-        dom_button_check_box_set_state(b.id, true);
-    });
-    }
-
-    //plot.focus();
 }
 
 function loader_notify(count, message = null) {
@@ -2198,8 +2106,6 @@ function init() {
     camera = new THREE.PerspectiveCamera(45, ww / wh, 0.1, 1000);
     scene = new THREE.Scene();
     scene.background = new THREE.Color(vars.colors.window);
-    //scene.fog = new THREE.Fog( vars.colors.window, 0.015, 10 );
-    // scene.Fog();
 
     let reg_0 = {}
     scene.background.getHSL(reg_0);
@@ -2208,100 +2114,71 @@ function init() {
     utility_color.setHSL(reg_0.h, reg_0.s, reg_0.l * 1.5);
     vars.colors.eco_regions.select[1] = utility_color.getHex();
 
-    vars.colors.iso_bath.select = vars.colors.eco_regions.select;
-    //mat.setValues({color: vars.colors.eco_regions.select[1]});
-
-
+    //vars.colors.iso_bath.select = vars.colors.eco_regions.select;
     vars.user.group = new THREE.Group();
+    scene.add(vars.user.group);
     map_sectors_group = new THREE.Group();
 
     renderer = new THREE.WebGLRenderer({
         powerPreference: "high-performance",
         antialias: true
     });
-
-    renderer.setPixelRatio(1);//window.devicePixelRatio);//(2)
+    renderer.setPixelRatio(1);
     renderer.setSize(ww, wh);
 
     root_plane = new THREE.Plane(y_up);
-    // vc.set(0,0,vars.view.map_vertical_deg_offset);
-    // root_plane.translate(vc);
-    //position.setY(vars.view.map_vertical_deg_offset);
-    // scene.add(root_plane);
 
-    const col_xy = new THREE.Color("hsl(100, 0%, 35%)");
-    const col_gd = new THREE.Color("hsl(100, 0%, 30%)");
-    gridHelper = new THREE.GridHelper(20, 20, col_xy, col_gd);
-    scene.add(gridHelper);
-    gridHelper.visible = vars.grid_visible;
+    if(vars.helpers_active){
 
-    pos_mark_1 = make_position_mark(0.1);
-    pos_mark_2 = make_position_mark(0.1);
-    pos_mark_3 = make_position_mark(0.5);
-    pos_mark_4 = make_position_mark(0.5);
+        const col_xy = new THREE.Color("hsl(100, 0%, 35%)");
+        const col_gd = new THREE.Color("hsl(100, 0%, 30%)");
+        gridHelper = new THREE.GridHelper(20, 20, col_xy, col_gd);
+        scene.add(gridHelper);
+        gridHelper.visible = vars.grid_visible;
 
-    //#//POSMARKS
-    pos_marks_array = [pos_mark_1, pos_mark_2, pos_mark_3, pos_mark_4];
-    pos_marks_array.forEach(p => {
-        scene.add(p);
-        p.visible = vars.position_marks_visible;
-    });
+        pos_mark_1 = make_position_mark(0.1);
+        pos_mark_2 = make_position_mark(0.1);
+        pos_mark_3 = make_position_mark(0.5);
+        pos_mark_4 = make_position_mark(0.5);
 
-    axes_helper = new THREE.AxesHelper(5);
-    axes_helper.visible = vars.arrow_helper_visible;
-    scene.add(axes_helper);
+        //#//POSMARKS
+        pos_marks_array = [pos_mark_1, pos_mark_2, pos_mark_3, pos_mark_4];
+        pos_marks_array.forEach(p => {
+            scene.add(p);
+            p.visible = vars.position_marks_visible;
+        });
 
-    axis_planes.push({
-        name: 'x',
-        plane: new THREE.Plane(),
-        position: new THREE.Vector3(0, -1, 0),
-        up: new THREE.Vector3(),
-        mark: make_position_mark(1.0),
-        // markers_geoms: make_markers_group(),
-        markers_divs: make_ticks_divs()
-    })
+        axes_helper = new THREE.AxesHelper(5);
+        axes_helper.visible = vars.arrow_helper_visible;
+        scene.add(axes_helper);
 
-    axis_planes.push({
-        name: 'z',
-        plane: new THREE.Plane(),
-        position: new THREE.Vector3(-1, 0, 0),
-        up: new THREE.Vector3(),
-        mark: make_position_mark(1.0),
-        // markers_geoms: make_markers_group(),
-        markers_divs: make_ticks_divs()
-    })
+        arrow_helper_1 = new THREE.ArrowHelper(vw, vk, 1, 0xFFFF00, 0.3, 0.3);
+        arrow_helper_2 = new THREE.ArrowHelper(vw, vk, 3, 0x2222FF, 0.3, 0.3);
+        arrow_helper_3 = new THREE.ArrowHelper(vw, vk, 3, 0xFF2222, 0.3, 0.3);
+        arrow_helper_4 = new THREE.ArrowHelper(vw, vk, 3, 0xFFFF00, 0.3, 0.3);
 
-    // scene.add(axis_planes[0].markers_geoms);
-    // scene.add(axis_planes[1].markers_geoms);
+        vars.user.group.add(pos_mark_3);
+        vars.user.group.add(arrow_helper_1);
 
+        scene.add(arrow_helper_2);
+        scene.add(arrow_helper_3);
+        scene.add(arrow_helper_4);
 
-    arrow_helper_1 = new THREE.ArrowHelper(vw, vk, 1, 0xFFFF00, 0.3, 0.3);
-    arrow_helper_2 = new THREE.ArrowHelper(vw, vk, 3, 0x2222FF, 0.3, 0.3);
-    arrow_helper_3 = new THREE.ArrowHelper(vw, vk, 3, 0xFF2222, 0.3, 0.3);
-    arrow_helper_4 = new THREE.ArrowHelper(vw, vk, 3, 0xFFFF00, 0.3, 0.3);
+        arrow_helper_1.visible = vars.arrow_helper_visible;
+        arrow_helper_2.visible = vars.arrow_helper_visible;
+        arrow_helper_3.visible = vars.arrow_helper_visible;
+        arrow_helper_4.visible = vars.arrow_helper_visible;
 
-    vars.user.group.add(pos_mark_3);
-    vars.user.group.add(arrow_helper_1);
+    }
 
-    scene.add(arrow_helper_2);
-    scene.add(arrow_helper_3);
-    scene.add(arrow_helper_4);
-
-    arrow_helper_1.visible = vars.arrow_helper_visible;
-    arrow_helper_2.visible = vars.arrow_helper_visible;
-    arrow_helper_3.visible = vars.arrow_helper_visible;
-    arrow_helper_4.visible = vars.arrow_helper_visible;
-
-    scene.add(vars.user.group);
 
     const ref_geom = make_hexagonal_shape(0.01);
     const ref_mat = new THREE[vars.mats.mapMarkersMaterial.type](vars.mats.mapMarkersMaterial.dict);
     ref_marker = new THREE.Mesh(ref_geom, ref_mat);
     ref_marker.name = 'ref_mark';
     ref_marker.rotateX(Math.PI / -2);
-    // ref_marker.position.set(12,12,12);
     scene.add(ref_marker);
-    //vars.user.group.visible = false;
+
 
     stats = new Stats();
     stats.dom.style.opacity = 0.2;
@@ -2312,15 +2189,12 @@ function init() {
     scene.add(map_container);
     map_plane.visible = false;
 
-    //dragControls(renderer.domElement, translateAction, cube, {passive: true});
-
-    dragControls(renderer.domElement, event_handler);//, cube, {passive: false, capture: true});
+    dragControls(renderer.domElement, event_handler);
 
     keyControls(window, keyAction);
 
     grid_lines = make_grid_lines();
     scene.add(grid_lines);
-
 
     visible_dimensions = visibleAtZDepth(-default_z, camera);
     cam_base_pos.z = ((default_z / visible_dimensions.w) * vars.map.dims.w) + 2.0;
@@ -2333,24 +2207,15 @@ function init() {
     ray_caster.params.Points.threshold = 0.025;
 
     event_handler('init', null);
-
     toggle_debug_tools_state(true);
-
-
-    wudi_dub_selecta.make(null);
-    scene.add(wudi_dub_selecta.object);
-
-
 
     plot.appendChild(renderer.domElement);
 
-    run_camera();
-    run_ticks();
-
+    // run_camera();
+    // run_ticks();
 
     vars.view.init_state = true;
 }
-
 
 const wudi_dub_selecta = {
     object: new THREE.Group(),
@@ -2372,6 +2237,7 @@ const wudi_dub_selecta = {
         }
         wudi_dub_selecta.object.add(wudi_dub_selecta.dub_line);
         wudi_dub_selecta.object.visible = false;
+        scene.add(wudi_dub_selecta.object);
     },
     set: (p1, p2) =>{
         wudi_dub_selecta.object.visible = true;
@@ -2401,7 +2267,6 @@ const wudi_dub_selecta = {
     },
 }
 
-//#// source of many indexing problems
 const q_nav = {
     q_nav_event: (e) => {
         obs_handler({e:e.target});
@@ -2425,6 +2290,7 @@ const q_nav = {
     draw_strip: (reg_id, items, start_index) => {
         const has_container = q_nav.area_strip.querySelector('.area-div-container');
         const svg_circle = document.getElementById('basic-circle');
+        const svg_hexagon = document.getElementById('basic-hexagon');
         const svg_inside_circle = document.getElementById('within-circle');
 
         if(has_container){
@@ -2448,6 +2314,10 @@ const q_nav = {
             const places_instance = scene.getObjectByName('places_data').children[0];
             const protected_instance = scene.getObjectByName('protected_regions').children[0];
 
+            const transform_hexagon = (hex_svg_dom, scale) => {
+                hex_svg_dom.setAttribute("transform",`scale(${scale})`);//translate(64 64)
+            }
+
             for(let c = 0; c<items;c++){
                 const r_div = document.createElement("div");
                 r_div.classList.add("area-div");
@@ -2468,13 +2338,14 @@ const q_nav = {
                 if(allowed) {
                     if (_has_protected) {
                         const protected_scale = protected_instance.userData.td.sample_raw[plb[1]];
-                        const circle = svg_circle.cloneNode(true);
-                        circle.setAttribute('id', '');
-                        circle.classList.add('svg-minimized');
-                        circle.classList.add('area-acg-protected');
-                        circle.querySelector('circle').setAttribute('r', (60 / 4) * protected_scale);
-                        circle.addEventListener('mouseover', q_nav.q_nav_event, false);
-                        r_div.appendChild(circle);
+                        const hexa = svg_hexagon.cloneNode(true);
+                        hexa.removeAttribute('id');
+                        hexa.classList.add('svg-minimized');
+                        hexa.classList.add('area-acg-protected');
+                        transform_hexagon(hexa, protected_scale / 3);
+                        //circle.querySelector('circle').setAttribute('r', (60 / 4) * protected_scale);
+                        hexa.addEventListener('mouseover', q_nav.q_nav_event, false);
+                        r_div.appendChild(hexa);
                     }
 
                     if (_has_inside_protected) {
@@ -2486,26 +2357,30 @@ const q_nav = {
                         }
 
                         const protected_scale = protected_instance.userData.td.sample_raw[has];
-                        const circle = svg_circle.cloneNode(true);
+                        const hexa = svg_hexagon.cloneNode(true);
                         ///const circle = svg_inside_circle.cloneNode(true);
-                        circle.setAttribute('id', '');
-                        circle.classList.add('svg-minimized');
-                        circle.classList.add('area-acg-protected-inside');
-                        circle.querySelector('circle').setAttribute('r', (60 / 4) * protected_scale);
-                        circle.addEventListener('mouseover', q_nav.q_nav_event, false);
-                        r_div.appendChild(circle);
+                        hexa.removeAttribute('id');
+                        hexa.classList.add('svg-minimized');
+                        hexa.classList.add('area-acg-protected-inside');
+                        transform_hexagon(hexa, protected_scale / 4);
+                        //circle.querySelector('circle').setAttribute('r', (60 / 4) * protected_scale);
+                        hexa.addEventListener('mouseover', q_nav.q_nav_event, false);
+                        r_div.appendChild(hexa);
                     }
 
                     if (_has_place) {
                         const place_data_index = vars.data.places_data.lookup_table[plb[4]];
                         const place_scale = places_instance.userData.td.sample_raw[place_data_index];
-                        const circle = svg_circle.cloneNode(true);
-                        circle.setAttribute('id', '');
-                        circle.classList.add('svg-minimized');
-                        circle.classList.add('area-acg-place');
-                        circle.querySelector('circle').setAttribute('r', (60 / 5) * place_scale);
-                        circle.addEventListener('mouseover', q_nav.q_nav_event, false);
-                        r_div.appendChild(circle);
+                        const hexa = svg_hexagon.cloneNode(true);
+                        hexa.removeAttribute('id');
+                        hexa.classList.add('svg-minimized');
+                        hexa.classList.add('area-acg-place');
+                        transform_hexagon(hexa, place_scale / 4);
+
+                        // console.log(place_scale);
+                        //circle.querySelector('circle').setAttribute('r', (60 / 5) * place_scale);
+                        hexa.addEventListener('mouseover', q_nav.q_nav_event, false);
+                        r_div.appendChild(hexa);
                     }
                 }
 
@@ -2535,7 +2410,7 @@ const q_nav = {
     },
     set_geo_region: (reg_id, point=null) => {
         if(point !== null && point !== q_nav.current_position){
-            console.log('q_nav called set_geo_region');
+            //console.log('q_nav called set_geo_region');
             const r = vars.data.geo_regions[reg_id];
             const r_pos = r.indexOf(point);
 
@@ -2554,7 +2429,7 @@ const q_nav = {
         return false;
     },
     reposition: () => {
-        console.log('q_nav called reposition');
+        //console.log('q_nav called reposition');
         q_nav.optimise_strip();
         q_nav.label.innerHTML = `${q_nav.get_point()}/${q_nav.region_length}`;
         q_nav.area_strip.style.width = (q_nav.region_width_px)+'px';
@@ -2568,7 +2443,7 @@ const q_nav = {
         q_nav.label.style.left = (vars.view.width/2.0)+'px';
         q_nav.base_position.style.left = (vars.view.width/2.0)-(vars.q_nav.segment_width/2.0)+'px';
 
-        alert((vars.view.width/2.0));
+        //alert((vars.view.width/2.0));
 
         q_nav.base_position.style.width = (vars.q_nav.segment_width)+'px';
         q_nav.base_position.style.height = vars.view.q_nav_bar_height+'px';
@@ -2661,10 +2536,10 @@ const fetch_callback = (obj_list) => {
                 plot_data(obj);
                 break;
             case 'json-ser':
-                console.log('json-ser', obj.name);
+                //console.log('json-ser', obj.name);
                 if (obj.name === 'places_data'){
                     vars.data[obj.name] = obj;
-                    console.log('what places_data', obj);
+                    //console.log('what places_data', obj);
                     plot_data(obj);
                 }
                 if (obj.name === 'wudi_points') {
@@ -2673,7 +2548,7 @@ const fetch_callback = (obj_list) => {
                 }
                 if (obj.name === 'wudi_assoc') {
                     vars.data[obj.name] = obj;
-                    console.log(obj);
+                    //console.log(obj);
                 }
                 if (obj.name === 'wudi_data') {
                     wudi_set_data([obj]);
@@ -2706,50 +2581,64 @@ const obj_list = [
 
 let initial_load = false;
 
-async function someFunction() {
+// 👉️ START EVERYTHING HERE
+
+async function load_complete(situation) {
+    console.log('all loaded');
+    console.log(situation);
+    adaptive_scaling_wudi();
+}
+
+async function load_datum(r) {
     const get_secondary = await fetchAll(obj_list, loader_notify).then(object_list => fetch_callback(object_list));
     const get_data = await fetchPOST(post_obj_list, loader_notify).then(object_list => fetch_callback(object_list));
     const get_last = draw_sectors();
     initial_load = true;
-    return [get_data, get_secondary, get_last];
+    return [get_data, get_secondary, get_last, r];
 }
 
-async function load_complete(situation) {
+async function load_primary(r){
+    window_redraw(true);
+    init();
+    animate();
 
-    // console.log(situation);
-    // console.log(map_container);
-    console.log('FINAL LOAD');
-    adaptive_scaling_wudi();
+    q_nav.init();
+    wudi_dub_selecta.make(null);
 
-
-    if (situation === 'true' && initial_load === true) {
-        //adaptive_scaling_wudi();
-        //obs_handler({R:situation, M:'fully loaded'});
-        //console.log('has cake');
-        //adaptive_scaling_wudi();
-        //
-        //
-        // const model = await wudi_get_data('40');//.then(object_list => wudi_set_data(object_list[0]));
-        // wudi_set_data(model[0])
-        //const res = wudi_get_data('40').then(object_list => wudi_set_data(object_list[0]));
-        //wudi_set_data(res[0]);
-        //console.log(res);
-        // const re_k = wudi_get_data('40').then(r => {
-        //     console.log('B:', r);
-        // });
-    } else {
-        //obs_handler({R:situation, M:'load complete(?)'});
-    }
-    // adaptive_scaling_wudi();
+    load_datum(r).then(r => load_complete(r));
 }
 
+async function window_dom_prepare(){
+    const buttons = [...document.querySelectorAll(".button")];
+        buttons.map(b => {
+        const svg_check_zero = document.getElementById("check-box-0").cloneNode(true);
+        const svg_check_one = document.getElementById("check-box-1").cloneNode(true);
+        b.insertBefore(svg_check_one, b.firstChild);
+        b.insertBefore(svg_check_zero, b.firstChild);
+        b.parentNode.addEventListener('mouseup', dom_button_check_click);
+        dom_button_check_box_set_state(b.id, true);
+    });
 
+    axis_planes.push({
+        name: 'x',
+        plane: new THREE.Plane(),
+        position: new THREE.Vector3(0, -1, 0),
+        up: new THREE.Vector3(),
+        mark: make_position_mark(1.0),
+        // markers_geoms: make_markers_group(),
+        markers_divs: make_ticks_divs()
+    });
 
+    axis_planes.push({
+        name: 'z',
+        plane: new THREE.Plane(),
+        position: new THREE.Vector3(-1, 0, 0),
+        up: new THREE.Vector3(),
+        mark: make_position_mark(1.0),
+        // markers_geoms: make_markers_group(),
+        markers_divs: make_ticks_divs()
+    });
 
-// 👉️ START EVERYTHING HERE
-const delay = ms => new Promise(res => setTimeout(res, ms));
-
-async function times_populate(){
     const years = document.getElementById('years_container');
     const months = document.getElementById('months_container');
 
@@ -2759,34 +2648,38 @@ async function times_populate(){
 
     await vars.dom_time.populate('months');
     months.style.display = 'none';
-    //months.style.display = 'flex';
-    //await delay(10);
+
+    vars.info.dom_element.classList.remove('hidden');
+    obs.classList.remove('hidden');
+
+
+    const legend_elements = {
+        'place':'area-acg-place',
+        'mpa':'area-acg-protected',
+        'mpa-interior':'area-acg-protected-inside',
+        'legend-obs':'area-acg-obs',
+        'legend-obs-normal':'area-acg-obs-normal'
+    };
+
+    const legend_mark = document.getElementById('basic-hexagon');
+
+    Object.entries(legend_elements).map(kv => {
+        const el = document.getElementById(kv[0]);
+        const kma = legend_mark.cloneNode(true);
+        kma.removeAttribute('id');
+        kma.classList.add(kv[1]);
+        kma.style.width = '24px';
+        kma.style.height = '24px';
+        el.appendChild(kma);
+    });
+
     return true;
 }
 
-function load_secondary(r){
-    vars.info.dom_element.classList.remove('hidden');
-    obs.classList.remove('hidden');
-    windowRedraw(true);
-
-    init();
-    animate();
-    q_nav.init();
-    // bounds.style.display = 'block';
-    const k = someFunction().then(r => load_complete(r));
-}
-
-
 window.addEventListener('DOMContentLoaded', (event) => {
-    // toggle_debug_tools_state(false);
-    // bounds.style.display = 'none';
-    console.log('DOM fully loaded and parsed');
-    window.addEventListener('resize', windowRedraw);
-
-
-    const finish_dom = times_populate().then(r => load_secondary(r));
-
-
+    console.log('dom loaded. continuing');
+    window.addEventListener('resize', window_redraw);
+    window_dom_prepare().then(r => load_primary(r));
 });
 
 

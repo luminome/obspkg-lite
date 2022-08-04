@@ -339,7 +339,7 @@ svg {
 
 	display: block;
     box-sizing: border-box;
-    /*border: 1px blue dotted;*/
+    border-bottom: 1px blue dotted;
     width: 100vw;
     height: 100vh;
     overflow: visible;
@@ -419,7 +419,8 @@ svg {
 
 #q-nav-bar .area-strip .area-div-container .area-div{
 	position: absolute;
-	border-left:1px #0f1621 solid;
+	/*border-left:1px #0f1621 solid;*/
+	/*border-right:1px #0f1621 solid;*/
 	/*background-color: yellowgreen;*/
 	width:20px;
 	height:100%;
@@ -447,6 +448,17 @@ svg {
 .area-acg-protected-inside{
 	fill:turquoise;
 }
+
+.area-acg-obs{
+	fill:hotpink;
+	transform: scale(0.5);
+}
+
+.area-acg-obs-normal{
+	fill:deeppink;
+
+}
+
 
 .area-protected{
 	background-color: turquoise;
@@ -610,11 +622,6 @@ svg {
 	/*line-height: 0.75em;*/
 }
 
-.page-text{
-	font-size: 0.6em;
-	padding: 40px;
-	white-space: pre-line;
-}
 
 
 #graph-mark{
@@ -635,4 +642,31 @@ svg {
 	padding:0 4px 2px;
 	font-size:0.8em;
 	display:inherit;
+}
+
+
+.page-text{
+	font-size: 0.6em;
+	padding: 40px;
+}
+
+.page-text .pre{
+	white-space: pre-line;
+}
+
+.legend-items div div{
+	display: inline-block;
+}
+
+.legend-items div{
+	padding: 4px 0;
+	vertical-align: middle;
+}
+
+.legend-items>div:not(:last-child) {
+	border-bottom: 1px green dotted;
+}
+
+.legend-items div:first-child{
+	padding-right:8px;
 }
