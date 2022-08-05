@@ -1,8 +1,7 @@
 import * as THREE from 'three/build/three.module.js';
 import Stats from 'three/examples/jsm/libs/stats.module.js';
 import {vars} from "./vars-lite";
-//import {dragControls} from './drags.js';
-import {dragControls} from '../../static/e5/js/drags-lite-beta.js';
+import {dragControls} from './drags-lite-beta.js';
 import {keyControls} from './keys.js';
 import * as util from './obspkg-lite-util.js';
 import {loader as fetchAll} from './data-loader.js';
@@ -162,8 +161,8 @@ vars.selecta = {
                 //wudi_point_select_state(vars.selecta.wudi.points.hover[0], false, true);
                 wudi_point_select_state(pid, false, true);
             }
-
-            wudi_get_point_detail(this.points.selected);
+            //#// where to put graph option?
+            //wudi_get_point_detail(this.points.selected);
             //obs_handler({'T':Object.entries(this.points.selected)});
         }
     },
@@ -185,6 +184,7 @@ class Sector {
         this.loc = loc;
         this.bounds = bounds;
         this.level = 0;
+        this.max_level = 0;
         this.center = new THREE.Vector3();
         this.group = new THREE.Group();
         this.objects = {};
@@ -207,23 +207,23 @@ class Sector {
                 const contour = new THREE.Line(geometry, mat);
                 lines_group.add(contour);
             }
-            //lines_group.name = 'line_strings';
+            lines_group.name = 'line_strings';
             lines_group.userData.level = object.level;
             this.group.add(lines_group);
         }
 
         if (object.name === 'contours') {
             // return;
-            //const mat = new THREE[vars.mats.contours.type](vars.mats.contours.dict);
+            // const mat = new THREE[vars.mats.contours.type](vars.mats.contours.dict);
 
 
             const mvat = new THREE.ShaderMaterial({
                 uniforms: {
                   depth: {
-                    value: 5
+                    value: vars.depth_engage_distance
                   },
                   color: {
-                    value: new THREE.Color(0x3333FF)
+                    value: new THREE.Color(0x5555FF)
                   }
                 },
                 vertexShader: document.getElementById('vertexShader').textContent,
@@ -284,9 +284,11 @@ class Sector {
             .map((k) => {
                 if (k[1].length) {
                     this.meta[k[0]] = k[1].reduce((a, v) => ({...a, [v]: null}), {});
+                    this.meta[k[0]].max_loaded = 0;
                 } else {
                     delete this.meta[k[0]];
                 }
+
             });
 
         const recap = Object.keys(this.meta);//.map(m => );
@@ -297,8 +299,12 @@ class Sector {
 
     load_layers(obj_list) {
         for (let obj of obj_list) {
-            this.meta[obj.name][obj.level] = 'loaded';
             this.draw(obj);
+            //console.log(obj.name, obj.level);
+            this.meta[obj.name][obj.level] = 'loaded';
+            this.max_level = obj.level;
+            // this.meta[obj.name].max_loaded = obj.level;
+            this.update();
         }
     }
 
@@ -321,14 +327,14 @@ class Sector {
     }
 
     init() {
-        const material = new THREE.LineBasicMaterial({color: 0xff00ff, transparent: true, opacity: 1.0});
+        const material = new THREE.LineBasicMaterial({color: 0xff00ff, transparent: true, opacity: 0.0, blending: THREE.AdditiveBlending});
         const geometry = new THREE.BufferGeometry().setFromPoints(this.bounds);
         geometry.setIndex([0, 1, 2, 2, 3, 0]);
         geometry.computeVertexNormals();
         geometry.computeBoundingBox();
         geometry.boundingBox.getCenter(this.center);
 
-        const plane_line = new THREE.Line(geometry, material);
+        const plane_line = new THREE.Mesh(geometry, material);
         plane_line.name = this.id + `(${this.loc.toString()})`;
         plane_line.userData.center = this.center;
 
@@ -352,17 +358,28 @@ class Sector {
     set_level(LV = null) {
         //return false;
         if (this.level !== LV) {
+
+            const c_level = this.max_level >= LV;
             this.level = LV;
-            this.objects.plane.material.setValues({opacity:(this.level/vars.levels)*0.5});
+            this.objects.plane.material.setValues({opacity:(this.level/vars.levels)*1.0});
+
             this.objects.plane.name = `${this.id}-(${this.level})`;
             this.objects.plane.userData.level = this.level;
             this.check_layers();
-            this.update();
+            if(c_level) this.update();
         }
     }
 
     update() {
-        this.group.children.forEach(res => res.visible = (res.userData.level === this.level));
+        this.group.children.forEach(res => {
+            //console.log(this.meta, res);
+            //if(this.meta[res.name][res.userData.level] === 'loaded'){
+            res.visible = (res.userData.level === this.level);
+            if(res.name === 'contours' && res.userData.level < 1) res.visible = false;
+            // }else{
+            //     res.visible = (res.userData.level === this.level-1);
+            // }
+        });
     }
 
 }
@@ -1115,17 +1132,25 @@ function refresh_sectors(){
         map_sectors_group.localToWorld(vw);
 
         root_plane.projectPoint(camera.position, vu);
-        //vu.sub(camera.up);
+        vu.sub(camera.up);
         vk.subVectors(user_position, vu).multiplyScalar(0.5 / vars.degree_scale);
 
         camera_projected.copy(vk);
-        vk.add(user_position);
 
-        if(vars.helpers_active) pos_mark_1.position.copy(vk);
-        const L = vw.distanceTo(vk);
-        if (L < (vars.levels * (vars.degree_scale)) + 2) {
-            let LV = Math.floor(Math.pow(camera_scale, vars.levels)*(vars.levels));
-            //let LV = Math.round((vars.levels - Math.round(L / vars.degree_scale)) * (Math.round((camera_scale/2) * vars.levels) / vars.levels));
+        // vw.copy(vk).multiplyScalar(0.5);
+        vc.copy(user_position).sub(vk);
+
+        //vk.add(user_position);
+        //vc.copy(vk).sub(user_position);///.negate();
+
+        if(vars.helpers_active) pos_mark_1.position.copy(vc);
+
+        const prefig = Math.floor(Math.pow(camera_scale, vars.levels)*(vars.levels+1));
+        const L = vw.distanceTo(vc);
+        if (L < vars.levels * vars.degree_scale) {
+            let LV = prefig - Math.floor((L/(vars.levels * vars.degree_scale))*vars.levels);
+            //let LV = Math.floor(Math.pow(camera_scale, vars.levels)*(vars.levels)); camera_scale*
+            //let LV = Math.round((vars.levels - Math.round((L) / vars.degree_scale)) * (Math.round((camera_scale) * vars.levels) / vars.levels));
             if (LV > 4) LV = 4;
             if (LV < 0) LV = 0;
             s.userData.owner.set_level(LV);
@@ -1186,13 +1211,16 @@ function event_handler(type, evt_object){
             delta_y = touches_mid.delta.y;
             scale_z = 1.0 + evt_object.dist_delta;
 
-        }else{
+        }else if(evt_object.touches.length === 1){
             pos_x = primary.x;
             pos_y = primary.y;
             delta_x = primary.x_d;
             delta_y = primary.y_d;
             touches_mid.x = null;
             touches_mid.y = null;
+        }else{
+            pos_x = evt_object.x;
+            pos_y = evt_object.y;
         }
 
         obs_handler({
@@ -1271,10 +1299,35 @@ function event_handler(type, evt_object){
         }
     }
 
-
     camera_scale = 1 - (camera_distance / reset_default_z);
     const zg = Math.floor(Math.log(camera_distance)) + 1;
     grid_resolution = z_mants[zg];
+
+
+
+    if (action === 'move' || action === 'touch-hover') {
+        interactionAction();
+    }
+
+
+
+    if (action === 'click' || action === 'touch-click') {
+        if (vars.selecta.wudi.points.hover.length) {
+            vars.selecta.wudi.point_select(vars.selecta.wudi.points.hover[0]);
+            vars.selecta.wudi.points.hover = [];
+        }
+        vars.user.mouse.clicked = true;
+        user_position.copy(mouse_plane_pos);
+
+    }
+
+
+    if (action !== 'move' && action !== 'init') {
+        run_camera();
+        adaptive_scaling_wudi();
+        run_ticks();
+        refresh_sectors();
+    }
 
     ray_caster.setFromCamera(vars.user.mouse.raw, camera);
     ray_caster.ray.intersectPlane(root_plane, vk);
@@ -1283,27 +1336,6 @@ function event_handler(type, evt_object){
 
     if(vars.helpers_active) pos_mark_4.position.copy(mouse_plane_pos);
     grid_lines.position.copy(mouse_plane_pos);
-
-    if (action === 'move' || action === 'touch-hover') {
-        interactionAction();
-    }
-
-    if (action !== 'move' && action !== 'init') {
-
-        adaptive_scaling_wudi();
-        //run_camera();
-        run_ticks();
-        refresh_sectors();
-    }
-
-    if (action === 'click' || action === 'touch-click') {
-        if (vars.selecta.wudi.points.hover.length) {
-            vars.selecta.wudi.point_select(vars.selecta.wudi.points.hover[0]);
-            vars.selecta.wudi.points.hover = [];
-        }
-        vars.user.mouse.clicked = true;
-    }
-
 
     const prefig = Math.floor(Math.pow(camera_scale, vars.levels)*(vars.levels+1));
         //Math.floor(Math.log(camera_scale)*vars.levels)*vars.levels;
@@ -2207,7 +2239,7 @@ function init() {
     ray_caster.params.Points.threshold = 0.025;
 
     event_handler('init', null);
-    toggle_debug_tools_state(true);
+    toggle_debug_tools_state(vars.debug_tool_state_default);
 
     plot.appendChild(renderer.domElement);
 
@@ -2315,7 +2347,11 @@ const q_nav = {
             const protected_instance = scene.getObjectByName('protected_regions').children[0];
 
             const transform_hexagon = (hex_svg_dom, scale) => {
-                hex_svg_dom.setAttribute("transform",`scale(${scale})`);//translate(64 64)
+                hex_svg_dom.style.height = Math.ceil(24*scale)+'px';
+                // const el = hex_svg_dom.querySelector('polygon');
+                // const k_w = ((128/scale)/2)*(1-scale).toFixed(3);
+                // el.setAttribute("transform",`scale(${scale.toFixed(3)}) translate(${k_w} ${k_w})`);
+                return Math.ceil(24*scale)+4;
             }
 
             for(let c = 0; c<items;c++){
@@ -2334,6 +2370,7 @@ const q_nav = {
                 const _has_inside_protected = plb[3] !== null;
                 const _has_place = plb[4] === null ? false: vars.data.places_data.lookup_table.hasOwnProperty(plb[4]);
                 const allowed = true;
+                let r_height = 0;
 
                 if(allowed) {
                     if (_has_protected) {
@@ -2342,7 +2379,7 @@ const q_nav = {
                         hexa.removeAttribute('id');
                         hexa.classList.add('svg-minimized');
                         hexa.classList.add('area-acg-protected');
-                        transform_hexagon(hexa, protected_scale / 3);
+                        r_height += transform_hexagon(hexa, protected_scale / 4);
                         //circle.querySelector('circle').setAttribute('r', (60 / 4) * protected_scale);
                         hexa.addEventListener('mouseover', q_nav.q_nav_event, false);
                         r_div.appendChild(hexa);
@@ -2362,8 +2399,9 @@ const q_nav = {
                         hexa.removeAttribute('id');
                         hexa.classList.add('svg-minimized');
                         hexa.classList.add('area-acg-protected-inside');
-                        transform_hexagon(hexa, protected_scale / 4);
+                        r_height += transform_hexagon(hexa, protected_scale / 4);
                         //circle.querySelector('circle').setAttribute('r', (60 / 4) * protected_scale);
+
                         hexa.addEventListener('mouseover', q_nav.q_nav_event, false);
                         r_div.appendChild(hexa);
                     }
@@ -2375,7 +2413,7 @@ const q_nav = {
                         hexa.removeAttribute('id');
                         hexa.classList.add('svg-minimized');
                         hexa.classList.add('area-acg-place');
-                        transform_hexagon(hexa, place_scale / 4);
+                        r_height += transform_hexagon(hexa, place_scale / 4);
 
                         // console.log(place_scale);
                         //circle.querySelector('circle').setAttribute('r', (60 / 5) * place_scale);
@@ -2384,9 +2422,12 @@ const q_nav = {
                     }
                 }
 
-                r_div.style.left = c*vars.q_nav.segment_width+'px';
 
+
+                r_div.style.left = c*vars.q_nav.segment_width+'px';
+                r_div.style.top = (20-(r_height/2))+'px';///   c*vars.q_nav.segment_width+'px';
                 container.appendChild(r_div);
+
             }
 
             q_nav.area_strip.innerHTML = '';
@@ -2462,11 +2503,10 @@ const q_nav = {
                 const primary = evt_object_n.touches[0];
                 pos_x = primary.x;
                 delta_x = primary.x_d;
-                q_nav.touch_trace.pos_x = primary.x;
-                q_nav.touch_trace.delta_x = primary.x_d;
+                //q_nav.touch_trace.delta_x = primary.x_d;
             }else{
-                pos_x = q_nav.touch_trace.pos_x;
-                delta_x = q_nav.touch_trace.delta_x;
+                pos_x = evt_object_n.x;
+                //delta_x = q_nav.touch_trace.delta_x;
             }
         }else{
             action = type;

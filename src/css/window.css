@@ -423,15 +423,16 @@ svg {
 	/*border-right:1px #0f1621 solid;*/
 	/*background-color: yellowgreen;*/
 	width:20px;
-	height:100%;
+	/*height:auto;*/
 }
 
 
 #q-nav-bar .area-strip .area-div-container .area-div .svg-minimized{
 	width:20px;
 	height:20px;
+	padding-top: 4px;
 	/*position:absolute;*/
-	opacity:1.0;
+	/*opacity:1.0;*/
 	/*display:none;*/
 }
 
@@ -460,17 +461,17 @@ svg {
 }
 
 
-.area-protected{
-	background-color: turquoise;
-	width:20px;
-	height:24px !important;
-}
+/*.area-protected{*/
+/*	background-color: turquoise;*/
+/*	width:20px;*/
+/*	height:24px !important;*/
+/*}*/
 
-.area-place{
-	background-color: yellow;
-	width:10px;
-	height:10px !important;
-}
+/*.area-place{*/
+/*	background-color: yellow;*/
+/*	width:10px;*/
+/*	height:10px !important;*/
+/*}*/
 
 
 
