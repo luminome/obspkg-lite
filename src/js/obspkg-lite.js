@@ -59,10 +59,15 @@ vars.info = {
             this.screen_position.a.set(x + (this.rect.width / 2) + 10, y);
             this.screen_position.b.copy(this.screen_position.a);
         }
+        // this.dom_element.style.left = (this.screen_position.a.x - (this.rect.width / 2)).toFixed(2) + 'px';
+        // this.dom_element.style.top = (this.screen_position.a.y - (this.rect.height / 2)).toFixed(2) + 'px';
+
     },
     drag_position: function (delta_x, delta_y) {
         vw.set(delta_x, delta_y);
         this.screen_position.a.add(vw);
+        // this.dom_element.style.left = (this.screen_position.a.x - (this.rect.width / 2)).toFixed(2) + 'px';
+        // this.dom_element.style.top = (this.screen_position.a.y - (this.rect.height / 2)).toFixed(2) + 'px';
         this.screen_position.b.copy(this.screen_position.a);
     },
     set_state: function (bool) {
@@ -223,7 +228,7 @@ class Sector {
                     value: vars.depth_engage_distance
                   },
                   color: {
-                    value: new THREE.Color(0x5555FF)
+                    value: new THREE.Color(vars.colors.contours.base),
                   }
                 },
                 vertexShader: document.getElementById('vertexShader').textContent,
@@ -451,6 +456,67 @@ vars.dom_time = {
     }
 }
 
+const mover = {
+    name: 'synthetic_displacement',
+    d: new THREE.Vector3(),
+    ac: new THREE.Vector3(),
+    vl: new THREE.Vector3(),
+    pos: new THREE.Vector3(),
+    del_pos: new THREE.Vector3(),
+    tgt: new THREE.Vector3(),
+    smp: new THREE.Vector3(),
+    up: new THREE.Vector3(),
+    mi: new THREE.Quaternion(),
+    setter: null,
+    attenuation: 0.5,
+    speed: 0.005,//;//25,
+    vd: 0,
+    rv: 0,
+    is_moving: false,
+    ctr: {
+        t: 0.0,
+        set(at){
+
+            //#//catch att the transforms on user_position.actual.
+            if(mover.is_moving){
+                mover.ctr.t = at;
+                mover.move();
+                ref_marker_2.position.copy(mover.pos);
+                ref_marker_2.material.opacity = 1.0;
+                mover.setter.copy(mover.pos);
+
+            }else{
+                ref_marker_2.material.opacity = 0.2;
+            }
+            run_camera();
+            refresh_sectors();
+
+        }
+    },
+    set_target(a,b){
+        mover.is_moving = true;
+        mover.setter = a;
+        mover.tgt.copy(b);
+    },
+    move(){
+        vw.subVectors(this.tgt, this.pos);
+        const t_delta = this.ctr.t*1000;
+        this.d.lerp(vw, this.attenuation);
+        const m = this.d.length();
+
+        const delta_p = this.del_pos.distanceTo(this.pos);
+        this.vd =  delta_p / t_delta;
+        const r = 1 - (this.vd * t_delta) / m;
+
+        this.ac.copy(this.d).normalize().multiplyScalar(this.speed);
+
+        if (r>0) this.vl.add(this.ac).multiplyScalar(r);
+        if (r<0.01) this.is_moving = false;
+        this.del_pos.copy(this.pos);
+        this.pos.add(this.vl);
+    }
+}
+
 
 vars.user.mouse.raw = new THREE.Vector3(0, 0, 0);
 vars.sectors_loaded = false;
@@ -466,36 +532,18 @@ const y_major_axis = document.getElementById('y-axis');
 const graph_bar = document.getElementById("graph-obj-bar");
 const q_nav_bar = document.getElementById("q-nav-bar");
 
-// const bars = [...document.querySelectorAll('.bar')];
-// bars.map((b) => {
-//     b.style.visibility = 'hidden';
-// });
-
 let camera, scene, renderer, stats, gridHelper, cube;
 let map_container, map_plane, visible_dimensions, camera_distance, root_plane, pos_mark_1, pos_mark_2, pos_mark_3, pos_mark_4,
-    axes_helper, arrow_helper_1, arrow_helper_2, arrow_helper_3, arrow_helper_4, grid_lines, grid_resolution, map_sectors_group, ref_marker;
+    axes_helper, arrow_helper_1, arrow_helper_2, arrow_helper_3, arrow_helper_4, grid_lines, grid_resolution, map_sectors_group, ref_marker, ref_marker_2;
 let cam_dot_y, cam_dot_x, cam_dot_z, camera_scale;
 let active_keys = [];
 let axis_planes = [];
 let pos_marks_array = [];
 let ticks = {};
 
-
 let ww = window.innerWidth;
 let wh = window.innerHeight;
-
 console.log(ww, wh);
-// let bars_height = 0;
-// const bars = [...document.querySelectorAll('.bar')];
-// bars.map((b) => { if(b.style.display !== 'none') bars_height += b.getBoundingClientRect().height });
-//
-// q_nav_bar.style.height = vars.view.q_nav_bar_height+'px';
-//
-// ww = w;
-// wh = (h - vars.view.bottom_buffer - bars_height);
-
-
-
 
 const z_mants = [0.25, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0];
 let default_z = 20;
@@ -537,8 +585,17 @@ const cam_right = new THREE.Vector3(0, 0, 0);
 const mouse_plane_pos = new THREE.Vector3(0, 0, 0);
 const mouse_pos_map = new THREE.Vector3(0, 0, 0);
 
-const user_position = new THREE.Vector3(0, 0, 0);
-const user_position_round = new THREE.Vector3(0, 0, 0);
+
+const user_position = {
+    actual: new THREE.Vector3(0, 0, 0),
+    round: new THREE.Vector3(0, 0, 0),
+    move_to(pos) {
+
+    }
+}
+
+// const user_position.actual = new THREE.Vector3(0, 0, 0);
+// const user_position.round = new THREE.Vector3(0, 0, 0);
 const mouseDownCameraPosition = new THREE.Vector3(0, 0, 0);
 
 const lastMouseDown = new THREE.Vector3(0, 0, 0);
@@ -764,6 +821,7 @@ function make_hexagonal_shape(scale = 1.0) {
     const a_geometry = new THREE.BufferGeometry();
     a_geometry.setAttribute('position', new THREE.BufferAttribute(v, 3));
     a_geometry.setIndex([0, 1, 2, 2, 3, 0, 3, 4, 5, 5, 0, 3]);
+    a_geometry.rotateZ(Math.PI/2);
     return a_geometry;
 }
 
@@ -775,7 +833,7 @@ function make_markers_group() {
 
     for (let n = 0; n < axis_markers_count; n++) {
         const hexagon = new THREE.Mesh(a_geometry, mat);
-        hexagon.rotateX(Math.PI / -2);
+        hexagon.rotateZ(Math.PI / -2);
         hexagon.scale.set(0.050, 0.050, 0.050);
         markers_group.add(hexagon);
     }
@@ -899,7 +957,7 @@ function move_map_to_point(pid){
     const pt = wudi.userData.td.position[ref_pid];
     vc.fromArray(pt);
     map_container.localToWorld(vc);
-    user_position.copy(vc);
+    user_position.actual.copy(vc);
 
     run_camera();
     run_ticks();
@@ -1133,15 +1191,15 @@ function refresh_sectors(){
 
         root_plane.projectPoint(camera.position, vu);
         vu.sub(camera.up);
-        vk.subVectors(user_position, vu).multiplyScalar(0.5 / vars.degree_scale);
+        vk.subVectors(user_position.actual, vu).multiplyScalar(0.5 / vars.degree_scale);
 
         camera_projected.copy(vk);
 
         // vw.copy(vk).multiplyScalar(0.5);
-        vc.copy(user_position).sub(vk);
+        vc.copy(user_position.actual).sub(vk);
 
-        //vk.add(user_position);
-        //vc.copy(vk).sub(user_position);///.negate();
+        //vk.add(user_position.actual);
+        //vc.copy(vk).sub(user_position.actual);///.negate();
 
         if(vars.helpers_active) pos_mark_1.position.copy(vc);
 
@@ -1272,7 +1330,7 @@ function event_handler(type, evt_object){
     }else{
         if (action === 'down' || action === 'secondary-down' || action === 'secondary-up') {
             lastMouseDown.copy(rayIntersectionWithXZPlane(m_ray_origin, m_ray_dir, 0.0));
-            mouseDownCameraPosition.copy(user_position);
+            mouseDownCameraPosition.copy(user_position.actual);
         }
         if (roto_x && roto_y) {
             cube.rotateOnWorldAxis(y_up, roto_x);
@@ -1283,7 +1341,7 @@ function event_handler(type, evt_object){
         }
         if (delta_x && delta_y) {
             newMouseDown.copy(rayIntersectionWithXZPlane(m_ray_origin, m_ray_dir, 0.0));
-            user_position.copy(mouseDownCameraPosition.sub(newMouseDown.sub(lastMouseDown)));
+            user_position.actual.copy(mouseDownCameraPosition.sub(newMouseDown.sub(lastMouseDown)));
             vars.info.drag_position(delta_x, delta_y);
             vars.selecta.moved = true;
         }
@@ -1292,8 +1350,8 @@ function event_handler(type, evt_object){
                 cam_base_pos.z = vars.min_zoom;
             } else {
                 cam_base_pos.multiplyScalar(scale_z);
-                vk.subVectors(mouse_plane_pos, user_position);
-                user_position.add(vk.multiplyScalar((1 - scale_z)));
+                vk.subVectors(mouse_plane_pos, user_position.actual);
+                user_position.actual.add(vk.multiplyScalar((1 - scale_z)));
                 vars.selecta.moved = true;
             }
         }
@@ -1317,8 +1375,8 @@ function event_handler(type, evt_object){
             vars.selecta.wudi.points.hover = [];
         }
         vars.user.mouse.clicked = true;
-        user_position.copy(mouse_plane_pos);
-
+        //user_position.actual.copy(mouse_plane_pos);
+        mover.set_target(user_position.actual, mouse_plane_pos);
     }
 
 
@@ -1349,7 +1407,7 @@ function event_handler(type, evt_object){
             // DY: cam_dot_y.toFixed(2),
             // DX: cam_dot_x.toFixed(2),
             // DZ: cam_dot_z.toFixed(2),
-            // UR: user_position_round.toArray().map(e => e.toFixed(2)).join(', '),
+            // UR: user_position.round.toArray().map(e => e.toFixed(2)).join(', '),
             // UM: mouse_pos_map.toArray().map(e => e.toFixed(2)).join(', '),
             // GR: grid_resolution,
             // AS: (camera_distance / visible_dimensions.w).toFixed(2),
@@ -1368,7 +1426,7 @@ function keyAction(raw) {
     if (raw.includes('Space')) {
         cam_base_pos.set(0, 0, 10);
         cam_pos.set(0, 0, 0);
-        user_position.set(0, 0, 0);
+        user_position.actual.set(0, 0, 0);
         cube.userData.originalMatrix.decompose(cube.position, cube.quaternion, cube.scale);
         cube.matrix.copy(cube.userData.originalMatrix);
         run_camera();
@@ -1395,8 +1453,8 @@ function run_camera() {
     //cam_pos.lerp(cam_base_pos.clone().applyQuaternion(cube.quaternion), 0.1);
     camera.up.copy(y_up.clone().applyQuaternion(cube.quaternion));
     //camera.up.lerp(y_up.clone().applyQuaternion(cube.quaternion), 0.1);
-    camera.position.addVectors(cam_pos, user_position);
-    camera.lookAt(user_position);
+    camera.position.addVectors(cam_pos, user_position.actual);
+    camera.lookAt(user_position.actual);
     camera.updateMatrix();
     camera.updateMatrixWorld();
     camera_frustum.setFromProjectionMatrix(camera_frustum_m.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
@@ -1408,7 +1466,7 @@ function run_camera() {
     cam_dot_x = cam_right.dot(x_right);
     cam_dot_z = z_in.dot(vu);
 
-    vw.subVectors(camera.position, user_position);
+    vw.subVectors(camera.position, user_position.actual);
     camera_distance = vw.length();
 
     for (let plane of axis_planes) {
@@ -1420,7 +1478,7 @@ function run_camera() {
         ray_caster.set(camera.position, vu);
 
         ray_caster.ray.intersectPlane(root_plane, vw);
-        vc.subVectors(user_position, vw);
+        vc.subVectors(user_position.actual, vw);
 
         if (plane.name === 'x') {
             plane.plane.set(vc, 0);
@@ -1432,9 +1490,9 @@ function run_camera() {
         plane.plane.translate(vw);
     }
 
-    vars.user.group.position.copy(user_position);
-    user_position_round.copy(user_position).round();
-    if(vars.helpers_active) pos_mark_2.position.copy(user_position_round);
+    vars.user.group.position.copy(user_position.actual);
+    user_position.round.copy(user_position.actual).round();
+    if(vars.helpers_active) pos_mark_2.position.copy(user_position.round);
 }
 
 function run_ticks_axes(axis, tick_index, swap = null) {
@@ -1446,7 +1504,7 @@ function run_ticks_axes(axis, tick_index, swap = null) {
         basis.z = 'x';
     }
 
-    const tick_n = Math.round((user_position_round[basis[axis]]) / grid_resolution) * grid_resolution + ((tick_index - ((axis_markers_count - 1) / 2)) * grid_resolution);
+    const tick_n = Math.round((user_position.round[basis[axis]]) / grid_resolution) * grid_resolution + ((tick_index - ((axis_markers_count - 1) / 2)) * grid_resolution);
 
     if (basis[axis] === 'x') {
         vw.set(tick_n, 0, -30 * Math.sign(axes[0].z));
@@ -1523,15 +1581,16 @@ function run_ticks() {
     //obs_handler({'F': vars.view.width, 'S': sum});
 }
 
-function animate() {
+function animate(f) {
     requestAnimationFrame(animate);
-    vars.info.update_position();
-    render();
-    stats.update();
+    render(f);
 }
 
-function render() {
+function render(a) {
     //#//yes yer doing it.
+    vars.info.update_position();
+    mover.ctr.set(a);
+    stats.update();
     renderer.render(scene, camera);
 }
 
@@ -2210,6 +2269,11 @@ function init() {
     ref_marker.name = 'ref_mark';
     ref_marker.rotateX(Math.PI / -2);
     scene.add(ref_marker);
+
+    ref_marker_2 = new THREE.Mesh(ref_geom, ref_mat);
+    ref_marker_2.name = 'ref_mark_2';
+    ref_marker_2.rotateX(Math.PI / -2);
+    scene.add(ref_marker_2);
 
 
     stats = new Stats();

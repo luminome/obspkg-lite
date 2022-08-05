@@ -65,7 +65,7 @@ const vars = {
 		line_strings:{
 			type: 'LineBasicMaterial',
 			dict: {
-				color: 0x666666
+				color: 0x777777
 			}
 		}
 	},
@@ -75,6 +75,10 @@ const vars = {
 		chart_tick: 0x888888,
 		chart_guide: 0x444444,
 		dub_selecta: 0xFFFF00,
+		contours: {
+			base: 0x4444CC,
+			select: [0x4444CC, 0x4444CC]
+		},
 		eco_regions:{
 			select: [0xFFFFFF, 0x000000]
 		},
@@ -82,7 +86,7 @@ const vars = {
 			select: [0x660066, 0xFF00FF]
 		},
 		iso_bath:{
-			select: [0x3333FF, 0x3333FF]
+			select: [0x333366, 0x4444FF]
 		},
 		hex_css: (c, alpha=null) => {
 			return alpha === null ? '#'+c.toString(16) : '#'+c.toString(16)+(Math.round(alpha*255).toString(16))
