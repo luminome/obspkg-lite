@@ -160,7 +160,8 @@ vars.selecta = {
                 //wudi_point_select_state(vars.selecta.wudi.points.hover[0], true, true);
                 wudi_point_select_state(pid, true, true);
 
-                move_map_to_point(pid);
+                //move_map_to_point(pid);
+                move_to_point(pid);
             } else {
                 this.points.selected.splice(pos, 1);
                 //wudi_point_select_state(vars.selecta.wudi.points.hover[0], false, true);
@@ -456,66 +457,6 @@ vars.dom_time = {
     }
 }
 
-const mover = {
-    name: 'synthetic_displacement',
-    d: new THREE.Vector3(),
-    ac: new THREE.Vector3(),
-    vl: new THREE.Vector3(),
-    pos: new THREE.Vector3(),
-    del_pos: new THREE.Vector3(),
-    tgt: new THREE.Vector3(),
-    smp: new THREE.Vector3(),
-    up: new THREE.Vector3(),
-    mi: new THREE.Quaternion(),
-    setter: null,
-    attenuation: 0.5,
-    speed: 0.005,//;//25,
-    vd: 0,
-    rv: 0,
-    is_moving: false,
-    ctr: {
-        t: 0.0,
-        set(at){
-
-            //#//catch att the transforms on user_position.actual.
-            if(mover.is_moving){
-                mover.ctr.t = at;
-                mover.move();
-                ref_marker_2.position.copy(mover.pos);
-                ref_marker_2.material.opacity = 1.0;
-                mover.setter.copy(mover.pos);
-
-            }else{
-                ref_marker_2.material.opacity = 0.2;
-            }
-            run_camera();
-            refresh_sectors();
-
-        }
-    },
-    set_target(a,b){
-        mover.is_moving = true;
-        mover.setter = a;
-        mover.tgt.copy(b);
-    },
-    move(){
-        vw.subVectors(this.tgt, this.pos);
-        const t_delta = this.ctr.t*1000;
-        this.d.lerp(vw, this.attenuation);
-        const m = this.d.length();
-
-        const delta_p = this.del_pos.distanceTo(this.pos);
-        this.vd =  delta_p / t_delta;
-        const r = 1 - (this.vd * t_delta) / m;
-
-        this.ac.copy(this.d).normalize().multiplyScalar(this.speed);
-
-        if (r>0) this.vl.add(this.ac).multiplyScalar(r);
-        if (r<0.01) this.is_moving = false;
-        this.del_pos.copy(this.pos);
-        this.pos.add(this.vl);
-    }
-}
 
 
 vars.user.mouse.raw = new THREE.Vector3(0, 0, 0);
@@ -966,6 +907,12 @@ function move_map_to_point(pid){
     wudi_dub_selecta.set_from_point(pid);
 }
 
+function move_to_point(target_pid){
+    const dub_select = wudi_dub_selecta.set_from_point(target_pid);
+    mover.set_target(user_position.actual, dub_select[0]);
+    mover.set_rotation_target(cube, camera_projected, user_position.actual, dub_select[0], dub_select[1]);
+}
+
 function wudi_point_select_state(index, state, set_select = null) {
     const wudi_up = scene.getObjectByName('wudi_up');
     const wudi_down = scene.getObjectByName('wudi_down');
@@ -1185,28 +1132,24 @@ function interactionAction() {
 }
 
 function refresh_sectors(){
+
+    vc.subVectors(camera.position, camera.up);
+    root_plane.projectPoint(vc, vu);
+    vk.subVectors(user_position.actual, vu).multiplyScalar(0.5 / vars.degree_scale);
+    camera_projected.copy(vk);
+
     if(map_sectors_group.children.length) map_sectors_group.children.forEach(s => {
         vw.copy(s.userData.owner.objects.plane.userData.center);
         map_sectors_group.localToWorld(vw);
-
-        root_plane.projectPoint(camera.position, vu);
-        vu.sub(camera.up);
-        vk.subVectors(user_position.actual, vu).multiplyScalar(0.5 / vars.degree_scale);
-
-        camera_projected.copy(vk);
-
-        // vw.copy(vk).multiplyScalar(0.5);
-        vc.copy(user_position.actual).sub(vk);
-
-        //vk.add(user_position.actual);
-        //vc.copy(vk).sub(user_position.actual);///.negate();
+        //vu.sub(camera.up);
+        vc.copy(user_position.actual).sub(camera_projected);
 
         if(vars.helpers_active) pos_mark_1.position.copy(vc);
 
-        const prefig = Math.floor(Math.pow(camera_scale, vars.levels)*(vars.levels+1));
+        const figuration = Math.floor(Math.pow(camera_scale, vars.levels)*(vars.levels+1));
         const L = vw.distanceTo(vc);
         if (L < vars.levels * vars.degree_scale) {
-            let LV = prefig - Math.floor((L/(vars.levels * vars.degree_scale))*vars.levels);
+            let LV = figuration - Math.floor((L/(vars.levels * vars.degree_scale))*vars.levels);
             //let LV = Math.floor(Math.pow(camera_scale, vars.levels)*(vars.levels)); camera_scale*
             //let LV = Math.round((vars.levels - Math.round((L) / vars.degree_scale)) * (Math.round((camera_scale) * vars.levels) / vars.levels));
             if (LV > 4) LV = 4;
@@ -1340,6 +1283,7 @@ function event_handler(type, evt_object){
             vars.selecta.moved = true;
         }
         if (delta_x && delta_y) {
+            mover.cancel();
             newMouseDown.copy(rayIntersectionWithXZPlane(m_ray_origin, m_ray_dir, 0.0));
             user_position.actual.copy(mouseDownCameraPosition.sub(newMouseDown.sub(lastMouseDown)));
             vars.info.drag_position(delta_x, delta_y);
@@ -1367,17 +1311,9 @@ function event_handler(type, evt_object){
         interactionAction();
     }
 
+    //mover.reset_to(user_position.actual);
 
 
-    if (action === 'click' || action === 'touch-click') {
-        if (vars.selecta.wudi.points.hover.length) {
-            vars.selecta.wudi.point_select(vars.selecta.wudi.points.hover[0]);
-            vars.selecta.wudi.points.hover = [];
-        }
-        vars.user.mouse.clicked = true;
-        //user_position.actual.copy(mouse_plane_pos);
-        mover.set_target(user_position.actual, mouse_plane_pos);
-    }
 
 
     if (action !== 'move' && action !== 'init') {
@@ -1396,7 +1332,21 @@ function event_handler(type, evt_object){
     grid_lines.position.copy(mouse_plane_pos);
 
     const prefig = Math.floor(Math.pow(camera_scale, vars.levels)*(vars.levels+1));
-        //Math.floor(Math.log(camera_scale)*vars.levels)*vars.levels;
+    //Math.floor(Math.log(camera_scale)*vars.levels)*vars.levels;
+
+    //
+    //mover.setter.copy(user_position.actual);
+
+    if (action === 'click' || action === 'touch-click') {
+        if (vars.selecta.wudi.points.hover.length) {
+            vars.selecta.wudi.point_select(vars.selecta.wudi.points.hover[0]);
+            vars.selecta.wudi.points.hover = [];
+        }
+        vars.user.mouse.clicked = true;
+        //user_position.actual.copy(mouse_plane_pos);
+        mover.set_target(user_position.actual, mouse_plane_pos);
+    }
+
 
     if (active_keys.includes('KeyI')) {
         obs_handler({
@@ -1541,7 +1491,7 @@ function run_ticks() {
         axis_dir_x.set(0, 0, -1 * Math.sign(camera_projected.z));
     }
 
-    if(vars.helpers_active) arrow_helper_4.setDirection(cam_right);
+    //if(vars.helpers_active) arrow_helper_4.setDirection(cam_right);
 
     for (let plane of axis_planes) {
         if (swap) {
@@ -2353,14 +2303,125 @@ const wudi_dub_selecta = {
         vw.set(pt[1],pt[0],0.0);
         vk.set(pt[5],pt[4],0.0);
         vu.subVectors(vk,vw);
-        vc.crossVectors(vu,z_in).negate();
+        vc.crossVectors(vu,z_in).negate();//.normalize().multiplyScalar(0.5);
         vc.add(vu.multiplyScalar(0.5).add(vw));
+
         map_container.localToWorld(vc);
         t_ref.position.copy(vc);
         map_container.localToWorld(vw);
         map_container.localToWorld(vk);
         wudi_dub_selecta.set(vw,vk);
+
+        vw.set(pt[3],pt[2],0.0);
+        return [vc, vw];
     },
+}
+
+const mover = {
+    name: 'synthetic_displacement',
+    d: new THREE.Vector3(),
+    ac: new THREE.Vector3(),
+    vl: new THREE.Vector3(),
+    pos: new THREE.Vector3(),
+    del_pos: new THREE.Vector3(),
+    tgt: new THREE.Vector3(),
+    move_vector: null,
+    attenuation: 1.0,
+    speed: 0.0025,
+    vd: 0,
+    rv: 0,
+    is_moving: false,
+    is_rotating: false,
+    roto: {
+        object: null,
+        control: null,
+        position: null,
+        offset: new THREE.Vector3(),
+        target: new THREE.Vector3()
+    },
+    ctr: {
+        t: 0.0,
+        set(at){
+            //#//catch att the transforms on user_position.actual.
+            if(mover.is_moving){
+                mover.ctr.t = at;
+                mover.move();
+                mover.move_vector.copy(mover.pos);
+            }
+            if(mover.is_rotating){
+                mover.rotate();
+            }
+            if(mover.is_rotating || mover.is_moving){
+                run_camera();
+                run_ticks();
+                refresh_sectors();
+                adaptive_scaling_wudi();
+            }
+
+        }
+    },
+    cancel(){
+        //called by any drag event.
+        this.is_moving = false;
+        this.is_rotating = false;
+        this.d.set(0,0,0);
+        this.vl.set(0,0,0);
+    },
+    set_target(control_vector, target_pos){
+        this.pos.copy(control_vector);
+        this.move_vector = control_vector; //inherit
+        this.tgt.copy(target_pos);
+        this.is_moving = true;
+
+    },
+    set_rotation_target(object, control_position, pos, target_offset, target_pos){
+        ///cube, camera.position, user_position, target_position(wudi point).
+        this.roto.object = object;
+        this.roto.control = control_position;
+        this.roto.position = pos;
+        this.roto.offset.copy(target_offset);
+        this.roto.target.copy(target_pos);
+        this.is_rotating = true;
+    },
+    rotate(){
+        vk.subVectors(this.roto.position, this.roto.control);
+        vw.subVectors(this.roto.position, vk).normalize();
+        // //#//yellow.
+        // arrow_helper_4.position.copy(this.roto.position);
+        // arrow_helper_4.setDirection(vw);
+
+
+        vc.copy(this.roto.target);
+        map_container.localToWorld(vc);
+        //because target is a projection.
+        vu.copy(this.roto.offset);
+        vk.subVectors(vc, vu).normalize();
+
+        // //#//RED.
+        // arrow_helper_3.position.copy(vu);
+        // arrow_helper_3.setDirection(vk);
+
+        let r = vw.angleTo(vk);
+        if (vk.dot(cam_right) > 0) r *= -1;
+        //obs_handler({r: r.toFixed(3)});
+        this.roto.object.rotateOnWorldAxis(y_up, r/10);
+        if(Math.abs(r) < 0.005) this.is_rotating = false;
+    },
+    move(){
+        vw.subVectors(this.tgt, this.pos);
+        const t_delta = this.ctr.t*1000;
+        this.d.lerp(vw, this.attenuation);
+        const m = this.d.length();
+        const delta_p = this.del_pos.distanceTo(this.pos);
+        this.vd =  delta_p / t_delta;
+        const r = 1 - (this.vd * t_delta) / m;
+        this.ac.copy(this.d).normalize().multiplyScalar(this.speed);
+        if (r>0) this.vl.add(this.ac).multiplyScalar(r);
+        if (m*10 < 0.0075) this.is_moving = false;
+        this.del_pos.copy(this.pos);
+        this.pos.add(this.vl);
+
+    }
 }
 
 const q_nav = {
@@ -2560,7 +2621,6 @@ const q_nav = {
     event_handler: (type, evt_object_n) => {
         const r_interval = Math.round((q_nav.offset_pixels/q_nav.region_width_px)*q_nav.region_length);
         let pos_x, delta_x, action;
-
         if(type === 'touch'){
             action = evt_object_n.action;
             if(evt_object_n.touches.length){
@@ -2577,40 +2637,41 @@ const q_nav = {
             pos_x = evt_object_n.actual.x;
             delta_x = evt_object_n.delta.x;
         }
-
-        obs_handler({q_nav: action, p:pos_x, d:delta_x});
+        //obs_handler({q_nav: action, p:pos_x, d:delta_x});
 
         if(action === 'drag'){
             q_nav.offset_pixels += delta_x;
             q_nav.offset = util.naturalize_on_loop(r_interval/q_nav.region_length, true);
             q_nav.reposition();
-            move_map_to_point(vars.data.geo_regions[q_nav.region_id][q_nav.get_point()-1]);
+            const target_pid = vars.data.geo_regions[q_nav.region_id][q_nav.get_point()-1];
+            move_to_point(target_pid);
+            // const dub_select = wudi_dub_selecta.set_from_point(target_pid);
+            // mover.set_target(user_position.actual, dub_select[0]);
+            // mover.set_rotation_target(cube, camera_projected, user_position.actual, dub_select[0], dub_select[1]);
+            //mover.set_rotation_target(cube, camera.position, user_position.actual, dub_select[1]);
+            //move_map_to_point(target);
 
         }else if(action === 'click' || action === 'touch-click'){
-
             const pfx = (vars.view.width/2.0)-pos_x;
-            // alert(pfx);
-
-            const fx = (vars.view.width/2.0) - Math.round(pfx/vars.q_nav.segment_width)*vars.q_nav.segment_width;///-(vars.q_nav.segment_width/2);
-
-
-
-
+            const fx = (vars.view.width/2.0) - Math.round(pfx/vars.q_nav.segment_width)*vars.q_nav.segment_width;
             const click_pos = (((vars.view.width/2.0)-(q_nav.offset*q_nav.region_width_px))-fx)*-1;
-
             const click_offset = (click_pos/q_nav.region_width_px);
             const click_ref = Math.round(click_offset*q_nav.region_length);
 
             if(click_ref >= 0 && click_ref <= q_nav.region_length){
                 q_nav.offset = click_offset;
                 q_nav.reposition();
-                move_map_to_point(vars.data.geo_regions[q_nav.region_id][q_nav.get_point()-1]);
+                const target_pid = vars.data.geo_regions[q_nav.region_id][q_nav.get_point()-1];
+                move_to_point(target_pid);
+                // const dub_select = wudi_dub_selecta.set_from_point(target_pid);
+                // mover.set_target(user_position.actual, dub_select[0]);
+                // mover.set_rotation_target(cube, camera_projected, user_position.actual, dub_select[0], dub_select[1]);
+                ///mover.set_target(user_position.actual, q_nav.get_point_vector(target_pid));
+                //move_map_to_point(target_pid);
             }
-            //obs_handler({q_nav:click_ref});
         }else{
-            q_nav.offset_pixels = q_nav.offset*q_nav.region_width_px;///vars.view.width;
+            q_nav.offset_pixels = q_nav.offset*q_nav.region_width_px;
         }
-
         return false;
     }
 }

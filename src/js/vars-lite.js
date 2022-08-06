@@ -1,10 +1,10 @@
 const vars = {
 	// window_color: 0x0f1621,
+	static_path:'./data',
 	previous_keys: [],
 	helpers_active: false,
 	debug_tool_state: false,
 	debug_tool_state_default: false,
-	static_path:'./data',
 	grid_visible: false,
 	arrow_helper_visible: false,
 	position_marks_visible: false,
