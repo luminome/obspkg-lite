@@ -2,6 +2,9 @@ const out = document.getElementById('obs');
 const dom_source = document.getElementById("graph");
 const dom_marker = document.getElementById("graph-mark");
 const dom_marker_value = document.getElementById("graph-mark-value");
+const dom_close = document.getElementById("graph-close");
+
+let operational_context = null;
 
 const g = {
 	selected: null,
@@ -45,8 +48,6 @@ class Bar {
 		return this;
 	}
 }
-
-
 
 function get_range(m){
 	const diff = m[1]-m[0];
@@ -205,9 +206,13 @@ function graph_event(e){
 
 }
 
+function close_graph(){
+	alert("closing");
+}
 
-function graph(graph_obj, w, h){
 
+function graph(graph_obj, w, h, context){
+	operational_context = context;
     g.w = w;
     g.h = h;
 
@@ -228,6 +233,8 @@ function graph(graph_obj, w, h){
     dom_source.width = g.w;
     dom_source.height = g.h;
 
+	dom_source.parentNode.style.height = g.h+'px';
+
     const ctx = dom_source.getContext( "2d", { alpha: false });
     ctx.clearRect( 0, 0, g.w, g.h );
     ctx.fillStyle = 'black';
@@ -237,6 +244,8 @@ function graph(graph_obj, w, h){
 	plot(ctx, grid, graph_obj);
 
 	dom_source.addEventListener('mousemove', graph_event);
+
+	dom_close.addEventListener('mousedown', operational_context.points_deselect);
 
 }
 

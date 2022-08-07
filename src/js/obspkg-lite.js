@@ -6,7 +6,7 @@ import {keyControls} from './keys.js';
 import * as util from './obspkg-lite-util.js';
 import {loader as fetchAll} from './data-loader.js';
 import {post_loader as fetchPOST} from './data-loader.js';
-import {norm_val, title_case, to_lexical_range} from "./obspkg-lite-util.js";
+//import {norm_val, title_case, to_lexical_range} from "./obspkg-lite-util.js";
 import {graph} from "./obspkg-lite-dom-graph-util";
 
 // import {Line2} from 'three/examples/jsm/lines/Line2.js';
@@ -143,13 +143,24 @@ vars.selecta = {
                 const months_grp = [...this.times.months];
                 title.innerHTML = 'Mean daily observations of WUDI for ' + util.to_lexical_range(years_grp) + ' ' + util.to_lexical_range(months_grp, 'mo');
                 document.getElementById('months_container').style.display = 'flex';
+                document.getElementById('years_container').style.height = '24px';
                 if(vars.view.init_state) window_redraw();
             }else{
                 title.innerHTML = 'Mean daily observations of WUDI from 1979 to 2020';
                 document.getElementById('months_container').style.display = 'none';
+                document.getElementById('years_container').style.height = '48px';
                 if(vars.view.init_state) window_redraw();
             }
 
+        },
+        points_deselect: function (){
+            vars.selecta.wudi.points.selected.map(pt => {
+                wudi_point_select_state(pt, false, true);
+            });
+            vars.selecta.wudi.points.selected = [];
+            graph_bar.style.display = 'none';
+            window_redraw();
+            return false;
         },
         point_select: function (pid) {
             const pos = this.points.selected.indexOf(pid);
@@ -159,7 +170,6 @@ vars.selecta = {
                 this.points.selected.push(pid);
                 //wudi_point_select_state(vars.selecta.wudi.points.hover[0], true, true);
                 wudi_point_select_state(pid, true, true);
-
                 //move_map_to_point(pid);
                 move_to_point(pid);
             } else {
@@ -168,6 +178,7 @@ vars.selecta = {
                 wudi_point_select_state(pid, false, true);
             }
             //#// where to put graph option?
+            wudi_get_point_detail(this.points.selected);
             //wudi_get_point_detail(this.points.selected);
             //obs_handler({'T':Object.entries(this.points.selected)});
         }
@@ -203,6 +214,28 @@ class Sector {
 
         if (object.name === 'line_strings') {
             const mat = new THREE[vars.mats.line_strings.type](vars.mats.line_strings.dict);
+
+            const material = new THREE.ShaderMaterial({
+                uniforms: {
+                  level: {
+                    value: 6,
+                  },
+                  color: {
+                    value: new THREE.Color(0x666666) //;//.fromArray(datum.color[0]),
+                  }
+                },
+                vertexShader: document.getElementById('map-lines-vertex-Shader').textContent,
+                fragmentShader: document.getElementById('map-lines-fragment-Shader').textContent,
+                side: THREE.FrontSide,
+                transparent: true,
+                blending: THREE.AdditiveBlending,
+                depthTest: false,
+                depthWrite: false,
+            });
+
+            material.needsUpdate = true;
+            material.uniformsNeedUpdate = true;
+
             //mat.setValues({color: vars.colors.eco_regions.select[1]});
             const lines_group = new THREE.Group();
             const coord_arrays = coords_from_array(object.raw);
@@ -210,7 +243,7 @@ class Sector {
             for (let vertices of coord_arrays) {
                 const geometry = new THREE.BufferGeometry();
                 geometry.setAttribute('position', new THREE.BufferAttribute(Float32Array.from(vertices), 3));
-                const contour = new THREE.Line(geometry, mat);
+                const contour = new THREE.Line(geometry, material);
                 lines_group.add(contour);
             }
             lines_group.name = 'line_strings';
@@ -219,11 +252,9 @@ class Sector {
         }
 
         if (object.name === 'contours') {
-            // return;
             // const mat = new THREE[vars.mats.contours.type](vars.mats.contours.dict);
 
-
-            const mvat = new THREE.ShaderMaterial({
+            const bath_o_mat = new THREE.ShaderMaterial({
                 uniforms: {
                   depth: {
                     value: vars.depth_engage_distance
@@ -232,20 +263,13 @@ class Sector {
                     value: new THREE.Color(vars.colors.contours.base),
                   }
                 },
-                vertexShader: document.getElementById('vertexShader').textContent,
-                fragmentShader: document.getElementById('fragmentShader').textContent,
+                vertexShader: document.getElementById('bathos-vertex-Shader').textContent,
+                fragmentShader: document.getElementById('bathos-fragment-Shader').textContent,
                 transparent: true,
                 blending: THREE.NormalBlending, ///AdditiveBlending,
-                depthTest: false
+                depthTest: false,
+                depthWrite: false,
             });
-
-            //
-            // then populating the
-            //
-            //  var colors = new Float32Array(segments * 4 * 2);
-            // array with color + alpha values (hence the number 4) and passing it to
-            //
-            // geometry.addAttribute('color', new THREE.BufferAttribute(colors, 4, true));
 
 
             object.raw.map(obj => {
@@ -261,9 +285,11 @@ class Sector {
 
                     const geometry = new THREE.BufferGeometry();
                     geometry.setAttribute('position', new THREE.BufferAttribute(Float32Array.from(vertices), 3));
-                    ///geometry.computeVertexNormals();
+                    geometry.deleteAttribute('uv');
+                    geometry.deleteAttribute('normal');
+                    //geometry.computeVertexNormals();
                     ///geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3, true));
-                    const contour = new THREE.Line(geometry, mvat);
+                    const contour = new THREE.Line(geometry, bath_o_mat);
                     contour_depth.add(contour);
                 }
 
@@ -855,10 +881,11 @@ function adaptive_scaling_wudi() {
             vw.fromArray(test.position[c]);
             map_container.localToWorld(vw);
             //#//TODO make depend on distance from view also.
+            //#//ALERT TO HOW u_me vs. u_max is leveraged here.
             if (camera_frustum.containsPoint(vw)) {
                 visible.set.push([c, data_index, cherf]);
-                visible.up.push([vars.data.wudi_data.current[data_index][0]]);
-                visible.down.push([vars.data.wudi_data.current[data_index][1]]);
+                visible.up.push([vars.data.wudi_data.current[data_index][3]]);
+                visible.down.push([vars.data.wudi_data.current[data_index][4]]);
                 cherf++;
             }else{
                 if (wudi_up.userData.td.color_default[c] && wudi_up.userData.td.color_default[c].selected) {
@@ -997,7 +1024,7 @@ function interactionAction() {
         protected_regions: (index = null) => {
             const figure = vars.data.protected_regions.raw[index + 1];
             return {
-                head: `${title_case(figure[1])}`,
+                head: `${util.title_case(figure[1])}`,
                 text: [figure[3] + ' ' + figure[2], figure[8], figure[13] + '—' + figure[14], figure[6] + 'km^2', `(${index}) `]
             }
         },
@@ -1029,7 +1056,7 @@ function interactionAction() {
         places_data: (index = null) => {
             const figure = vars.data.places_data.raw.data[index];
             return {
-                head: `${title_case(figure[4])}`,
+                head: `${util.title_case(figure[4])}`,
                 text: [...figure.slice(5,figure.length-1).filter(m => m !== null)]
             }
         }
@@ -1157,6 +1184,21 @@ function refresh_sectors(){
             s.userData.owner.set_level(LV);
         }
     });
+
+    //opacity adj for others?
+    // function setOpacity(obj, opacity) {
+    //   obj.traverse(child => {
+    //     if (child instanceof THREE.Mesh) {
+    //       child.material.opacity = opacity;
+    //     }
+    //   });
+    // }
+    //
+    // const places = scene.getObjectByName('places_data');
+    // const protected_reg = scene.getObjectByName('protected_regions');
+
+
+    return true;
 }
 
 function event_handler(type, evt_object){
@@ -1317,6 +1359,16 @@ function event_handler(type, evt_object){
 
 
     if (action !== 'move' && action !== 'init') {
+        ['protected_regions','places_data'].map(g =>{
+            const g_grp = scene.getObjectByName(g);
+            if(g_grp) g_grp.children[0].material.uniforms.level.value = (1.0-(camera_scale*0.8));// = true;
+        });
+        // const reg_protected = scene.getObjectByName('protected_regions');
+        // if(reg_protected) {
+        //     reg_protected.children[0].material.uniforms.level.value = ((1.0-camera_scale));// = true;
+        //     //reg_protected.children[0].material.needsUpdate = true;
+        // }
+
         run_camera();
         adaptive_scaling_wudi();
         run_ticks();
@@ -1443,6 +1495,12 @@ function run_camera() {
     vars.user.group.position.copy(user_position.actual);
     user_position.round.copy(user_position.actual).round();
     if(vars.helpers_active) pos_mark_2.position.copy(user_position.round);
+
+    // vc.subVectors(camera.position, camera.up);
+    // root_plane.projectPoint(vc, vu);
+    // vk.subVectors(user_position.actual, vu).multiplyScalar(0.5 / vars.degree_scale);
+    // camera_projected.copy(vk);
+
 }
 
 function run_ticks_axes(axis, tick_index, swap = null) {
@@ -1583,6 +1641,7 @@ function draw_data_instanced(instances_group) {
                 if (instance.userData.type === 'scaled_point') {
                     instance_dummy.scale.x = instance.userData.td.sample_raw[i];
                     instance_dummy.scale.y = instance.userData.td.sample_raw[i];
+                    //instance_dummy.scale.z = instance.userData.td.sample_raw[i];
                 }
                 if (instance.userData.type === 'bar') {
                     instance_dummy.rotation.z = instance.userData.td.rotation[i];
@@ -1621,21 +1680,41 @@ function plot_data(obj) {
             sample_raw: []
         }
 
+        //const v = new Float32Array(vars.data[obj.name].raw.data.length);
+
         if (obj.name === 'places_data') {
+            //const v = new Float32Array(18);
             ///custom json-ser from db based
-            datum.len = vars.data[obj.name].raw.data.length -1;
+            datum.len = vars.data[obj.name].raw.data.length;// -1;
             const pop = util.find_scale(obj.raw.data, 7);
+            console.log(pop);
+
+
             vars.data[obj.name].lookup_table = {};
+            for (let i = 0; i < datum.len; i++) {
+                datum.sample_raw.push(1.0);
+            }
 
             for (let i = 0; i < datum.len; i++) {
                 datum.color.push([0.9, 0.9, 0.0]);
                 datum.position.push([vars.data[obj.name].raw.data[i][0], vars.data[obj.name].raw.data[i][1], 0.0]);
-                let norm = norm_val(vars.data[obj.name].raw.data[i][7], pop.min, pop.avg);
-                if (norm > 4.0) norm = 4.0;
-                if (norm < 0.5) norm = 0.5;
-                datum.sample_raw.push(norm);
+                const kvs = vars.data[obj.name].raw.data[i][7]
+                const norm = util.norm_val(kvs, pop.min, pop.avg);
+                let dnorm = norm;//2.0;///i/1000;///Math.abs(Math.sin(i));//Number(norm);//*1.0;
+                //
+                // console.log('dnorm', dnorm);
+                // ///v[i] = parseFloat(dnorm);
+
+                if (dnorm > 4.0) dnorm = 4;
+                if (dnorm < 0.5) dnorm = 0.5;
+                ///dnorm = 6.0;
+                ///console.warn(parseFloat(norm.toFixed(4)));
+                datum.sample_raw[i] = dnorm;
+
                 vars.data[obj.name].lookup_table[vars.data[obj.name].raw.data[i][13]] = i;
             }
+
+            //datum.len -= 1;
         }
 
         if (obj.name === 'protected_regions') {
@@ -1652,28 +1731,59 @@ function plot_data(obj) {
 
             obj.raw.map((e, i) => {
                 if (i > 0 && e[6] !== null) {
-                    let norm = norm_val(e[6], area.min, area.avg);
+                    let norm =  util.norm_val(e[6], area.min, area.avg);
                     if (norm > 4.0) norm = 4.0;
-                    if (norm < 1) norm = 1.0;
+                    if (norm < 0.5) norm = 0.5;
+                    //console.warn(parseFloat(norm.toFixed(4)));
                     datum.sample_raw[i] = norm;
                 }
             })
         }
 
         const geometry = make_hexagonal_shape(vars.point_scale);
-
         geometry.deleteAttribute('uv');
         geometry.deleteAttribute('normal');
-        const material = new THREE.MeshBasicMaterial({
-            color: 0xFFFFFF,
+        // const material = new THREE.MeshBasicMaterial({
+        //     color: 0xFFFFFF,
+        //     side: THREE.FrontSide,
+        //     transparent: true,
+        //     opacity: 0.5,
+        //     blending: THREE.AdditiveBlending,
+        //     depthWrite: false,
+        // });
+        const material = new THREE.ShaderMaterial({
+            uniforms: {
+              level: {
+                value: 1.0,
+              },
+              color: {
+                value: new THREE.Color().fromArray(datum.color[0]),
+              }
+            },
+            vertexShader: document.getElementById('legend-vertex-Shader').textContent,
+            fragmentShader: document.getElementById('legend-fragment-Shader').textContent,
             side: THREE.FrontSide,
             transparent: true,
-            opacity: 0.5,
             blending: THREE.AdditiveBlending,
+            depthTest: false,
             depthWrite: false,
         });
 
+        material.needsUpdate = true;
+        material.uniformsNeedUpdate = true;
+
+        console.warn(obj.name, datum.sample_raw.length, datum.len);
+
         const instance = new THREE.InstancedMesh(geometry, material, datum.len);
+        // const kbe = new THREE.InstancedBufferAttribute(new Float32Array(datum.sample_raw), 1);
+        // kbe.name = obj.name+'-s_sample';
+        // instance.geometry.setAttribute('s_sample', kbe);
+
+        instance.geometry.computeBoundingSphere();
+
+        console.log(instance);
+
+
         instance.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         instance.name = obj.name;
         instance.userData.type = 'scaled_point';
@@ -1752,6 +1862,8 @@ function plot_data(obj) {
     if (is_instance) {
         draw_data_instanced(group);
     }
+
+    return true;
 }
 
 function wudi_plot(obj) {
@@ -1935,9 +2047,12 @@ function wudi_graph_chart_daily() {
             data: aggregate_avg
         }
 
-        graph(graph_obj, vars.view.width, vars.view.graph_obj_height);
+        graph(graph_obj, vars.view.width, vars.view.graph_obj_height, vars.selecta.wudi);
+
         graph_bar.classList.remove('hidden');
         graph_bar.style.display = 'block';
+        graph_bar.style.height = vars.view.graph_obj_height+'px';
+
     }else{
         graph_bar.style.display = 'none';
     }
@@ -2109,6 +2224,8 @@ function window_redraw(first_run=null) {
         run_camera();
         run_ticks();
     }
+
+    q_nav.setup();
 
     x_major_axis.style['border-color'] = vars.colors.hex_css(vars.colors.chart_tick);
     x_major_axis.style.opacity = '0.25';
@@ -2327,11 +2444,12 @@ const mover = {
     tgt: new THREE.Vector3(),
     move_vector: null,
     attenuation: 1.0,
-    speed: 0.0025,
+    speed: 0.01,
     vd: 0,
     rv: 0,
     is_moving: false,
     is_rotating: false,
+    stopped: false,
     roto: {
         object: null,
         control: null,
@@ -2343,21 +2461,30 @@ const mover = {
         t: 0.0,
         set(at){
             //#//catch att the transforms on user_position.actual.
-            if(mover.is_moving){
-                mover.ctr.t = at;
-                mover.move();
-                mover.move_vector.copy(mover.pos);
-            }
-            if(mover.is_rotating){
-                mover.rotate();
-            }
+            //#//why is this blocking?
             if(mover.is_rotating || mover.is_moving){
+                mover.stopped = false;
                 run_camera();
                 run_ticks();
                 refresh_sectors();
                 adaptive_scaling_wudi();
             }
 
+            if(mover.is_moving){
+                mover.ctr.t = at;
+                mover.move();
+                mover.move_vector.copy(mover.pos);
+            }
+
+            if(mover.is_rotating){
+                mover.rotate();
+            }
+
+            if(!mover.is_rotating && !mover.is_moving && !mover.stopped) {
+                //assume final form.
+                mover.stopped = true;
+            }
+            return mover.stopped;
         }
     },
     cancel(){
@@ -2402,10 +2529,11 @@ const mover = {
         // arrow_helper_3.setDirection(vk);
 
         let r = vw.angleTo(vk);
+        if(Math.abs(r) < 0.1) this.is_rotating = false;
         if (vk.dot(cam_right) > 0) r *= -1;
-        //obs_handler({r: r.toFixed(3)});
+        obs_handler({r: r.toFixed(3)});
         this.roto.object.rotateOnWorldAxis(y_up, r/10);
-        if(Math.abs(r) < 0.005) this.is_rotating = false;
+
     },
     move(){
         vw.subVectors(this.tgt, this.pos);
@@ -2417,7 +2545,7 @@ const mover = {
         const r = 1 - (this.vd * t_delta) / m;
         this.ac.copy(this.d).normalize().multiplyScalar(this.speed);
         if (r>0) this.vl.add(this.ac).multiplyScalar(r);
-        if (m*10 < 0.0075) this.is_moving = false;
+        if (m < 0.05) this.is_moving = false;
         this.del_pos.copy(this.pos);
         this.pos.add(this.vl);
 
@@ -2429,7 +2557,6 @@ const q_nav = {
         obs_handler({e:e.target});
     },
     area_strip: q_nav_bar.querySelector('.area-strip'),
-    // strip_canvas: q_nav_bar.querySelector('.strip-canvas'),
     base_position: q_nav_bar.querySelector('.base-position'),
     label: q_nav_bar.querySelector('.label'),
     label_top: null,
@@ -2440,6 +2567,7 @@ const q_nav = {
     region_width_px: null,
     strip_canvases: {},
     current_position:null,
+    last_point_selected:null,
     touch_trace:{
         pos_x: null,
         delta_x: null
@@ -2602,20 +2730,18 @@ const q_nav = {
         q_nav.area_strip.style.left = ((vars.view.width/2.0)-((q_nav.offset*q_nav.region_width_px)-(vars.q_nav.segment_width/2)))+'px';
         return false;
     },
-    init: () => {
-        dragControls(q_nav_bar, q_nav.event_handler);//, {}, {passive: true});
+    setup: () => {
         q_nav.label_top = (vars.view.q_nav_bar_height/2)+(q_nav.label.getBoundingClientRect().height/-2);
         q_nav.label.style.top = q_nav.label_top+'px';
         q_nav.label.style.left = (vars.view.width/2.0)+'px';
         q_nav.base_position.style.left = (vars.view.width/2.0)-(vars.q_nav.segment_width/2.0)+'px';
-
-        //alert((vars.view.width/2.0));
-
         q_nav.base_position.style.width = (vars.q_nav.segment_width)+'px';
         q_nav.base_position.style.height = vars.view.q_nav_bar_height+'px';
         q_nav.area_strip.style.height = vars.view.q_nav_bar_height+'px';
-        // q_nav.strip_canvas.width = 0;//q_nav.region_width_px;
-        // q_nav.strip_canvas.height = 0;//vars.view.q_nav_bar_height;
+    },
+    init: () => {
+        dragControls(q_nav_bar, q_nav.event_handler);//, {}, {passive: true});
+        q_nav.setup();
         return false;
     },
     event_handler: (type, evt_object_n) => {
@@ -2644,7 +2770,11 @@ const q_nav = {
             q_nav.offset = util.naturalize_on_loop(r_interval/q_nav.region_length, true);
             q_nav.reposition();
             const target_pid = vars.data.geo_regions[q_nav.region_id][q_nav.get_point()-1];
-            move_to_point(target_pid);
+            if(target_pid !== q_nav.last_point_selected){
+                move_to_point(target_pid);
+                q_nav.last_point_selected = target_pid;
+            }
+
             // const dub_select = wudi_dub_selecta.set_from_point(target_pid);
             // mover.set_target(user_position.actual, dub_select[0]);
             // mover.set_rotation_target(cube, camera_projected, user_position.actual, dub_select[0], dub_select[1]);
@@ -2783,6 +2913,12 @@ async function window_dom_prepare(){
         b.parentNode.addEventListener('mouseup', dom_button_check_click);
         dom_button_check_box_set_state(b.id, true);
     });
+
+    const dom_close = document.getElementById("graph-close");
+	const svg_check_one = document.getElementById("check-box-1").cloneNode(true);
+	svg_check_one.removeAttribute('id');
+	dom_close.appendChild(svg_check_one);
+
 
     axis_planes.push({
         name: 'x',

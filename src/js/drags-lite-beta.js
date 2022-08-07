@@ -10,8 +10,8 @@ export function dragControls(dome_element, dragAction) {
     const ongoingTouchesMeta = {};
 
     const t_meta = {
-        buffer: 5.0,
-        hoverstate: false,
+        buffer: 6.0,
+        hover_state: false,
         origin: {x: 0, y: 0},
         delta: {x: 0, y: 0},
         dist: 0,
@@ -32,13 +32,13 @@ export function dragControls(dome_element, dragAction) {
             t_meta.delta_angle = 0;
             t_meta.dist_delta = 0;
             t_meta.angle_delta = 0;
-            t_meta.hoverstate = false;
+            t_meta.hover_state = false;
         }
     }
 
     const alarm = {
         remind(aMessage) {
-            t_meta.hoverstate = true;
+            t_meta.hover_state = true;
             touch_relay(null,'touch-hover');
             this.timeoutID = undefined;
         },
@@ -125,7 +125,7 @@ export function dragControls(dome_element, dragAction) {
     }
 
     function touch_move(evt) {
-        alarm.cancel();
+        //
 
         evt.preventDefault();
         const touches = evt.changedTouches;
@@ -144,6 +144,16 @@ export function dragControls(dome_element, dragAction) {
             t_meta.dist_delta = t_d;
             t_meta.angle_delta = t_a;
         }
+
+        if(evt.touches.length === 1){
+            const final = evt.touches[0];
+            if ((Math.abs(final.pageX - t_meta.origin.x) >= t_meta.buffer) && (Math.abs(final.pageY - t_meta.origin.y) >= t_meta.buffer)) {
+                alarm.cancel();
+            }
+        }
+
+
+
 
         touch_relay(evt, 'drag');
     }
@@ -187,7 +197,9 @@ export function dragControls(dome_element, dragAction) {
         }
 
         if (evt.touches.length === 0) {
-            if (!t_meta.hoverstate && Math.abs(evt.pageX - t_meta.origin.x) <= t_meta.buffer && Math.abs(evt.pageY - t_meta.origin.y) <= t_meta.buffer) {
+            const final = touches[0];
+            //console.log(evt); this is not in evt but in changedTouches.
+            if (!t_meta.hover_state && (Math.abs(final.pageX - t_meta.origin.x) <= t_meta.buffer) && (Math.abs(final.pageY - t_meta.origin.y) <= t_meta.buffer)) {
                 t_meta.reset();
                 touch_relay(evt, 'touch-click');
             } else {

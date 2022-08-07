@@ -365,11 +365,19 @@ svg {
 	/*display: flex;*/
 	/*align-items: flex-start;*/
 	/*flex-direction: row;*/
+	height:48px;
 	width: 100vw;
+	overflow: scroll;
 	/*max-height: 24px;*/
-	border:1px red solid;
+	/*border:1px red solid;*/
 	/*overflow:hidden;*/
 }
+
+
+#years_container {
+	height:48px;
+}
+
 
 #graph-obj-bar{
 	position: relative;
@@ -634,6 +642,8 @@ svg {
 
 #graph-mark-value{
 	position: absolute;
+	top:0;
+	left:0;
 	border:1px green dotted;
 	border-radius:4px;
 	font-family: heavy_data, sans-serif;
@@ -645,6 +655,20 @@ svg {
 	display:inherit;
 }
 
+#graph-close{
+	position:absolute;
+	width: 32px;
+	height: 32px;
+	top:4px;
+	right:4px;
+	display: inline-block;
+}
+
+#graph-close svg{
+	width:100%;
+	height:100%;
+	fill:gray;
+}
 
 .page-text{
 	font-size: 0.6em;

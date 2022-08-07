@@ -32,20 +32,21 @@
 		</div>
 	</div>
 
-<!--	<div id="times-bar" class="bar hidden">-->
-<!--		<div id="time_element_temp" class="time-element column-label"></div>-->
-<!--		<div id="years_container" class="row time-container"></div>-->
-<!--		<div id="months_container" class="row time-container"></div>-->
-<!--	</div>-->
+	<div id="times-bar" class="bar hidden">
+		<div id="time_element_temp" class="time-element column-label"></div>
+		<div id="years_container" class="row time-container"></div>
+		<div id="months_container" class="row time-container"></div>
+	</div>
 
-	<div id="time_element_temp" class="time-element column-label"></div>
-	<div id="years_container" class="bar row time-container hidden"></div>
-	<div id="months_container" class="bar row time-container hidden"></div>
+<!--	<div id="time_element_temp" class="time-element column-label"></div>-->
+<!--	<div id="years_container" class="bar row time-container hidden"></div>-->
+<!--	<div id="months_container" class="bar row time-container hidden"></div>-->
 
 	<div id="graph-obj-bar" class="bar hidden">
 		<canvas id="graph" width="0" height="0"></canvas>
 		<div id="graph-mark"></div>
 		<div id="graph-mark-value"></div>
+		<div id="graph-close" title="close graph"></div>
 	</div>
 
 	<div id="q-nav-bar" class="bar hidden">
@@ -151,25 +152,64 @@
 </div>
 
 <!--type="x-shader/x-vertex"-->
-<script id="vertexShader" type="vert">
+<script id="bathos-vertex-Shader" type="vert">
 	uniform float depth;
 	varying float vOpacity;
-	#//attribute vec3 color;
-	#//varying vec3 vColor;
-
 	void main() {
-		#//vec3 pos = position;
-		#//vColor = color;
 		vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
 		vOpacity = 1.0 - (1.0 / (depth / -mvPosition.z));
-		gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+		gl_Position = projectionMatrix * mvPosition;
+		#//modelViewMatrix * vec4(position, 1.0);
 	}
 </script>
 <!--type="x-shader/x-fragment"-->
-<script id="fragmentShader" type="frag">
+<script id="bathos-fragment-Shader" type="frag">
 	uniform vec3 color;
 	varying float vOpacity;
-	varying vec3 vColor;
+	void main() {
+		gl_FragColor = vec4( color, vOpacity );
+		if( gl_FragColor.a < 0.05) discard;
+	}
+</script>
+<!--type="x-shader/x-vertex"-->
+<script id="legend-vertex-Shader" type="vert">
+	uniform float level;
+	varying float vOpacity;
+	#//attribute float s_sample;
+
+	void main() {
+		vec4 mvPosition = viewMatrix * modelMatrix * instanceMatrix * vec4( position, 1.0);
+		vOpacity = 0.6*(level);
+		gl_Position = projectionMatrix * mvPosition;
+	}
+
+</script>
+<!--type="x-shader/x-fragment"-->
+<script id="legend-fragment-Shader" type="frag">
+	uniform vec3 color;
+	varying float vOpacity;
+	void main() {
+		gl_FragColor = vec4( color, vOpacity );
+		#//if( gl_FragColor.a < 0.05) discard;
+	}
+</script>
+
+<script id="map-lines-vertex-Shader" type="vert">
+	uniform float level;
+	varying float vOpacity;
+	#//attribute float s_sample;
+	void main() {
+		vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
+		vOpacity = 1.0 - (1.0 / (level / -mvPosition.z));
+		#//0.6*(level);
+		gl_Position = projectionMatrix * mvPosition;
+	}
+
+</script>
+<!--type="x-shader/x-fragment"-->
+<script id="map-lines-fragment-Shader" type="frag">
+	uniform vec3 color;
+	varying float vOpacity;
 	void main() {
 		gl_FragColor = vec4( color, vOpacity );
 		if( gl_FragColor.a < 0.05) discard;
