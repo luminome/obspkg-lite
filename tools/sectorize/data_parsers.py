@@ -27,6 +27,7 @@ from Bezier import CubicBezier
 
 import pickle
 
+
 # convert map geopackage to shapely multigeometry
 def parse_map_geometry() -> MultiPolygon:
     min_x, min_y, max_x, max_y = conf.map_bounds_degrees
@@ -129,11 +130,14 @@ def parse_protected_regions() -> (pd.DataFrame, pd.DataFrame):
                         area['scale'] = 1
 
                     area['CENTROID'] = np.array(elem['geometry'].centroid.coords[0])
+                    area['LON'] = np.array(elem['geometry'].centroid.x)
+                    area['LAT'] = np.array(elem['geometry'].centroid.y)
+
                     area['COUNTRY'] = [
-                        p['COUNTRY_FRA'] for p in country_data if p['ISO3'] in elem['ISO3'][1:-1]
+                        p['COUNTRY_ENG'] for p in country_data if p['ISO3'] in elem['ISO3'][1:-1]
                     ]
                     area['MED_REGION'] = [
-                        p['NAME_FRA'] for p in regions_all if p['MSFD_REGION'] in elem['MSFD_REGION'][1:-1]
+                        p['NAME_ENG'] for p in regions_all if p['MSFD_REGION'] in elem['MSFD_REGION'][1:-1]
                     ]
 
                     elements_all.append(area)
@@ -583,7 +587,7 @@ def partition_eco_regions(guides_df, eco_regions_df, geo_names) -> (pd.DataFrame
 
 
 def load_eco_regions_mask() -> Polygon:
-    df = pd.read_pickle(os.path.join(conf.assets_path, 'parsed_eco_regions-GeoDataFrame.pkl'))
+    df = pd.read_pickle(os.path.join(conf.assets_path, 'v2_eco_regions-GeoDataFrame.pkl'))
     region_polys = []
     for j, e in df.iterrows():
         region_polys.append(e.geometry)
@@ -609,6 +613,7 @@ def save_guides_database():
     #     print(j, e.point, e.protected_region, e.eco_region, e.place)
 
 
+#// here make changes to geoms....build for sectorization!
 def save_protected_database():
     table_name = 'protected_regions'
     conn = create_connection(conf.database_path)
@@ -1601,13 +1606,28 @@ def wudi_df_to_db():
     df.to_sql('wudi_assoc', conn, if_exists='replace', dtype=dtypes, index=False)
     conn.close()
 
+
 #———————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
 if __name__ == '__main__':
+
+    v2_protected_regions, aux = parse_protected_regions()
+    util.save_asset(v2_protected_regions, 'v2_protected_regions')
+
+    # geom = parse_map_geometry()
+    # util.save_asset(geom, 'v2_map_geometry')
+
+    # depth_points = parse_depth_points()
+    # depth_contours, iso_bath = parse_contour_levels(depth_points['data'], conf.contour_ranges, conf.levels_range, depth_points['origin'])
+    #
+    # # print(depth_contours)
+    # util.save_asset(depth_contours, 'v2_depth_contours')
+    # util.save_asset(iso_bath, 'v2_iso_bath_100m')
+
     #//args: do_save_db: not None str, method: 'daily' or 'derivative', from_index, wipe
     #new_parser('save', method='aggregate', wipe='do_it')  #;//'get_aggregate')
     #new_parser('save', method='derivative')  #;//'get_aggregate')
     #places_filter_to_db()
-    wudi_df_to_db()
+    # wudi_df_to_db()
     #places_filter()
     #wudi_filter_a()
     #tests()

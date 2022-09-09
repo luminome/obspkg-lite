@@ -107,7 +107,7 @@ contour_ranges = {
         0.1,
         0.05
     ],
-    "isobath_filter": 0.01,
+    "isobath_filter": 0.1,
     "depth_interval": [
         1000,
         500,

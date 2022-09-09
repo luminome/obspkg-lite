@@ -1,5 +1,6 @@
 const vars = {
 	// window_color: 0x0f1621,
+	title_string:'Mean daily observations of WUDI from 1980 to 2020',
 	static_path:'./data',
 	previous_keys: [],
 	helpers_active: false,

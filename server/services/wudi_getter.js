@@ -16,6 +16,7 @@ function get_all(query = null) {
                 meta,
                 query
             }
+
         }else if (query.table === 'assoc') {
             const meta = {};
             const data = db.query(`SELECT *

@@ -1213,6 +1213,8 @@ function event_handler(type, evt_object){
         map_s:map_sectors_group.children.length})
 
     let action, roto_x, roto_y, pos_x, pos_y, delta_x, delta_y, scale_z;
+    delta_x = null;
+    delta_y = null;
 
     if (type === 'init') {
         pos_x = vars.view.width / 2;
@@ -1324,7 +1326,7 @@ function event_handler(type, evt_object){
             vars.info.set_state(false);
             vars.selecta.moved = true;
         }
-        if (delta_x && delta_y) {
+        if (delta_x !== null && delta_y !== null) {
             mover.cancel();
             newMouseDown.copy(rayIntersectionWithXZPlane(m_ray_origin, m_ray_dir, 0.0));
             user_position.actual.copy(mouseDownCameraPosition.sub(newMouseDown.sub(lastMouseDown)));
@@ -1698,15 +1700,11 @@ function plot_data(obj) {
             for (let i = 0; i < datum.len; i++) {
                 datum.color.push([0.9, 0.9, 0.0]);
                 datum.position.push([vars.data[obj.name].raw.data[i][0], vars.data[obj.name].raw.data[i][1], 0.0]);
-                const kvs = vars.data[obj.name].raw.data[i][7]
-                const norm = util.norm_val(kvs, pop.min, pop.avg);
-                let dnorm = norm;//2.0;///i/1000;///Math.abs(Math.sin(i));//Number(norm);//*1.0;
-                //
-                // console.log('dnorm', dnorm);
-                // ///v[i] = parseFloat(dnorm);
+                const kvs = vars.data[obj.name].raw.data[i][7];
+                let dnorm = util.norm_val(kvs, pop.min, pop.avg);
 
                 if (dnorm > 4.0) dnorm = 4;
-                if (dnorm < 0.5) dnorm = 0.5;
+                if (dnorm < 1.0) dnorm = 1.0;
                 ///dnorm = 6.0;
                 ///console.warn(parseFloat(norm.toFixed(4)));
                 datum.sample_raw[i] = dnorm;
@@ -1733,7 +1731,7 @@ function plot_data(obj) {
                 if (i > 0 && e[6] !== null) {
                     let norm =  util.norm_val(e[6], area.min, area.avg);
                     if (norm > 4.0) norm = 4.0;
-                    if (norm < 0.5) norm = 0.5;
+                    if (norm < 1.0) norm = 1.0;
                     //console.warn(parseFloat(norm.toFixed(4)));
                     datum.sample_raw[i] = norm;
                 }
@@ -1866,6 +1864,7 @@ function plot_data(obj) {
     return true;
 }
 
+//#// changed points here
 function wudi_plot(obj) {
     // points, up_bars, down_bars
     //#//BASIC POINTS:
@@ -1894,25 +1893,25 @@ function wudi_plot(obj) {
     // Object.entries(geo_regions).map((k,v,i) => console.log(k,v,i));
     // //console.log(point_data_td.index);
 
-    const geometry = make_hexagonal_shape(vars.wudi_point_scale); //wudi_point_scale
-    geometry.deleteAttribute('uv');
-    geometry.deleteAttribute('normal');
-    const material = new THREE.MeshBasicMaterial({
-        color: 0xFFFFFF,
-        side: THREE.FrontSide,
-        transparent: true,
-        opacity: 1.0,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-    });
-
-    const instance = new THREE.InstancedMesh(geometry, material, point_data_td.len);
-    instance.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    instance.name = 'wudi_points';
-    instance.userData.type = 'points';
-    instance.userData.td = point_data_td;
-    instance.visible = point_data_td.visible;
-    group.add(instance);
+    // const geometry = make_hexagonal_shape(vars.wudi_point_scale); //wudi_point_scale
+    // geometry.deleteAttribute('uv');
+    // geometry.deleteAttribute('normal');
+    // const material = new THREE.MeshBasicMaterial({
+    //     color: 0xFFFFFF,
+    //     side: THREE.FrontSide,
+    //     transparent: true,
+    //     opacity: 1.0,
+    //     blending: THREE.AdditiveBlending,
+    //     depthWrite: false,
+    // });
+    //
+    // const instance = new THREE.InstancedMesh(geometry, material, point_data_td.len);
+    // instance.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    // instance.name = 'wudi_points';
+    // instance.userData.type = 'points';
+    // instance.userData.td = point_data_td;
+    // instance.visible = point_data_td.visible;
+    // group.add(instance);
 
     const bar_instances = [
         {name: 'wudi_down', len: data.length, base_color: [1.0, 0.0, 0.0], visible: true, sign: -1},
@@ -2115,7 +2114,6 @@ function wudi_set_data_selection() {
         //console.log(tn);
         const data = vars.data.wudi_data[tn].data;
         const meta = vars.data.wudi_data[tn].meta;
-
 
         Object.entries(meta).map((k) => meta_avg[k[0]] += k[1]);
         for (let i = 0; i < points_count; i++) {
@@ -2973,6 +2971,11 @@ async function window_dom_prepare(){
         kma.style.height = '24px';
         el.appendChild(kma);
     });
+
+    const page_handle = document.getElementById('page-handle-icon');
+    const page_handle_svg = document.getElementById('h-bar');
+    page_handle.appendChild(page_handle_svg);
+
 
     return true;
 }

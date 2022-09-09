@@ -1,4 +1,39 @@
-HOVER EVENT SHOULD NOT BE PARADIGMAGTIC.
+HOVER EVENT SHOULD NOT BE PARADIGMAGTIC. still working on this.
+
+
+
+
+current:
+    master lists:
+
+    protected as points(centroids)
+    places as points.
+
+18:02 09/06/2022 no mind to do this but...
+
+get parsed copy from df, check centroid on sector, save simplified polys of df ON SECTOR.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 tool for wudi_point_proximity is borked. (the most recent tool.)
 seriously all wrong.
@@ -81,6 +116,13 @@ docker run -dp 3000:3000 \
     node:12-alpine \
     sh -c "apk add --no-cache python2 g++ make && yarn install && yarn run dev"
 	
+
+
+docker run -dp 3000:3000 \
+    -w /docker-test-n -v "$(pwd):/docker-test-n" \
+    node:12-alpine \
+    sh -c "apk add --no-cache python2 g++ make && npm install && npm run dev"
+	
 	
 	
 
@@ -100,7 +142,14 @@ docker push gcr.io/shaped-aegis-351710/node-obspkg
 
 
 JULY:
-docker build -t node-obspkg-lite .
+
+AGUST:
+close pycharm before any of this.
+
+docker build -t node-obspkg-lite . 
 docker run -d -p 3000:3000 node-obspkg-lite (test)
 docker tag node-obspkg-lite gcr.io/shaped-aegis-351710/node-obspkg-lite
 docker push gcr.io/shaped-aegis-351710/node-obspkg-lite
+
+
+jobmon-jExtaw-1qajvo

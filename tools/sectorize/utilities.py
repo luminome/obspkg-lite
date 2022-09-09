@@ -272,7 +272,6 @@ def simplify_multi_poly(source_poly, f_range=None) -> tuple:
 
     poly_levels.append(source_poly)
 
-
     for i, source_multi_poly in enumerate(poly_levels):
         mod_trace['simplify_multi_poly'][f'result-{i}'] = [
             f'{len(source_multi_poly.geoms)} polygons',

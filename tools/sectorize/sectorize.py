@@ -13,6 +13,7 @@ import data_parsers as data_parse
 from pathlib import Path
 
 whole_map_simplified_levels = []
+force_range = conf.levels_range
 
 
 class Sector:
@@ -71,7 +72,7 @@ def build_sectors(m_deg) -> List:
 
 
 def load_map(force_range_limit=None):
-    whole_map = pd.read_pickle(os.path.join(conf.assets_path, 'parsed_map_geometry-MultiPolygon.pkl'))
+    whole_map = pd.read_pickle(os.path.join(conf.assets_path, 'v2_map_geometry-MultiPolygon.pkl'))
     datum, stats = util.simplify_multi_poly(whole_map, force_range_limit)
     print(json.dumps(stats, indent=2))
     print('whole_map_simplified_levels loaded')
@@ -79,7 +80,36 @@ def load_map(force_range_limit=None):
 
 
 def load_contours():
-    return pd.read_pickle(os.path.join(conf.assets_path, 'parsed_depth_contours-list.pkl'))
+    return pd.read_pickle(os.path.join(conf.assets_path, 'v2_depth_contours-list.pkl'))
+
+
+def load_marine_protected_areas():
+    df = pd.read_pickle(os.path.join(conf.assets_path, 'v2_protected_regions-DataFrame.pkl'))
+    mpa_lines = []
+    for n, g in df.iterrows():
+        if g['STATUS_ENG'] == 'Designated':
+            print(n, g)
+
+    #     if g['STATUS_ENG'] == 'Designated':
+    #
+    #         part = {'id': g['NAME'], 'geometry': g['geometry']}
+    #         mpa_lines.append(part)
+    #         #
+    #         # rpco = util.poly_s_to_list(g['geometry'])
+    #         # print(n, len(rpco))
+    #         #
+    #         # for r in rpco:
+    #         #
+    #         #     s_poly = r.simplify(0.001)
+    #         #     # poly_levels, mod_trace = util.simplify_multi_poly(r)
+    #         #     # print(poly_levels, mod_trace)
+    #         #      #;//LineString(s_poly.exterior.coords))
+    #         # # if g['STATUS_ENG'] == 'Designated':
+    #         # #     print(n, g)
+    #
+    # util.make_other_plot(mpa_lines)
+    exit()
+    pass
 
 
 def save_parsed_map_data(map_range):
@@ -91,6 +121,7 @@ def save_parsed_map_data(map_range):
     for m, map_level in enumerate(map_levels):
         if m >= force_range:
             break
+
         p_polys = [p for p in map_level.geoms]
         #DONE: SETUP CLIPS BY ECO REGION. (eliminate brittany and Black Sea)
         p_lines = [LineString(ref.exterior.coords).intersection(eco_regions_mask) for ref in map_level.geoms]
@@ -100,16 +131,15 @@ def save_parsed_map_data(map_range):
         # util.make_other_plot([{'id': 0, 'geometry': p_lines}])
         # exit()
 
-    util.save_asset(map_sets, 'parsed_sector_map_layers')
+    util.save_asset(map_sets, 'v2_sector_map_layers')
 
 
-if __name__ == '__main__':
+def make_sectors():
     print(conf.master_bounds)
-    force_range = conf.levels_range
     # save_parsed_map_data(force_range)
     # exit()
 
-    whole_map_poly_sets = pd.read_pickle(os.path.join(conf.assets_path, 'parsed_sector_map_layers-list.pkl'))
+    whole_map_poly_sets = pd.read_pickle(os.path.join(conf.assets_path, 'v2_sector_map_layers-list.pkl'))
 
     for deg in conf.master_degree_intervals:
         sector_group = build_sectors(deg)
@@ -121,7 +151,6 @@ if __name__ == '__main__':
                 break
             for i, sector in enumerate(sector_group):
                 relevant_indices = [r for (r, k) in enumerate(geometry['polygons']) if k.intersects(sector.box)]
-
                 polys = [sector.box.intersection(geometry['polygons'][p]) for p in relevant_indices]
                 lines = [sector.box.intersection(geometry['line_strings'][p]) for p in relevant_indices]
 
@@ -137,9 +166,19 @@ if __name__ == '__main__':
                 sector.add_data(j, 'contours', contour_set)
 
                 util.show_progress('sectors', i, len(sector_group))
-            #sector.save()
 
-        [sector.save() for sector in sector_group]
+        #// important
+        #[sector.save() for sector in sector_group]
 
         # util.make_other_plot([{'id': 0, 'geometry': plot_lines}])
         # exit()
+
+
+if __name__ == '__main__':
+    make_sectors()
+
+    # save_parsed_map_data(force_range)
+
+    # load_map()
+    # load_marine_protected_areas()
+    pass

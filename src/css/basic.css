@@ -3,7 +3,7 @@ body {
   color: rgba(100,255,100,1.0);
   margin:0;
   padding:0;
-  font-family: heavy_data;
+  font-family: heavy_data, sans-serif;
 }
 
 @font-face {
