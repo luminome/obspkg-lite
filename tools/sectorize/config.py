@@ -83,6 +83,11 @@ simp_limits = [
     0.0001
 ]
 
+mpa_simp_limits = [
+    0.05,
+    0.001
+]
+
 pop_limits = [
     5000,
     50000,

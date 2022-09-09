@@ -123,11 +123,14 @@ def save_parsed_map_data(map_range):
             break
 
         p_polys = [p for p in map_level.geoms]
+
         #DONE: SETUP CLIPS BY ECO REGION. (eliminate brittany and Black Sea)
         p_lines = [LineString(ref.exterior.coords).intersection(eco_regions_mask) for ref in map_level.geoms]
 
         map_sets.append({'polygons': p_polys, 'line_strings': p_lines, 'contours': contour_levels[m]})
+
         print('level', m, len(p_polys), len(p_lines))
+
         # util.make_other_plot([{'id': 0, 'geometry': p_lines}])
         # exit()
 
@@ -138,18 +141,48 @@ def make_sectors():
     print(conf.master_bounds)
     # save_parsed_map_data(force_range)
     # exit()
+    s_range = conf.levels_range - 1
+    simp_limits = conf.mpa_simp_limits
+    local_simplification_list = np.linspace(simp_limits[0], simp_limits[1], s_range)
+
+    print(local_simplification_list)
 
     whole_map_poly_sets = pd.read_pickle(os.path.join(conf.assets_path, 'v2_sector_map_layers-list.pkl'))
+    mpa = pd.read_pickle(os.path.join(conf.assets_path, 'v2_protected_regions-DataFrame.pkl'))
+    print(len(whole_map_poly_sets))
+
+    def join_sector_mpa_list(iter_sector, level) -> List:
+        bnd = iter_sector.box.bounds
+        sel_mpa = mpa[((mpa['LON'] > bnd[0]) & (mpa['LON'] < bnd[2])) & ((mpa['LAT'] > bnd[1]) & (mpa['LAT'] < bnd[3]))]
+        assoc_mpa = []
+        for nj, g in sel_mpa.iterrows():
+            if g['STATUS_ENG'] == 'Designated':
+                if level == len(whole_map_poly_sets)-1:
+                    # print('add full size')
+                    assoc_mpa.append({'id': g.name, 'line_strings': util.geometry_to_coords(g['geometry'])})
+                else:
+                    # print('simplified geom')
+                    gk = g['geometry'].simplify(local_simplification_list[level])
+                    assoc_mpa.append({'id': g.name, 'line_strings': util.geometry_to_coords(gk)})
+
+        return assoc_mpa
 
     for deg in conf.master_degree_intervals:
         sector_group = build_sectors(deg)
         print("sectors:", len(sector_group))
 
+        plot_batch = []
+
         for j, geometry in enumerate(whole_map_poly_sets):
             print('level:', j)
+
             if j >= force_range:
                 break
+
             for i, sector in enumerate(sector_group):
+
+                mpa_geoms_set = join_sector_mpa_list(sector, j)
+
                 relevant_indices = [r for (r, k) in enumerate(geometry['polygons']) if k.intersects(sector.box)]
                 polys = [sector.box.intersection(geometry['polygons'][p]) for p in relevant_indices]
                 lines = [sector.box.intersection(geometry['line_strings'][p]) for p in relevant_indices]
@@ -163,15 +196,13 @@ def make_sectors():
 
                 sector.add_data(j, 'polygons', [util.geometry_to_coords(fp) for fp in polys])
                 sector.add_data(j, 'line_strings', [util.geometry_to_coords(fp) for fp in lines])
+                sector.add_data(j, 'mpa_s', mpa_geoms_set)
                 sector.add_data(j, 'contours', contour_set)
 
                 util.show_progress('sectors', i, len(sector_group))
 
         #// important
-        #[sector.save() for sector in sector_group]
-
-        # util.make_other_plot([{'id': 0, 'geometry': plot_lines}])
-        # exit()
+        [sector.save() for sector in sector_group]
 
 
 if __name__ == '__main__':
