@@ -141,12 +141,12 @@ vars.selecta = {
             if (this.times.years[0] !== 'all') {
                 const years_grp = [...this.times.years];
                 const months_grp = [...this.times.months];
-                title.innerHTML = 'Mean daily observations of WUDI for ' + util.to_lexical_range(years_grp) + ' ' + util.to_lexical_range(months_grp, 'mo');
+                title.innerHTML = '' + util.to_lexical_range(years_grp) + ' ' + util.to_lexical_range(months_grp, 'mo');
                 document.getElementById('months_container').style.display = 'flex';
                 document.getElementById('years_container').style.height = '24px';
                 if(vars.view.init_state) window_redraw();
             }else{
-                title.innerHTML = 'Mean daily observations of WUDI from 1979 to 2020';
+                title.innerHTML = '1979 to 2020';
                 document.getElementById('months_container').style.display = 'none';
                 document.getElementById('years_container').style.height = '48px';
                 if(vars.view.init_state) window_redraw();
@@ -194,6 +194,7 @@ vars.selecta = {
 }
 
 class Sector {
+    //#// herein lies the changeover to MPA as sectorized data: in "draw()"
     constructor(id, loc, bounds) {
         this.id = id;
         this.name = `Sector-${id}`;
@@ -299,6 +300,68 @@ class Sector {
                 contour_depth.position.set(0,0,-0.0025);
                 this.group.add(contour_depth);
             });
+        }
+
+        if (object.name === 'mpa_s'){
+            // console.log(object);
+            // const mpa_mat = new THREE.LineBasicMaterial({
+            //     color: 0xFFFFFF,
+            //     transparent: true,
+            //     opacity:1.0,
+            //     blending: THREE.NormalBlending, ///AdditiveBlending,
+            //     depthTest: false,
+            //     depthWrite: false,
+            // });
+            const mpa_mat = new THREE[vars.mats.mpaMaterial.type](vars.mats.mpaMaterial.dict);
+            mpa_mat.blending = THREE.AdditiveBlending;
+
+
+
+            object.raw.map(obj => {
+                //const mpa_s = new THREE.Group();
+                const shape = shape_from_array(obj['line_strings'][0]);
+
+                const geometry = new THREE.ShapeBufferGeometry(shape);
+
+                const t_mat = mpa_mat.clone();
+                const figure = vars.data.protected_regions.raw[obj['id'] + 1];
+                const t_color = figure[2] === 'Designated' ? vars.colors.mpa_s_designated: vars.colors.mpa_s_proposed;
+
+                t_mat.color = new THREE.Color().fromArray(t_color);//.get_value();
+                t_mat.opacity = t_color[3];
+
+                const mesh = new THREE.Mesh(geometry, t_mat);
+                mesh.userData.index = obj['id'];
+                mesh.name = 'mpa_s';
+
+                // mpa_s.add(mesh);
+                // console.log(obj);
+                // console.log(coord_arrays);
+                // for (let vertices of coord_arrays) {
+                //     // const colors = new Float32Array(vertices.length * 3);
+                //     // for (let i = 0; i<colors.length; i++) {
+                //     //     colors[i] = 1.0-(obj['d'] / vars.depth_max);
+                //     // }
+                //
+                //     const outline = new THREE.Shape(exterior_points);
+                //
+                //     const geometry = new THREE.BufferGeometry();
+                //     geometry.setAttribute('position', new THREE.BufferAttribute(Float32Array.from(vertices), 3));
+                //     geometry.deleteAttribute('uv');
+                //     geometry.deleteAttribute('normal');
+                //     //geometry.computeVertexNormals();
+                //     ///geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3, true));
+                //     const contour = new THREE.Line(geometry, mpa_mat);
+                //     mpa_s.add(contour);
+                // }
+                //mpa_s.name = 'mpa_s';
+                //mpa_s.userData.depth = obj['d'];
+                mesh.userData.level = object.level;
+
+                //mpa_s.position.set(0,0,-0.0025);
+                this.group.add(mesh);
+            });
+
         }
     }
 
@@ -489,7 +552,7 @@ vars.user.mouse.raw = new THREE.Vector3(0, 0, 0);
 vars.sectors_loaded = false;
 vars.loader_notify = {ct: 0, list: []};
 
-const bounds = document.getElementById('bounds');
+//const bounds = document.getElementById('bounds');
 const plot = document.getElementById('plot');
 const obs = document.getElementById('obs');
 const title = document.getElementById('title');
@@ -600,6 +663,14 @@ const touches_mid = {
     }
 };
 
+const shape_from_array = (array) =>{
+    const exterior_points = [];
+    for (let p = 0; p < array.length; p += 2) {
+        exterior_points.push(new THREE.Vector2(array[p]*1.0, array[p + 1]*1.0));
+    }
+    return new THREE.Shape(exterior_points);
+}
+
 const coords_from_array = (array, add_z = 0.0) => {
     const build_coords = (coords_flat) => {
         let buffer = [];
@@ -682,6 +753,57 @@ const mod_HSL = (rgb_color, L_value) => {
     rgb_color.getHSL(hsl);
     rgb_color.setHSL(hsl.h, 1.0, L_value);
 }
+
+const element_info_filter = {
+    mpa_s: (index = null) => {
+        const figure = vars.data.protected_regions.raw[parseInt(index) + 1];
+        //console.log(index+1, figure, vars.data.protected_regions);
+        return {
+            head: `${util.title_case(figure[0])}`,
+            text: [figure[2] + ' ' + figure[1], figure[7], figure[12] + '—' + figure[13], figure[5] + 'km^2', `(${index}) `]
+        }
+    },
+    // protected_regions: (index = null) => {
+    //     const figure = vars.data.protected_regions.raw[index + 1];
+    //     return {
+    //         head: `${util.title_case(figure[1])}`,
+    //         text: [figure[3] + ' ' + figure[2], figure[8], figure[13] + '—' + figure[14], figure[6] + 'km^2', `(${index}) `]
+    //     }
+    // },
+    iso_bath: (index = null) => {
+        return {
+            text: 'isobath 100m ' + index
+        }
+    },
+    wudi_points: (index = null) => {
+        const data_index = vars.data.wudi_index[index];
+        if (vars.selecta.wudi.points.hover.length) wudi_point_select_state(vars.selecta.wudi.points.hover[0], false);
+        wudi_point_select_state(data_index, true);
+        vars.selecta.wudi.points.hover = [data_index];
+        return {
+            text: get_point_selection_state([data_index], index)
+        }
+    },
+    wudi_up: (index = null) => {
+        return element_info_filter.wudi_points(index);
+    },
+    wudi_down: (index = null) => {
+        return element_info_filter.wudi_points(index);
+    },
+    eco_regions: (index = null) => {
+        return {
+            text: 'eco_region (general) ' + index
+        }
+    },
+    places_data: (index = null) => {
+        const figure = vars.data.places_data.raw.data[index];
+        return {
+            head: `${util.title_case(figure[4])}`,
+            text: [...figure.slice(5,figure.length-1).filter(m => m !== null)]
+        }
+    }
+}
+
 
 function dom_button_check_box_set_state(id, state){
     const button = document.getElementById(id);
@@ -848,7 +970,7 @@ function apply_adaptive_scale(inst, v, v_lim, index, sign) {
     //#//TODO must re-normalize to scale.
     inst.getMatrixAt(index, mu);
     mu.decompose(vw, qu, vu);
-    const value = v_lim === 0 || v === 0 ? (0.0001) : (v / v_lim);
+    const value = v_lim === 0 || v === 0 ? (0.0001) : v*Math.sign(v_lim);//(v / v_lim);
     vu.setZ(value * vars.bar_scale);
     vu.setY((1 - camera_scale) * vars.bar_scale_width);
     mu.compose(vw, qu, vu);
@@ -984,7 +1106,7 @@ function get_point_selection_state(data_index, inst_index) {
     const pt = vars.data.wudi_points.raw.data[inst_index];//.slice(6,8);
 
     wudi_dub_selecta.set_from_point(data_index[0]);
-    const setnav = q_nav.set_geo_region('g-'+pt[6], pt[8]-1);
+    q_nav.set_geo_region('g-'+pt[6], pt[8]);
 
     let stats = null;
     if(vars.debug_tool_state) {
@@ -1020,47 +1142,6 @@ function interactionAction() {
     ray_caster.setFromCamera(vars.user.mouse.raw, camera);
     const intersects = ray_caster.intersectObjects(scene.children, true);
 
-    const filter = {
-        protected_regions: (index = null) => {
-            const figure = vars.data.protected_regions.raw[index + 1];
-            return {
-                head: `${util.title_case(figure[1])}`,
-                text: [figure[3] + ' ' + figure[2], figure[8], figure[13] + '—' + figure[14], figure[6] + 'km^2', `(${index}) `]
-            }
-        },
-        iso_bath: (index = null) => {
-            return {
-                text: 'isobath 100m ' + index
-            }
-        },
-        wudi_points: (index = null) => {
-            const data_index = vars.data.wudi_index[index];
-            if (vars.selecta.wudi.points.hover.length) wudi_point_select_state(vars.selecta.wudi.points.hover[0], false);
-            wudi_point_select_state(data_index, true);
-            vars.selecta.wudi.points.hover = [data_index];
-            return {
-                text: get_point_selection_state([data_index], index)
-            }
-        },
-        wudi_up: (index = null) => {
-            return filter.wudi_points(index);
-        },
-        wudi_down: (index = null) => {
-            return filter.wudi_points(index);
-        },
-        eco_regions: (index = null) => {
-            return {
-                text: 'eco_region (general) ' + index
-            }
-        },
-        places_data: (index = null) => {
-            const figure = vars.data.places_data.raw.data[index];
-            return {
-                head: `${util.title_case(figure[4])}`,
-                text: [...figure.slice(5,figure.length-1).filter(m => m !== null)]
-            }
-        }
-    }
 
     function make_clean(ints) {
         let len = ints.length;
@@ -1076,8 +1157,7 @@ function interactionAction() {
                 if (ids.indexOf(name) === -1 && ids.indexOf(instance_id) === -1) {
                     let index = null;
                     if (instance_id != null) {
-                        // const r = ints[i].object.userData.td.index;
-                        index = instance_id;///r ? r[instance_id] : instance_id;
+                        index = instance_id;
                     } else {
                         index = ints[i].object.userData.index;
                     }
@@ -1086,9 +1166,11 @@ function interactionAction() {
 
                     if(( is_wudi && !wudi_polled ) || !is_wudi) {
 
-                        const ref = filter.hasOwnProperty(ints[i].object.name) ? filter[ints[i].object.name](index) : null;
+                        const ref = element_info_filter.hasOwnProperty(ints[i].object.name) ? element_info_filter[ints[i].object.name](index) : null;
                         if (ref) {
+                            ref.index = index;
                             result.push(ref);
+
                             if (is_wudi) wudi_polled = true;
                         }
 
@@ -1099,11 +1181,13 @@ function interactionAction() {
                 instance_id = null;
             }
         }
+        result.sort((a, b) => a.index > b.index ? 1 : -1);
         return result;
     }
 
     const has_intersections = make_clean(intersects);
     vars.selecta.intersect = has_intersections.length > 0;
+
 
     if (vars.selecta.intersect) {
         vars.info.set_state(true);
@@ -1155,6 +1239,7 @@ function interactionAction() {
         }
     }
 
+
     return true;
 }
 
@@ -1204,13 +1289,15 @@ function refresh_sectors(){
 function event_handler(type, evt_object){
     run_camera();
 
+
     if(type !== 'init' && type !== 'touch') obs_handler({
         plot: type,
         act:Object.entries(evt_object.actual),
         del:Object.entries(evt_object.delta),
         whl:evt_object.wheel_delta !== null ? Object.entries(evt_object.wheel_delta) : null,
         btn:evt_object.button,
-        map_s:map_sectors_group.children.length})
+        map_s:map_sectors_group.children.length});
+
 
     let action, roto_x, roto_y, pos_x, pos_y, delta_x, delta_y, scale_z;
     delta_x = null;
@@ -1222,7 +1309,7 @@ function event_handler(type, evt_object){
     }
 
     if(type === 'touch'){
-        obs_handler({touch: evt_object.action});
+        //obs_handler({touch: evt_object.action});
         action = evt_object.action;
 
         const primary = evt_object.touches[0];
@@ -1268,15 +1355,15 @@ function event_handler(type, evt_object){
             pos_y = evt_object.y;
         }
 
-        obs_handler({
-            touch: evt_object.action,
-            roto_x: roto_x,
-            roto_y: roto_y,
-            pos_x: pos_x,
-            pos_y: pos_y,
-            scale_z: scale_z,
-            leg: evt_object.lag
-        });
+        // obs_handler({
+        //     touch: evt_object.action,
+        //     roto_x: roto_x,
+        //     roto_y: roto_y,
+        //     pos_x: pos_x,
+        //     pos_y: pos_y,
+        //     scale_z: scale_z,
+        //     leg: evt_object.lag
+        // });
         //return;
 
     }else if(type !== 'init'){
@@ -1387,8 +1474,6 @@ function event_handler(type, evt_object){
 
     const prefig = Math.floor(Math.pow(camera_scale, vars.levels)*(vars.levels+1));
     //Math.floor(Math.log(camera_scale)*vars.levels)*vars.levels;
-
-    //
     //mover.setter.copy(user_position.actual);
 
     if (action === 'click' || action === 'touch-click') {
@@ -1698,7 +1783,7 @@ function plot_data(obj) {
             }
 
             for (let i = 0; i < datum.len; i++) {
-                datum.color.push([0.9, 0.9, 0.0]);
+                datum.color.push(vars.colors.places);
                 datum.position.push([vars.data[obj.name].raw.data[i][0], vars.data[obj.name].raw.data[i][1], 0.0]);
                 const kvs = vars.data[obj.name].raw.data[i][7];
                 let dnorm = util.norm_val(kvs, pop.min, pop.avg);
@@ -1720,16 +1805,16 @@ function plot_data(obj) {
             datum.len = vars.data[obj.name].raw.length - 1;
 
             for (let i = 1; i < vars.data[obj.name].raw.length; i++) {
-                datum.color.push([0.0, 1.0, 1.0]);
+                datum.color.push(vars.colors.mpa_s_designated);
                 datum.position.push([vars.data[obj.name].raw[i][obj.geom_index][0], vars.data[obj.name].raw[i][obj.geom_index][1], 0.0]);
                 datum.sample_raw.push(1.0);
             }
 
-            const area = util.find_scale(obj.raw, 6);
+            const area = util.find_scale(obj.raw, 5);
 
             obj.raw.map((e, i) => {
-                if (i > 0 && e[6] !== null) {
-                    let norm =  util.norm_val(e[6], area.min, area.avg);
+                if (i > 0 && e[5] !== null) {
+                    let norm =  util.norm_val(e[5], area.min, area.avg);
                     if (norm > 4.0) norm = 4.0;
                     if (norm < 1.0) norm = 1.0;
                     //console.warn(parseFloat(norm.toFixed(4)));
@@ -1770,7 +1855,7 @@ function plot_data(obj) {
         material.needsUpdate = true;
         material.uniformsNeedUpdate = true;
 
-        console.warn(obj.name, datum.sample_raw.length, datum.len);
+        //console.warn(obj.name, datum.sample_raw.length, datum.len);
 
         const instance = new THREE.InstancedMesh(geometry, material, datum.len);
         // const kbe = new THREE.InstancedBufferAttribute(new Float32Array(datum.sample_raw), 1);
@@ -1779,14 +1864,12 @@ function plot_data(obj) {
 
         instance.geometry.computeBoundingSphere();
 
-        console.log(instance);
-
-
         instance.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         instance.name = obj.name;
         instance.userData.type = 'scaled_point';
         //if (obj.name === 'protected_regions') instance.userData.type = 'scaled_point';
         instance.userData.td = datum;
+        if (obj.name === 'protected_regions') instance.visible = false;
         group.add(instance);
 
     } else {
@@ -1914,9 +1997,9 @@ function wudi_plot(obj) {
     // group.add(instance);
 
     const bar_instances = [
-        {name: 'wudi_down', len: data.length, base_color: [1.0, 0.0, 0.0], visible: true, sign: -1},
-        {name: 'wudi_up', len: data.length, base_color: [0.0, 0.0, 1.0], visible: true, sign: 1},
-        {name: 'wudi_meta', len: data.length, base_color: [0, 0, 0], visible: false, sign: 1}
+        {name: 'wudi_down', len: data.length, base_color: vars.colors.downwelling, visible: true, sign: -1},
+        {name: 'wudi_up', len: data.length, base_color: vars.colors.upwelling, visible: true, sign: 1},
+        //{name: 'wudi_meta', len: data.length, base_color: [0, 0, 0], visible: false, sign: 1}
     ];
 
     const bar_attributes = ['color', 'position', 'rotation', 'scale', 'value', 'raw', 'index', 'color_default'];
@@ -2014,37 +2097,90 @@ function wudi_get_point_detail(points_selected) {
     return true;
 }
 
+//#//GRAPH:
 function wudi_graph_chart_daily() {
     const style_current = graph_bar.style.display;
+
+    /*
+    * ALL : 2 values (43)
+    * YEAR: 2 Values (12)
+    * Mont: 1 Value  (31)
+    * */
+
+    //#//NEEDS TO BE TWO VALUES
 
     if(vars.selecta.wudi.points.selected.length) {
         const diagonal = vars.selecta.wudi.times.selected.map(t => {
             return Math.max(...vars.selecta.wudi.points.selected.map(p => vars.wudi_point_cache[`${p}-${t}`].meta));
         });
 
+        // up down flat
         const max_len = Math.max(...diagonal);
-        const aggregate = new Array(max_len).fill(0);
+        const aggregate = [];
+        let mean = [0, 0];
+        for(let g=0; g<max_len; g++) aggregate.push([0,0]);
         let res_count = 0;
-        let mean = 0;
+
+        let ref_style = null;
+
         for (let t of vars.selecta.wudi.times.selected) {
             for (let p of vars.selecta.wudi.points.selected) {
                 const time_slot = `${p}-${t}`;
-                vars.wudi_point_cache[time_slot].data.map((d, i) => {
-                    aggregate[i] += d[0];
-                    mean += d[0];
+                const reference = vars.wudi_point_cache[time_slot];
+                ref_style = reference.style;
+                reference.data.map((d, i) => {
+                    if(reference.style === 'month'){
+                        aggregate[i][0] += d[1];
+                        mean[0] += d[1];
+                    }else{
+                        aggregate[i][0] += d[1];
+                        mean[0] += d[1];
+                        aggregate[i][1] += d[2];
+                        mean[1] += d[2];
+                    }
                 });
                 res_count++;
             }
         }
 
-        mean /= res_count;
-        const aggregate_avg = aggregate.map(a => Math.round((a / res_count) * 1000) / 1000);
+        // console.log('aggregate', aggregate);
+        // console.log('mean', mean);
+        // console.log('res_count', res_count);
+        console.log('ref_style', ref_style);
+
+        mean[0] /= res_count;
+        mean[1] /= res_count;
+
+        const aggregate_avg = [0,0];
+        aggregate_avg[0] = aggregate.map(a => Math.round((a[0] / res_count) * 1000) / 1000);
+        aggregate_avg[1] = aggregate.map(a => Math.round((a[1] / res_count) * 1000) / 1000);
+
+        const up_col = utility_color.fromArray(vars.colors.upwelling).getHex();
+        const dn_col = utility_color.fromArray(vars.colors.downwelling).getHex();
+
+        let y_limits = [];
+        if(mean[1] === 0){
+            y_limits = [Math.min(...aggregate_avg[0]), Math.max(...aggregate_avg[0])];
+        }else{
+            y_limits = [Math.min(...aggregate_avg[1]), Math.max(...aggregate_avg[0])];
+        }
+
         const graph_obj = {
             xlim: [0, max_len],
-            ylim: [Math.min(...aggregate_avg), Math.max(...aggregate_avg)],
-            mean: [mean / max_len],
-            data: aggregate_avg
+            ylim: y_limits,
+            mean: [[mean[0] / max_len], [mean[1] / max_len]],
+            data: aggregate_avg,
+            up_color: vars.colors.hex_css(up_col,0.5),
+            up_color_select: vars.colors.hex_css(up_col),
+            down_color: vars.colors.hex_css(dn_col,0.5),
+            down_color_select: vars.colors.hex_css(dn_col),
+            x_range_start: ref_style === 'all' ? 1978 : 1,
+            graph_style: ref_style,
+            wudi_th_up: vars.wudi_UPWthr,
+            wudi_th_down: vars.wudi_DNWthr,
         }
+
+        console.log(graph_obj, vars.selecta.wudi);
 
         graph(graph_obj, vars.view.width, vars.view.graph_obj_height, vars.selecta.wudi);
 
@@ -2061,16 +2197,23 @@ function wudi_graph_chart_daily() {
 }
 
 function wudi_set_chart_daily(result_obj) {
-    // console.log(result_obj);
+
     // return;
+    console.log('result_obj', result_obj);
+
     result_obj.forEach(obj => {
+
         const request_length = obj.special.length; ///number of points per time.
         const asset_raw_length = obj.raw.data.length;
+        //
         const general_length = asset_raw_length / request_length;/// > general_length ? asset_raw_length/request_length : general_length;
         const subset_arrays = array_chuk(obj.raw.data, general_length);
+
+        console.log('subset_arrays', subset_arrays);
+
         subset_arrays.map((v, n) => {
             const time_slot = `${obj.special[n]}-${obj.tim}`;
-            vars.wudi_point_cache[time_slot] = {'data': v, 'meta': v.length};
+            vars.wudi_point_cache[time_slot] = {'data': v, 'meta': v.length, 'style':vars.graph_styles[obj.tim.length]};
         })
     });
 
@@ -2552,7 +2695,14 @@ const mover = {
 
 const q_nav = {
     q_nav_event: (e) => {
-        obs_handler({e:e.target});
+        const rel = e.target.nodeName === 'polygon' ? e.target.parentNode : e.target;
+        const relevant = element_info_filter[rel.getAttribute('meta')](rel.getAttribute('index'));
+
+        vars.info.set_state(true);
+        vars.info.set_text([relevant]);
+        vars.info.set_position(e.pageX, e.pageY-100, null);
+
+        obs_handler(relevant);//{s:rel.getAttribute('meta'), i:rel.getAttribute('index')});
     },
     area_strip: q_nav_bar.querySelector('.area-strip'),
     base_position: q_nav_bar.querySelector('.base-position'),
@@ -2572,23 +2722,23 @@ const q_nav = {
     },
     draw_strip: (reg_id, items, start_index) => {
         const has_container = q_nav.area_strip.querySelector('.area-div-container');
-        const svg_circle = document.getElementById('basic-circle');
+        //const svg_circle = document.getElementById('basic-circle');
         const svg_hexagon = document.getElementById('basic-hexagon');
-        const svg_inside_circle = document.getElementById('within-circle');
+        //const svg_inside_circle = document.getElementById('within-circle');
 
         if(has_container){
              if(has_container.id === 'sg-'+reg_id){
                  return;
              }else{
                  if(!q_nav.strip_canvases.hasOwnProperty(has_container.id)) {
-                     q_nav.strip_canvases[has_container.id] = has_container.cloneNode(true);
+                     q_nav.strip_canvases[has_container.id] = has_container;//.cloneNode(true);
                  }
              }
         }
 
         if(q_nav.strip_canvases.hasOwnProperty('sg-'+reg_id)) {
             q_nav.area_strip.innerHTML = '';
-            q_nav.area_strip.appendChild(q_nav.strip_canvases['sg-'+reg_id].cloneNode(true));
+            q_nav.area_strip.appendChild(q_nav.strip_canvases['sg-'+reg_id]);//.cloneNode(true));
         }else{
             const container = document.createElement("div");
             container.classList.add("area-div-container");
@@ -2596,6 +2746,9 @@ const q_nav = {
             container.setAttribute('id', 'sg-'+reg_id);
             const places_instance = scene.getObjectByName('places_data').children[0];
             const protected_instance = scene.getObjectByName('protected_regions').children[0];
+
+            const protected_color = utility_color.fromArray(vars.colors.mpa_s_designated).getHex();
+            const places_color = utility_color.fromArray(vars.colors.places).getHex();
 
             const transform_hexagon = (hex_svg_dom, scale) => {
                 hex_svg_dom.style.height = Math.ceil(24*scale)+'px';
@@ -2617,6 +2770,8 @@ const q_nav = {
                 }
 
                 const plb = vars.data.wudi_assoc.raw.data[index];
+                //console.log('plb',plb);
+
                 const _has_protected = plb[1] !== null;
                 const _has_inside_protected = plb[3] !== null;
                 const _has_place = plb[4] === null ? false: vars.data.places_data.lookup_table.hasOwnProperty(plb[4]);
@@ -2630,6 +2785,11 @@ const q_nav = {
                         hexa.removeAttribute('id');
                         hexa.classList.add('svg-minimized');
                         hexa.classList.add('area-acg-protected');
+
+                        hexa.setAttribute('index',parseInt(plb[1]));//
+                        hexa.setAttribute('meta','mpa_s');//
+                        //console.log(h_color);
+                        hexa.style.stroke = vars.colors.hex_css(protected_color);
                         r_height += transform_hexagon(hexa, protected_scale / 4);
                         //circle.querySelector('circle').setAttribute('r', (60 / 4) * protected_scale);
                         hexa.addEventListener('mouseover', q_nav.q_nav_event, false);
@@ -2650,6 +2810,12 @@ const q_nav = {
                         hexa.removeAttribute('id');
                         hexa.classList.add('svg-minimized');
                         hexa.classList.add('area-acg-protected-inside');
+
+                        hexa.setAttribute('index',has);//
+                        hexa.setAttribute('meta','mpa_s');//
+
+                        hexa.style.fill = vars.colors.hex_css(protected_color);
+
                         r_height += transform_hexagon(hexa, protected_scale / 4);
                         //circle.querySelector('circle').setAttribute('r', (60 / 4) * protected_scale);
 
@@ -2664,6 +2830,11 @@ const q_nav = {
                         hexa.removeAttribute('id');
                         hexa.classList.add('svg-minimized');
                         hexa.classList.add('area-acg-place');
+
+                        hexa.setAttribute('index',place_data_index);//
+                        hexa.setAttribute('meta','places_data');//
+                        hexa.style.fill = vars.colors.hex_css(places_color);
+
                         r_height += transform_hexagon(hexa, place_scale / 4);
 
                         // console.log(place_scale);
@@ -2685,11 +2856,11 @@ const q_nav = {
             q_nav.area_strip.appendChild(container);
         }
 
-        plot.focus();
+        //plot.focus();
         return false;
     },
     get_point: () => {
-        const rc = Math.round(q_nav.offset*q_nav.region_length)+1;
+        const rc = Math.round(q_nav.offset*q_nav.region_length);//+1;
         return rc > q_nav.region_length ? 1 : rc;
     },
     optimise_strip: () => {
@@ -2822,6 +2993,7 @@ const fetch_callback = (obj_list) => {
             case 'csv_text':
                 obj.raw = array_chuk(array_auto(obj.raw), obj.columns);
                 vars.data[obj.name] = obj;
+                //if(obj.name !== 'protected_regions') plot_data(obj);
                 plot_data(obj);
                 break;
             case 'json':
@@ -2855,7 +3027,7 @@ const fetch_callback = (obj_list) => {
 }
 
 let payload = [];
-for (let i = 0; i < 100; i++) {
+for (let i = 0; i < 10; i++) {
     payload.push(i);
 }
 
@@ -2867,8 +3039,8 @@ const post_obj_list = [
 ]
 
 const obj_list = [
-    {url: './data/raw-protected-15.txt', type: 'csv_text', name: 'protected_regions', style: 'point', columns: 15, geom_index: 12},
-    {url: './data/raw-georegions-11.txt', type: 'csv_text', name: 'eco_regions', columns: 11, style: 'line', geom_index: 10, is_complex: true},
+    {url: './data/v2-raw-protected-14.txt', type: 'csv_text', name: 'protected_regions', style: 'point', columns: 14, geom_index: 11},
+    //{url: './data/raw-georegions-11.txt', type: 'csv_text', name: 'eco_regions', columns: 11, style: 'line', geom_index: 10, is_complex: true},
     {url: './data/raw-isobath-100m-1.txt', type: 'csv_text', name: 'iso_bath', columns: 1, style: 'multi_line', geom_index: 0}
 ]
 
@@ -2910,6 +3082,11 @@ async function window_dom_prepare(){
         b.insertBefore(svg_check_zero, b.firstChild);
         b.parentNode.addEventListener('mouseup', dom_button_check_click);
         dom_button_check_box_set_state(b.id, true);
+
+        const col = utility_color.fromArray(vars.colors[b.id]).getHex();
+        const r_col = vars.colors.hex_css(col);
+        b.style.fill = r_col;
+        b.style.color = r_col;
     });
 
     const dom_close = document.getElementById("graph-close");

@@ -155,23 +155,23 @@ def make_sectors():
         bnd = iter_sector.box.bounds
         sel_mpa = mpa[((mpa['LON'] > bnd[0]) & (mpa['LON'] < bnd[2])) & ((mpa['LAT'] > bnd[1]) & (mpa['LAT'] < bnd[3]))]
         assoc_mpa = []
+        rep_count = 0
         for nj, g in sel_mpa.iterrows():
-            if g['STATUS_ENG'] == 'Designated':
-                if level == len(whole_map_poly_sets)-1:
-                    # print('add full size')
-                    assoc_mpa.append({'id': g.name, 'line_strings': util.geometry_to_coords(g['geometry'])})
-                else:
-                    # print('simplified geom')
-                    gk = g['geometry'].simplify(local_simplification_list[level])
-                    assoc_mpa.append({'id': g.name, 'line_strings': util.geometry_to_coords(gk)})
+            #if g['STATUS_ENG'] == 'Designated':
+            if level == len(whole_map_poly_sets)-1:
+                # print('add full size')
+                assoc_mpa.append({'id': g.name, 'line_strings': util.geometry_to_coords(g['geometry'])})
+            else:
+                # print('simplified geom')
+                gk = g['geometry'].simplify(local_simplification_list[level])
+                assoc_mpa.append({'id': g.name, 'sub_id': rep_count, 'line_strings': util.geometry_to_coords(gk)})
+            rep_count += 1
 
         return assoc_mpa
 
     for deg in conf.master_degree_intervals:
         sector_group = build_sectors(deg)
         print("sectors:", len(sector_group))
-
-        plot_batch = []
 
         for j, geometry in enumerate(whole_map_poly_sets):
             print('level:', j)
@@ -207,9 +207,7 @@ def make_sectors():
 
 if __name__ == '__main__':
     make_sectors()
-
     # save_parsed_map_data(force_range)
-
     # load_map()
     # load_marine_protected_areas()
     pass

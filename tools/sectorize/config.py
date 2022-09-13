@@ -84,8 +84,8 @@ simp_limits = [
 ]
 
 mpa_simp_limits = [
-    0.05,
-    0.001
+    0.01,
+    0.0001
 ]
 
 pop_limits = [
@@ -120,6 +120,6 @@ contour_ranges = {
         125,
         62.5
     ],
-    "depth_max": 5000
+    "depth_max": 5500
     # "depth_max": 5000
 }

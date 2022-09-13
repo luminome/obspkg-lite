@@ -41,25 +41,42 @@ function get_all(query = null) {
                     //#pid IN (58,59,60) AND tim LIKE '______15'
                     let req_a = query.special;
                     if (!Array.isArray(req_a)) req_a = req_a.split(',');
+                    console.log(req_a, req_a.join(','));
 
                     if (query.tim === 'all') { //ALL TIME
-                        data = db.query(`SELECT raw
-                                         FROM wudi_daily
+                        data = db.query(`SELECT tim, u_tl, d_tl
+                                         FROM wudi_derivative
                                          WHERE pid IN (${req_a.join(',')})
-                                         AND tim LIKE '______15'
+                                         AND length(tim) = 4
                                          ORDER BY pid`,[]);
                         meta = [{len:data.length}];
+
+                    // if (query.tim === 'all') { //ALL TIME
+                    //     data = db.query(`SELECT raw
+                    //                      FROM wudi_daily
+                    //                      WHERE pid IN (${req_a.join(',')})
+                    //                      AND tim LIKE '______15'
+                    //                      ORDER BY pid`,[]);
+                    //     meta = [{len:data.length}];
 
                     } else if (query.tim.length < 5) { //YEAR
-                        data = db.query(`SELECT raw
-                                         FROM wudi_daily
+                        data = db.query(`SELECT tim, u_tl, d_tl
+                                         FROM wudi_derivative
                                          WHERE pid IN (${req_a.join(',')})
-                                         AND tim LIKE '${query.tim}__15'
+                                         AND tim LIKE '${query.tim}__'
                                          ORDER BY pid`,[]);
                         meta = [{len:data.length}];
 
+
+                        // data = db.query(`SELECT raw
+                        //                  FROM wudi_daily
+                        //                  WHERE pid IN (${req_a.join(',')})
+                        //                  AND tim LIKE '${query.tim}__15'
+                        //                  ORDER BY pid`,[]);
+                        // meta = [{len:data.length}];
+
                     } else if (query.tim.length < 7) { //MONTH
-                        data = db.query(`SELECT raw
+                        data = db.query(`SELECT tim, raw
                                          FROM wudi_daily
                                          WHERE pid IN (${req_a.join(',')})
                                          AND tim LIKE '${query.tim}__'

@@ -1,6 +1,9 @@
+import {AdditiveBlending} from "three";
+
 const vars = {
 	// window_color: 0x0f1621,
 	title_string:'Mean daily observations of WUDI from 1980 to 2020',
+	graph_styles: {3:'all', 4:'year', 6:'month', 8:'daily'},
 	static_path:'./data',
 	previous_keys: [],
 	helpers_active: false,
@@ -22,7 +25,7 @@ const vars = {
 		height:24
 	},
 	layers:{
-		allow:['line_strings', 'contours'] ///, 'contours'] ///'polygons',
+		allow:['line_strings', 'contours', 'mpa_s'] ///, 'contours'] ///'polygons',
 	},
 	map:{
 		test_bounds: [-7.0, 29.0, 37.0, 49.0]
@@ -57,6 +60,17 @@ const vars = {
 				opacity:1.0
 			}
 		},
+		mpaMaterial:{
+			type: 'MeshBasicMaterial',
+			dict: {
+				color: 0x00FF00,
+				side: 'FrontSide',
+				transparent: true,
+				depthTest: false,
+                depthWrite: false,
+				opacity:0.25
+			}
+		},
 		contours:{
 			type: 'LineBasicMaterial',
 			dict: {
@@ -71,8 +85,13 @@ const vars = {
 		}
 	},
 	colors:{
+		downwelling:[1.0, 0.0, 0.0],
+		upwelling:[0.1, 0.4, 1.0],
+		mpa_s_designated:[0.1, 1.0, 0.1, 0.25],
+		mpa_s_proposed:[0.1, 1.0, 0.1, 0.1],
+		places:[1.0,1.0,0.0, 0.5],
 		info_bk_opacity: 0.85,
-		window: 0x1D2733,
+		window: 0x1D2733, //0xFFFFFF,  //
 		chart_tick: 0x888888,
 		chart_guide: 0x444444,
 		dub_selecta: 0xFFFF00,
@@ -97,6 +116,8 @@ const vars = {
 	bar_scale_width: 0.5, //0.25,
 	point_scale: 0.025,
 	wudi_point_scale: 0.005,
+	wudi_UPWthr: 0.4325,
+	wudi_DNWthr: -0.3905
 }
 
 export {vars}

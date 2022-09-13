@@ -299,7 +299,7 @@ export function dragControls(dome_element, dragAction) {
         return false;
     }
     //mouse
-    dome_element.addEventListener('mousewheel', pointer_scale,  Modernizr.passiveeventlisteners ? {passive: true} : false);
+    dome_element.addEventListener('wheel', pointer_scale,  Modernizr.passiveeventlisteners ? {passive: true} : false);
     dome_element.addEventListener('mousemove', pointer_move, Modernizr.passiveeventlisteners ? {passive: true} : false);
     dome_element.addEventListener('mousedown', pointer_down, Modernizr.passiveeventlisteners ? {passive: true} : false);
     dome_element.addEventListener('mouseup', pointer_up, Modernizr.passiveeventlisteners ? {passive: true} : false);

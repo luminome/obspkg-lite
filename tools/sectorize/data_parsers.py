@@ -1610,8 +1610,32 @@ def wudi_df_to_db():
 #———————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
 if __name__ == '__main__':
 
-    v2_protected_regions, aux = parse_protected_regions()
-    util.save_asset(v2_protected_regions, 'v2_protected_regions')
+    # v2_protected_regions, aux = parse_protected_regions()
+    # util.save_asset(v2_protected_regions, 'v2_protected_regions')
+
+    df = pd.read_pickle(os.path.join(conf.assets_path, 'v2_protected_regions-DataFrame.pkl'))
+    #df = df.replace({np.nan: None})  #//works
+    #df = np.trunc(1000 * df) / 1000
+    df = df.drop(columns=['geometry', 'LON', 'LAT'])
+
+    cols = list(df)
+    col_count = len(cols)
+    haste = ','.join([util.value_cleaner(x) for x in cols])+','
+    print(col_count, haste)
+
+    for j, e in df.iterrows():
+        #if e['STATUS_ENG'] == 'Designated':
+        t_str = '{:s}'.format(','.join([str(util.value_cleaner(x)) for x in e]))+','
+        haste += t_str
+        print(t_str)
+
+    # exit()
+
+    file_name = 'v2-raw-protected'
+    path = os.path.join(conf.static_data_path, f"{file_name}-{col_count}.txt")
+    with open(path, "w") as file:
+        file.write(haste[:-1])
+
 
     # geom = parse_map_geometry()
     # util.save_asset(geom, 'v2_map_geometry')

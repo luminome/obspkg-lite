@@ -400,6 +400,7 @@ svg {
 	color:#666666;
 	pointer-events: none;
 	padding-left:4px;
+	display:none;
 	/*background-color: rgba(0,120,0,0.1);*/
 	/*border:1px white dotted;*/
 }
@@ -410,6 +411,7 @@ svg {
 	background-color: yellowgreen;
 	height:24px;
 	opacity:0.3;
+	pointer-events: none;
 }
 
 #q-nav-bar .area-strip{
@@ -434,12 +436,17 @@ svg {
 	/*height:auto;*/
 }
 
+/*#q-nav-bar .area-strip .area-div-container .area-div svg{*/
+/*	border:1px cornflowerblue solid;*/
+/*}*/
+
+
 
 #q-nav-bar .area-strip .area-div-container .area-div .svg-minimized{
 	width:20px;
 	height:20px;
 	padding-top: 4px;
-	/*border:1px cornflowerblue solid;*/
+
 	/*position:absolute;*/
 	/*opacity:1.0;*/
 	/*display:none;*/
@@ -607,6 +614,7 @@ svg {
 	border: 1px green dotted;
 	border-radius: 4px;
 	max-width: 200px;
+	z-index: 12;
 }
 
 .info-style .info-temp{
@@ -641,6 +649,18 @@ svg {
 	display:inherit;
 }
 
+#graph-title{
+	position:absolute;
+	display: block;
+	width: 100%;
+	text-align: center;
+	top:0;
+	left:0;
+	color:lightgreen;
+	font-size:0.6em;
+	pointer-events: none;
+}
+
 #graph-mark-value{
 	position: absolute;
 	top:0;
@@ -652,7 +672,7 @@ svg {
 	background-color:black;
 	color:lightgreen;
 	padding:0 4px 2px;
-	font-size:0.8em;
+	font-size:0.6em;
 	display:inherit;
 }
 
@@ -699,12 +719,13 @@ svg {
 
 
 #page-handle-icon{
-	width:48px;
-	fill:#FF4444;
-	color:#FF4444;
+	fill:gray;
+	color:gray;
+	display:block;
 }
 
 #page-handle-icon > svg{
-	width:48px;
-	height:48px;
+	display:block;
+	width:100vw;
+	height:24px;
 }

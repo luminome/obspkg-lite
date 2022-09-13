@@ -90,7 +90,7 @@ def value_cleaner(obj, decimal_places=4, special_poly=None):
     f_fmt = '{:.%if}' % decimal_places
     formatter['set'] = f_fmt
 
-    print(obj_cls)
+    #print(obj_cls)
 
     if obj_cls == str:
         obj_str = value_as_string(obj)
