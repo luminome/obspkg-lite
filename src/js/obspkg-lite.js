@@ -141,15 +141,17 @@ vars.selecta = {
             if (this.times.years[0] !== 'all') {
                 const years_grp = [...this.times.years];
                 const months_grp = [...this.times.months];
-                title.innerHTML = '' + util.to_lexical_range(years_grp) + ' ' + util.to_lexical_range(months_grp, 'mo');
+                title.innerHTML = 'WUDI ' + util.to_lexical_range(years_grp) + ' ' + util.to_lexical_range(months_grp, 'mo');
                 document.getElementById('months_container').style.display = 'flex';
-                document.getElementById('years_container').style.height = '24px';
-                if(vars.view.init_state) window_redraw();
+                //document.getElementById('years_container').style.height = '24px';
+                //if(vars.view.init_state)
+                window_redraw();
             }else{
-                title.innerHTML = '1979 to 2020';
+                title.innerHTML = 'WUDI 1979 to 2020';
                 document.getElementById('months_container').style.display = 'none';
-                document.getElementById('years_container').style.height = '48px';
-                if(vars.view.init_state) window_redraw();
+                //document.getElementById('years_container').style.height = '48px';
+                //if(vars.view.init_state)
+                window_redraw();
             }
 
         },
@@ -219,7 +221,7 @@ class Sector {
             const material = new THREE.ShaderMaterial({
                 uniforms: {
                   level: {
-                    value: 6,
+                    value: 20,
                   },
                   color: {
                     value: new THREE.Color(0x666666) //;//.fromArray(datum.color[0]),
@@ -332,7 +334,7 @@ class Sector {
 
                 const mesh = new THREE.Mesh(geometry, t_mat);
                 mesh.userData.index = obj['id'];
-                mesh.name = 'mpa_s';
+                mesh.name = 'mpa_s-'+obj['id'];
 
                 // mpa_s.add(mesh);
                 // console.log(obj);
@@ -524,7 +526,7 @@ vars.dom_time = {
     months: [],
     populate: async function (type) {
         if (type === 'years') {
-            const test_time = new domTimeElement(0, 'years', 'ALL 40 YEARS', 'all', true);
+            const test_time = new domTimeElement(0, 'years', 'YEARS', 'all', true);
             this.years.push(test_time);
             for (let t = 1980; t < 2021; t++) {
                 const label = "'" + t.toString().substr(2, 2);
@@ -533,7 +535,7 @@ vars.dom_time = {
             }
             vars.selecta.wudi.times_select('years');
         } else if (type === 'months') {
-            const test_time = new domTimeElement(0, 'months', 'ALL MONTHS', 'all', true);
+            const test_time = new domTimeElement(0, 'months', 'MONTHS', 'all', true);
             this.months.push(test_time);
             for (let t = 1; t < 13; t++) {
                 const label = String(t).padStart(2, '0');
@@ -557,6 +559,7 @@ const plot = document.getElementById('plot');
 const obs = document.getElementById('obs');
 const title = document.getElementById('title');
 const title_box = document.getElementById('title-box');
+const intro_box = document.getElementById('intro-box');
 const x_major_axis = document.getElementById('x-axis');
 const y_major_axis = document.getElementById('y-axis');
 const graph_bar = document.getElementById("graph-obj-bar");
@@ -970,7 +973,8 @@ function apply_adaptive_scale(inst, v, v_lim, index, sign) {
     //#//TODO must re-normalize to scale.
     inst.getMatrixAt(index, mu);
     mu.decompose(vw, qu, vu);
-    const value = v_lim === 0 || v === 0 ? (0.0001) : v*Math.sign(v_lim);//(v / v_lim);
+    const value = v_lim === 0 || v === 0 ? (0.0001) : (v / v_lim*Math.sign(v));//v*Math.sign(v_lim);//
+    //const value = v_lim === 0 || v === 0 ? (0.0001) : v*Math.sign(v_lim);
     vu.setZ(value * vars.bar_scale);
     vu.setY((1 - camera_scale) * vars.bar_scale_width);
     mu.compose(vw, qu, vu);
@@ -1020,11 +1024,12 @@ function adaptive_scaling_wudi() {
 
 
         const lim = [Math.max(...visible.up), Math.min(...visible.down)];
+        lim.push(lim[0]+Math.abs(lim[1]));
         //console.log("visible.set", visible.set);
         for (let v of visible.set) {
             //DEBUG /// if (v[0] === 1085) console.log(visible.up[v[2]][0], visible.down[v[2]][0], lim, v[0]);
-            apply_adaptive_scale(wudi_up, visible.up[v[2]][0], lim[0], v[0], 1.0);
-            apply_adaptive_scale(wudi_down, visible.down[v[2]][0], lim[1], v[0], -1.0);
+            apply_adaptive_scale(wudi_up, visible.up[v[2]][0], lim[2], v[0], 1.0);
+            apply_adaptive_scale(wudi_down, visible.down[v[2]][0], lim[2], v[0], -1.0);
         }
 
         //obs_handler({LIM: lim});
@@ -1059,7 +1064,7 @@ function move_map_to_point(pid){
 function move_to_point(target_pid){
     const dub_select = wudi_dub_selecta.set_from_point(target_pid);
     mover.set_target(user_position.actual, dub_select[0]);
-    mover.set_rotation_target(cube, camera_projected, user_position.actual, dub_select[0], dub_select[1]);
+    //mover.set_rotation_target(cube, camera_projected, user_position.actual, dub_select[0], dub_select[1]);
 }
 
 function wudi_point_select_state(index, state, set_select = null) {
@@ -1109,29 +1114,51 @@ function get_point_selection_state(data_index, inst_index) {
     q_nav.set_geo_region('g-'+pt[6], pt[8]);
 
     let stats = null;
-    if(vars.debug_tool_state) {
-        stats = {'times': vars.selecta.wudi.times.selected, 'days': [], 'up': [], 'down': [], 'events': []};
+    // if(vars.debug_tool_state) {
+    //     stats = {'times': vars.selecta.wudi.times.selected, 'days': [], 'up': [], 'down': [], 'events': []};
+    //
+    //     data_index.map(dp => {
+    //         for (let d of vars.selecta.wudi.times.selected) {
+    //             const data_point = vars.data.wudi_data[d].data[dp];
+    //             stats.days.push(vars.data.wudi_data[d].meta.siz);
+    //             stats.up.push(data_point[0]);
+    //             stats.down.push(Math.abs(data_point[1]));
+    //             stats.events.push(data_point[2])
+    //         }
+    //     });
+    //
+    //     stats.pid = data_index;
+    //     stats.iid = inst_index;
+    //     stats.days = r_sum(stats.days, stats.times.length);
+    //     stats.up = r_sum(stats.up, data_index.length * stats.times.length);
+    //     stats.down = r_sum(stats.down, data_index.length * stats.times.length);
+    //     stats.events = r_sum(stats.events, data_index.length * stats.times.length);
+    //     stats.locat = vars.data.wudi_points.raw.data[inst_index].slice(6, 8);
+    // }else{
+    //     stats = {'wudi':`${data_index}-g${pt[6]}`};
+    // }
 
-        data_index.map(dp => {
-            for (let d of vars.selecta.wudi.times.selected) {
-                const data_point = vars.data.wudi_data[d].data[dp];
-                stats.days.push(vars.data.wudi_data[d].meta.siz);
-                stats.up.push(data_point[0]);
-                stats.down.push(Math.abs(data_point[1]));
-                stats.events.push(data_point[2])
-            }
-        });
 
-        stats.pid = data_index;
-        stats.iid = inst_index;
-        stats.days = r_sum(stats.days, stats.times.length);
-        stats.up = r_sum(stats.up, data_index.length * stats.times.length);
-        stats.down = r_sum(stats.down, data_index.length * stats.times.length);
-        stats.events = r_sum(stats.events, data_index.length * stats.times.length);
-        stats.locat = vars.data.wudi_points.raw.data[inst_index].slice(6, 8);
-    }else{
-        stats = {'wudi':`${data_index}-g${pt[6]}`};
-    }
+    stats = {'times': vars.selecta.wudi.times.selected, 'days': [], 'up': [], 'down': [], 'events': []};
+
+    data_index.map(dp => {
+        for (let d of vars.selecta.wudi.times.selected) {
+            const data_point = vars.data.wudi_data[d].data[dp];
+            stats.days.push(vars.data.wudi_data[d].meta.siz);
+            stats.up.push(data_point[0]);
+            stats.down.push(Math.abs(data_point[1]));
+            stats.events.push(data_point[2])
+        }
+    });
+
+    stats.pid = data_index;
+    stats.iid = inst_index;
+    stats.days = r_sum(stats.days, stats.times.length);
+    stats.up = r_sum(stats.up, data_index.length * stats.times.length);
+    stats.down = r_sum(stats.down, data_index.length * stats.times.length);
+    stats.events = r_sum(stats.events, data_index.length * stats.times.length);
+    stats.locat = vars.data.wudi_points.raw.data[inst_index].slice(6, 8);
+
 
 
     return Object.entries(stats);
@@ -1165,8 +1192,8 @@ function interactionAction() {
                     const is_wudi = ints[i].object.name.indexOf('wudi') !== -1;
 
                     if(( is_wudi && !wudi_polled ) || !is_wudi) {
-
-                        const ref = element_info_filter.hasOwnProperty(ints[i].object.name) ? element_info_filter[ints[i].object.name](index) : null;
+                        const chk_name = ints[i].object.name.indexOf('mpa_s') !== -1 ? 'mpa_s' : ints[i].object.name;
+                        const ref = element_info_filter.hasOwnProperty(chk_name) ? element_info_filter[chk_name](index) : null;
                         if (ref) {
                             ref.index = index;
                             result.push(ref);
@@ -1290,13 +1317,13 @@ function event_handler(type, evt_object){
     run_camera();
 
 
-    if(type !== 'init' && type !== 'touch') obs_handler({
-        plot: type,
-        act:Object.entries(evt_object.actual),
-        del:Object.entries(evt_object.delta),
-        whl:evt_object.wheel_delta !== null ? Object.entries(evt_object.wheel_delta) : null,
-        btn:evt_object.button,
-        map_s:map_sectors_group.children.length});
+    // if(type !== 'init' && type !== 'touch') obs_handler({
+    //     plot: type,
+    //     act:Object.entries(evt_object.actual),
+    //     del:Object.entries(evt_object.delta),
+    //     whl:evt_object.wheel_delta !== null ? Object.entries(evt_object.wheel_delta) : null,
+    //     btn:evt_object.button,
+    //     map_s:map_sectors_group.children.length});
 
 
     let action, roto_x, roto_y, pos_x, pos_y, delta_x, delta_y, scale_z;
@@ -1386,13 +1413,21 @@ function event_handler(type, evt_object){
         if (action === 'scroll'){
             scale_z = 1 + (evt_object.wheel_delta.y / 200.0);
         }
+        if (action === 'cancel'){
+            //obs_handler({cancel:evt_object.evt.target.parentNode.id});
+            grid_lines.visible = false;
+            return false;
+        }else{
+            //obs_handler({capture:evt_object.evt.target.parentNode.id});
+            grid_lines.visible = true;
+        }
     }
 
     vars.user.mouse.state = action;
     vars.user.mouse.raw.x = (pos_x / vars.view.width) * 2 - 1;
     vars.user.mouse.raw.y = -(pos_y / vars.view.height) * 2 + 1;
     vars.user.mouse.screen = {x: pos_x, y: pos_y};
-    document.body.style.cursor = 'pointer';
+    ///document.body.style.cursor = 'pointer';
 
     m_ray_origin.set(vars.user.mouse.raw.x, vars.user.mouse.raw.y, 0.0).unproject(camera);
     m_ray_pos.set(vars.user.mouse.raw.x, vars.user.mouse.raw.y, 1.0).unproject(camera);
@@ -1439,6 +1474,7 @@ function event_handler(type, evt_object){
 
 
     if (action === 'move' || action === 'touch-hover') {
+        // if(evt_object.hasOwnProperty('evt')) obs_handler({id:evt_object.evt.target});
         interactionAction();
     }
 
@@ -2385,6 +2421,14 @@ function window_redraw(first_run=null) {
     title_box.style.bottom = vars.view.title_bottom_offset+'px';
     title_box.classList.remove('hidden');
 
+    const i_height = title_box.getBoundingClientRect();
+    intro_box.style.bottom = i_height.height+vars.view.title_bottom_offset+'px';
+
+    [...document.querySelectorAll('.box-wrapper')].map(wp => {
+        wp.style.backgroundColor = vars.colors.hex_css(vars.colors.window, vars.colors.info_bk_opacity);
+    });
+
+
 }
 
 function loader_notify(count, message = null) {
@@ -2519,6 +2563,8 @@ function init() {
     // run_ticks();
 
     vars.view.init_state = true;
+
+    console.log(map_container);
 }
 
 const wudi_dub_selecta = {
@@ -2696,11 +2742,38 @@ const mover = {
 const q_nav = {
     q_nav_event: (e) => {
         const rel = e.target.nodeName === 'polygon' ? e.target.parentNode : e.target;
+
+
+        if(rel.getAttribute('meta') === 'mpa_s'){
+            const t_elem = scene.getObjectByName('mpa_s-'+rel.getAttribute('index'));
+            if(!t_elem) {
+                console.log(rel);
+                return false;
+            }
+
+            t_elem.geometry.computeBoundingBox();
+            t_elem.geometry.boundingBox.getCenter(vc);
+        }else if(rel.getAttribute('meta') === 'places_data'){
+            const places_inst = scene.getObjectByName('places_data').children[0];
+            vc.fromArray(places_inst.userData.td.position[rel.getAttribute('index')]);
+        }
+
+        map_container.localToWorld(vc);
+        grid_lines.visible = true;
+        grid_lines.position.copy(vc);
+
+
+
+
+        //console.log(rel.getAttribute('meta'), rel.getAttribute('index'));
+        //map_container
         const relevant = element_info_filter[rel.getAttribute('meta')](rel.getAttribute('index'));
 
         vars.info.set_state(true);
         vars.info.set_text([relevant]);
         vars.info.set_position(e.pageX, e.pageY-100, null);
+
+        //grid_lines
 
         obs_handler(relevant);//{s:rel.getAttribute('meta'), i:rel.getAttribute('index')});
     },
@@ -2909,7 +2982,8 @@ const q_nav = {
         q_nav.area_strip.style.height = vars.view.q_nav_bar_height+'px';
     },
     init: () => {
-        dragControls(q_nav_bar, q_nav.event_handler);//, {}, {passive: true});
+        dragControls(q_nav_bar, q_nav.event_handler);
+        q_nav_bar.disable_wheel();
         q_nav.setup();
         return false;
     },
@@ -3152,6 +3226,17 @@ async function window_dom_prepare(){
     const page_handle = document.getElementById('page-handle-icon');
     const page_handle_svg = document.getElementById('h-bar');
     page_handle.appendChild(page_handle_svg);
+
+
+
+    function close_intro(){
+        intro_box.style.display = 'none';
+    }
+
+    const intro_button = document.getElementById('intro-button');
+    intro_button.addEventListener('mousedown', close_intro);
+
+
 
 
     return true;

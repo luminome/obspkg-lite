@@ -86,7 +86,7 @@ const vars = {
 	},
 	colors:{
 		downwelling:[1.0, 0.0, 0.0],
-		upwelling:[0.1, 0.4, 1.0],
+		upwelling:[0.2, 0.6, 1.0],
 		mpa_s_designated:[0.1, 1.0, 0.1, 0.25],
 		mpa_s_proposed:[0.1, 1.0, 0.1, 0.1],
 		places:[1.0,1.0,0.0, 0.5],
@@ -112,7 +112,7 @@ const vars = {
 			return alpha === null ? '#'+c.toString(16) : '#'+c.toString(16)+(Math.round(alpha*255).toString(16))
 		}
 	},
-	bar_scale: 0.1,
+	bar_scale: 0.2,
 	bar_scale_width: 0.5, //0.25,
 	point_scale: 0.025,
 	wudi_point_scale: 0.005,

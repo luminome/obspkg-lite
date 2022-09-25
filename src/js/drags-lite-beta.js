@@ -118,6 +118,7 @@ export function dragControls(dome_element, dragAction) {
             'lag': t_meta.lag,
             x: t_meta.origin.x,
             y: t_meta.origin.y,
+            'evt':evt
         };
 
         dragAction('touch', packet);
@@ -221,10 +222,12 @@ export function dragControls(dome_element, dragAction) {
         delta:{x:null, y:null},
         mod_delta:{x:null, y:null},
         origin: {x:null, y:null},
-        wheel_delta: null
+        wheel_delta: null,
+        evt:null
     }
 
-    function pointer_relay(mode_flag){
+    function pointer_relay(evt, mode_flag){
+        pointer.evt = evt;
         dragAction(mode_flag, pointer);
         return false;
     }
@@ -235,7 +238,7 @@ export function dragControls(dome_element, dragAction) {
         evt.preventDefault();
         evt.stopImmediatePropagation();
         pointer.wheel_delta = {x: evt.deltaX, y: evt.deltaY};
-        pointer_relay('scroll');
+        pointer_relay(evt, 'scroll');
         return false;
     }
 
@@ -248,9 +251,9 @@ export function dragControls(dome_element, dragAction) {
         //pointer.moved = true;
 
         if (pointer.down) {
-            pointer_relay('drag');
+            pointer_relay(evt, 'drag');
         }else{
-            pointer_relay('move');
+            pointer_relay(evt, 'move');
         }
         return false;
     }
@@ -267,7 +270,7 @@ export function dragControls(dome_element, dragAction) {
         pointer.origin.y = evt.clientY;
 
         //pointer.moved = false;
-        pointer_relay('down');
+        pointer_relay(evt, 'down');
         //dragAction('down', {actual: {x: pointer_x, y: pointer_y}, delta: {x: null, y: null}});
         return false;
     }
@@ -287,7 +290,7 @@ export function dragControls(dome_element, dragAction) {
         const d = (Math.abs(deltaX) + Math.abs(deltaY)) / 2;
         let mode_flag = (d < 2.0) ? 'click' : 'up';
         pointer.down = false;
-        pointer_relay(mode_flag);
+        pointer_relay(evt, mode_flag);
         //dragAction(mode, {actual: {x: pointer_x, y: pointer_y}, delta: {x: null, y: null}});
         return false;
     }
@@ -295,9 +298,14 @@ export function dragControls(dome_element, dragAction) {
     function pointer_cancel(evt) {
         evt.preventDefault();
         pointer.down = false;
-        pointer_relay('cancel');
+        pointer_relay(evt, 'cancel');
         return false;
     }
+
+    dome_element.disable_wheel = function(){
+        dome_element.removeEventListener('wheel', pointer_scale, { capture: false });
+    }
+
     //mouse
     dome_element.addEventListener('wheel', pointer_scale,  Modernizr.passiveeventlisteners ? {passive: true} : false);
     dome_element.addEventListener('mousemove', pointer_move, Modernizr.passiveeventlisteners ? {passive: true} : false);
