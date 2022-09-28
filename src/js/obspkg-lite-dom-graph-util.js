@@ -18,12 +18,12 @@ const g = {
         stroke: "#333333",
         stroke_high: "#666666",
 		stroke_data: "white",
-		mean_color: "#FF00FF",
-		bar_up: "#0000AA",
-		bar_up_select: "#0000FF",
-		bar_down: "#AA0000",
-		bar_down_select: "#FF0000",
-        font_siz:8
+		// mean_color: "#FF00FF",
+		// bar_up: "#0000AA",
+		// bar_up_select: "#0000FF",
+		// bar_down: "#AA0000",
+		// bar_down_select: "#FF0000",
+        font_siz:12
     },
 	data_width:null,
 	mants: [0.1, 0.25, 0.5, 1.0, 5.0, 20.0, 50.0, 100.0],
@@ -45,6 +45,7 @@ class Bar {
 	}
 
 	draw = (_ctx, select = null) => {
+		_ctx.lineWidth = 0;
 		_ctx.strokeStyle = null;
 		_ctx.fillStyle = select ? this.color_select : this.color;
 		_ctx.clearRect(this.rect.x, this.rect.y, this.rect.w, this.rect.h);
@@ -83,7 +84,7 @@ function make_axes_and_grid(_ctx, data){
 
 
 	g.data_width = x_range_arr.r[x_range_arr.r.length-1];//data.data[0].length;
-	//console.log('x_range_arr', x_range_arr, g.data_width);
+	console.log('x_range_arr', x_range_arr, g.data_width);
 
 
     const x_range_inc_px = (g.w-((g.vis.pad)+g.vis.gutter.left))/(x_range_arr.r.length-1);
@@ -92,11 +93,15 @@ function make_axes_and_grid(_ctx, data){
 	let y_zero = null;
 	let tick_mant = 1;
 
-	const x_interval_px = Math.ceil(x_range_inc_px);
-	const y_interval_px = Math.ceil(y_range_inc_px);
+	const x_interval_px = Math.round(x_range_inc_px/x_range_arr.mant)*x_range_arr.mant;
+	const y_interval_px = Math.round(y_range_inc_px);//y_range_inc_px/y_range_arr.mant)*y_range_arr.mant;
+
+
+
+
 
     for(let xva = 0; xva < x_range_arr.r.length; xva++) {
-        const x_off = xva*x_range_inc_px;
+        const x_off = xva*x_interval_px;
         _ctx.strokeStyle = g.vis.stroke;
         _ctx.beginPath();
         _ctx.moveTo(g.vis.gutter.left+x_off, g.vis.pad);
@@ -119,7 +124,7 @@ function make_axes_and_grid(_ctx, data){
 	tick_mant = 1;
     for(let yva = 0; yva < y_range_arr.r.length; yva++) {
 
-        const y_off = yva*y_range_inc_px;
+        const y_off = yva*y_interval_px;
 		if(y_range_arr.r[yva] === 0){
 			y_zero = g.vis.pad+y_off;
 			_ctx.lineWidth = 2;
@@ -136,7 +141,7 @@ function make_axes_and_grid(_ctx, data){
 
 		const m = _ctx.measureText(y_range_arr.r[yva]);
 		const ht = (m.fontBoundingBoxAscent + m.fontBoundingBoxDescent)*0.8;
-		g.log({ht:ht, i:y_interval_px});
+		//g.log({ht:ht, i:y_interval_px});
 
 		if(ht > y_interval_px) tick_mant = 2;
 
@@ -153,8 +158,8 @@ function make_axes_and_grid(_ctx, data){
 		y0:y_zero,
 		xM:x_range_arr.mant,
 		yM:y_range_arr.mant,
-		xP:x_range_inc_px,
-		yP:y_range_inc_px
+		xP:x_interval_px,
+		yP:y_interval_px
 	};
 }
 
@@ -165,18 +170,19 @@ function plot(_ctx, grid, data){
 
 	///console.log('plot', data);
 
-	const w_px_inc = Math.floor(g.g_rect.w/data.data[0].length);
+	//const w_px_inc = Math.floor(g.g_rect.w/data.data[0].length)-2.0;
+	//const w_px_inc = (g.g_rect.w/data.data[0].length);
+	const w_px_inc = Math.floor(grid.xP/grid.xM);//(g.g_rect.w/data.data[0].length);
 
 	for(let p = 0; p < data.data[0].length; p++) {
-        const x = grid.x0 + ((p*grid.xP)/grid.xM);
-
-		const up_y = ((data.data[0][p]*grid.yP)/grid.yM);
-		const up_bar = new Bar(p, data.data[0][p], x, grid.y0, w_px_inc, -up_y).draw(_ctx);
-
-		g.bars_array.push(up_bar);
-
+        const x = (grid.x0 + Math.floor((p*grid.xP)/grid.xM));
+		if(data.mean[0] !== 0) {
+			const up_y = Math.floor((data.data[0][p] * grid.yP) / grid.yM);
+			const up_bar = new Bar(p, data.data[0][p], x, grid.y0, w_px_inc, -up_y).draw(_ctx);
+			g.bars_array.push(up_bar);
+		}
 		if(data.mean[1] !== 0){
-			const dn_y = ((data.data[1][p]*grid.yP)/grid.yM);
+			const dn_y = Math.floor((data.data[1][p]*grid.yP)/grid.yM);
 			const dn_bar = new Bar(p, data.data[1][p], x, grid.y0, w_px_inc, -dn_y).draw(_ctx);
 			g.bars_array.push(dn_bar);
 		}
@@ -188,7 +194,6 @@ function plot(_ctx, grid, data){
 
 			const th = (g['wudi_th_'+t]*grid.yP)/grid.yM;
 
-
 			_ctx.strokeStyle = g.vis['bar_'+t];
 			_ctx.lineWidth = 1;
 			_ctx.beginPath();
@@ -196,7 +201,7 @@ function plot(_ctx, grid, data){
 			_ctx.lineTo(g.w-g.vis.pad, grid.y0 - th);
 			_ctx.stroke();
 
-			console.log(t, th, _ctx.strokeStyle);
+			//console.log(t, th, _ctx.strokeStyle);
 
 		}
 	}
@@ -228,9 +233,11 @@ function graph_event(e){
 		dom_marker_value.style.display = 'block';
 		const _ctx = dom_source.getContext( "2d" );
 
-		const interval_px = g.g_rect.w/g.data_width;
+		const inter_v = g.grid.xP/g.grid.xM;
+		//
+		// const interval_px = g.g_rect.w/g.data_width;
 
-		const rx = Math.floor((u_x-g.g_rect.x) / interval_px);
+		const rx = Math.floor((u_x-g.g_rect.x) / inter_v);
 		g.selected = rx;
 
 
@@ -248,8 +255,10 @@ function graph_event(e){
 		g.bars_array.filter(b => b.id === rx).map(b=>{
 			if(b.data) kf += `<div style="color:${b.color_select}">${Math.abs(b.data)}</div>`;
 			b.draw(_ctx,'selected');
+			//kf += `<span>${b.rect.w}</span>`;
 		})
 
+		//kf += `<span>${g.g_rect.w}</span></br><span>${u_x-g.g_rect.x}</span>`;
 
 		dom_marker_value.innerHTML = (g.x_range_start+rx)+kf;
 		const dk = dom_marker_value.getBoundingClientRect();
@@ -327,6 +336,9 @@ function graph(graph_obj, w, h, context){
     ctx.fillRect( 0, 0, g.w, g.h );
 
     const grid = make_axes_and_grid(ctx, graph_obj);
+	g.grid = grid;
+	console.log(grid);
+
 	plot(ctx, grid, graph_obj);
 
 	dom_source.addEventListener('mousemove', graph_event);

@@ -25,7 +25,7 @@ const vars = {
 		height:24
 	},
 	layers:{
-		allow:['line_strings', 'contours', 'mpa_s'] ///, 'contours'] ///'polygons',
+		allow:['line_strings', 'contours', 'mpa_s', 'polygons'] ///, 'contours'] ///'polygons',
 	},
 	map:{
 		test_bounds: [-7.0, 29.0, 37.0, 49.0]
@@ -46,7 +46,9 @@ const vars = {
 		bottom_offset: 70,
 		bottom_bar_height: 32,
 		x_axis_inset: 10,
-		y_axis_inset: 10
+		y_axis_inset: 10,
+		camera_auto_affine: false,
+		navigation_active: false
 	},
 	wudi_point_cache: {},
 	data: {},
@@ -71,6 +73,17 @@ const vars = {
 				opacity:0.25
 			}
 		},
+		polygonsMaterial:{
+			type: 'MeshBasicMaterial',
+			dict: {
+				color: 0x333333,
+				side: 'FrontSide',
+				transparent: true,
+				depthTest: false,
+                depthWrite: false,
+				opacity:0.25
+			}
+		},
 		contours:{
 			type: 'LineBasicMaterial',
 			dict: {
@@ -85,7 +98,7 @@ const vars = {
 		}
 	},
 	colors:{
-		downwelling:[1.0, 0.0, 0.0],
+		downwelling:[1.0, 0.4, 0.2],
 		upwelling:[0.2, 0.6, 1.0],
 		mpa_s_designated:[0.1, 1.0, 0.1, 0.25],
 		mpa_s_proposed:[0.1, 1.0, 0.1, 0.1],

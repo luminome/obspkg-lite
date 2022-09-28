@@ -5,7 +5,7 @@
   "source": "src/index.html",
   "browserslist": "> 0.5%, last 2 versions, not dead",
   "scripts": {
-    "build-watch": "parcel watch ./src/index.html --no-hmr",
+    "build-watch": "parcel watch ./src/index.html",
     "start-watch": "nodemon server/index.js",
     "dev": "concurrently --kill-others \"npm run start-watch\" \"npm run build-watch\"",
     "build": "parcel build ./src/index.html",

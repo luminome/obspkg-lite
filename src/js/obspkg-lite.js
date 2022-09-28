@@ -141,13 +141,13 @@ vars.selecta = {
             if (this.times.years[0] !== 'all') {
                 const years_grp = [...this.times.years];
                 const months_grp = [...this.times.months];
-                title.innerHTML = 'WUDI ' + util.to_lexical_range(years_grp) + ' ' + util.to_lexical_range(months_grp, 'mo');
+                title.innerHTML = util.to_lexical_range(years_grp) + ' ' + util.to_lexical_range(months_grp, 'mo');
                 document.getElementById('months_container').style.display = 'flex';
                 //document.getElementById('years_container').style.height = '24px';
                 //if(vars.view.init_state)
                 window_redraw();
             }else{
-                title.innerHTML = 'WUDI 1979 to 2020';
+                title.innerHTML = '1979 to 2020';
                 document.getElementById('months_container').style.display = 'none';
                 //document.getElementById('years_container').style.height = '48px';
                 //if(vars.view.init_state)
@@ -216,7 +216,7 @@ class Sector {
     draw(object) {
 
         if (object.name === 'line_strings') {
-            const mat = new THREE[vars.mats.line_strings.type](vars.mats.line_strings.dict);
+            //const mat = new THREE[vars.mats.line_strings.type](vars.mats.line_strings.dict);
 
             const material = new THREE.ShaderMaterial({
                 uniforms: {
@@ -224,7 +224,7 @@ class Sector {
                     value: 20,
                   },
                   color: {
-                    value: new THREE.Color(0x666666) //;//.fromArray(datum.color[0]),
+                    value: new THREE.Color(vars.mats.line_strings.dict.color) //;//.fromArray(datum.color[0]),
                   }
                 },
                 vertexShader: document.getElementById('map-lines-vertex-Shader').textContent,
@@ -365,6 +365,80 @@ class Sector {
             });
 
         }
+
+        if (object.name === 'polygons'){
+
+            const polygons_material = new THREE.ShaderMaterial({
+                uniforms: {
+                  level: {
+                    value: 10,
+                  },
+                  color: {
+                    value: new THREE.Color(vars.mats.polygonsMaterial.dict.color) //;//.fromArray(datum.color[0]),
+                  }
+                },
+                vertexShader: document.getElementById('map-polygons-vertex-Shader').textContent,
+                fragmentShader: document.getElementById('map-polygons-fragment-Shader').textContent,
+                side: THREE.FrontSide,
+                transparent: true,
+                blending: THREE.AdditiveBlending,
+                depthTest: false,
+                depthWrite: false,
+            });
+
+            object.raw.map(obj => {
+                //const mpa_s = new THREE.Group();
+                for(let poly of obj){
+
+
+                    const shape = shape_from_array(poly);
+
+                    const geometry = new THREE.ShapeBufferGeometry(shape);
+
+                    //const t_mat = mpa_mat.clone();
+                    // const figure = vars.data.protected_regions.raw[obj['id'] + 1];
+                    // const t_color = figure[2] === 'Designated' ? vars.colors.mpa_s_designated: vars.colors.mpa_s_proposed;
+                    //
+                    // t_mat.color = new THREE.Color().fromArray(t_color);//.get_value();
+                    // t_mat.opacity = t_color[3];
+
+                    const mesh = new THREE.Mesh(geometry, polygons_material);
+                    //mesh.userData.index = obj['id'];
+                    //mesh.name = 'mpa_s-'+obj['id'];
+
+                    // mpa_s.add(mesh);
+                    // console.log(obj);
+                    // console.log(coord_arrays);
+                    // for (let vertices of coord_arrays) {
+                    //     // const colors = new Float32Array(vertices.length * 3);
+                    //     // for (let i = 0; i<colors.length; i++) {
+                    //     //     colors[i] = 1.0-(obj['d'] / vars.depth_max);
+                    //     // }
+                    //
+                    //     const outline = new THREE.Shape(exterior_points);
+                    //
+                    //     const geometry = new THREE.BufferGeometry();
+                    //     geometry.setAttribute('position', new THREE.BufferAttribute(Float32Array.from(vertices), 3));
+                    //     geometry.deleteAttribute('uv');
+                    //     geometry.deleteAttribute('normal');
+                    //     //geometry.computeVertexNormals();
+                    //     ///geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3, true));
+                    //     const contour = new THREE.Line(geometry, mpa_mat);
+                    //     mpa_s.add(contour);
+                    // }
+                    //mpa_s.name = 'mpa_s';
+                    //mpa_s.userData.depth = obj['d'];
+                    mesh.userData.level = object.level;
+
+                    //mpa_s.position.set(0,0,-0.0025);
+                    this.group.add(mesh);
+
+                }
+            });
+
+        }
+
+
     }
 
     self_destruct() {
@@ -388,8 +462,8 @@ class Sector {
 
             });
 
-        const recap = Object.keys(this.meta);//.map(m => );
-        if ((recap.length === 1 && recap[0] === 'polygons') || !recap.length) this.self_destruct();
+        //const recap = Object.keys(this.meta);//.map(m => );
+        //if ((recap.length === 1 && recap[0] === 'polygons') || !recap.length) this.self_destruct();
 
         return true;
     }
@@ -594,6 +668,7 @@ const instance_dummy = new THREE.Object3D();
 
 const display_inline_array = ['none', 'inline-block'];
 const display_array = ['none', 'block'];
+const wudi_type_array = [{item:'upwelling',label:'up'}, {item:'downwelling',label:'down'}];
 
 const ray_caster = new THREE.Raycaster();
 const cam_base_pos = new THREE.Vector3(0, 0, default_z);
@@ -783,8 +858,10 @@ const element_info_filter = {
         if (vars.selecta.wudi.points.hover.length) wudi_point_select_state(vars.selecta.wudi.points.hover[0], false);
         wudi_point_select_state(data_index, true);
         vars.selecta.wudi.points.hover = [data_index];
+        const point_info = get_point_selection_state([data_index], index);
         return {
-            text: get_point_selection_state([data_index], index)
+            head: point_info.head,
+            text: point_info.text
         }
     },
     wudi_up: (index = null) => {
@@ -969,19 +1046,20 @@ function rayIntersectionWithXZPlane(rayOrigin, rayDirection, planeY) {
     return vc.set(xIntersect, planeY, zIntersect);
 }
 
-function apply_adaptive_scale(inst, v, v_lim, index, sign) {
+function apply_adaptive_scale(inst, v, v_lim, index, sign, a_lim) {
     //#//TODO must re-normalize to scale.
     inst.getMatrixAt(index, mu);
     mu.decompose(vw, qu, vu);
-    const value = v_lim === 0 || v === 0 ? (0.0001) : (v / v_lim*Math.sign(v));//v*Math.sign(v_lim);//
+    const value = a_lim === 0 || v === 0 ? (0.0001) : (v / a_lim*sign);//v*Math.sign(v_lim);//
     //const value = v_lim === 0 || v === 0 ? (0.0001) : v*Math.sign(v_lim);
+    const color_value = v_lim === 0 || v === 0 ? (0.0001) : (v / v_lim*sign);
     vu.setZ(value * vars.bar_scale);
     vu.setY((1 - camera_scale) * vars.bar_scale_width);
     mu.compose(vw, qu, vu);
     inst.setMatrixAt(index, mu);
 
     if (!inst.userData.td.color_default[index].selected) {
-        utility_color.fromArray(inst.userData.td.base_color).multiplyScalar(Math.abs(value));
+        utility_color.fromArray(inst.userData.td.base_color).multiplyScalar(Math.abs(color_value));
         inst.setColorAt(index, utility_color.clone());
         inst.userData.td.color_default[index].color = utility_color.toArray();
     }
@@ -1028,8 +1106,8 @@ function adaptive_scaling_wudi() {
         //console.log("visible.set", visible.set);
         for (let v of visible.set) {
             //DEBUG /// if (v[0] === 1085) console.log(visible.up[v[2]][0], visible.down[v[2]][0], lim, v[0]);
-            apply_adaptive_scale(wudi_up, visible.up[v[2]][0], lim[2], v[0], 1.0);
-            apply_adaptive_scale(wudi_down, visible.down[v[2]][0], lim[2], v[0], -1.0);
+            apply_adaptive_scale(wudi_up, visible.up[v[2]][0], lim[0], v[0], 1.0, lim[2]);
+            apply_adaptive_scale(wudi_down, visible.down[v[2]][0], lim[1], v[0], -1.0, lim[2]);
         }
 
         //obs_handler({LIM: lim});
@@ -1064,7 +1142,9 @@ function move_map_to_point(pid){
 function move_to_point(target_pid){
     const dub_select = wudi_dub_selecta.set_from_point(target_pid);
     mover.set_target(user_position.actual, dub_select[0]);
-    //mover.set_rotation_target(cube, camera_projected, user_position.actual, dub_select[0], dub_select[1]);
+    if(vars.view.camera_auto_affine){
+        mover.set_rotation_target(cube, camera_projected, user_position.actual, dub_select[0], dub_select[1]);
+    }
 }
 
 function wudi_point_select_state(index, state, set_select = null) {
@@ -1140,6 +1220,7 @@ function get_point_selection_state(data_index, inst_index) {
 
 
     stats = {'times': vars.selecta.wudi.times.selected, 'days': [], 'up': [], 'down': [], 'events': []};
+    //stats = {'times': title.innerHTML, 'days': [], 'up': [], 'down': [], 'events': []};
 
     data_index.map(dp => {
         for (let d of vars.selecta.wudi.times.selected) {
@@ -1151,17 +1232,30 @@ function get_point_selection_state(data_index, inst_index) {
         }
     });
 
-    stats.pid = data_index;
-    stats.iid = inst_index;
-    stats.days = r_sum(stats.days, stats.times.length);
-    stats.up = r_sum(stats.up, data_index.length * stats.times.length);
-    stats.down = r_sum(stats.down, data_index.length * stats.times.length);
-    stats.events = r_sum(stats.events, data_index.length * stats.times.length);
-    stats.locat = vars.data.wudi_points.raw.data[inst_index].slice(6, 8);
+    const labels = [title.innerHTML];
+
+    for(let u of wudi_type_array){
+        console.log(u);
+        const col = utility_color.fromArray(vars.colors[u.item]).getHex();
+        const stat = r_sum(stats[u.label], data_index.length * stats.times.length);
+        labels.push(`<span style="font-family:heavy_data_bold, sans-serif; color:${vars.colors.hex_css(col)}">${stat} ${u.label}-days</span>`);
+    }
+
+    labels.push(`${r_sum(stats.days, stats.times.length)} days`);
 
 
 
-    return Object.entries(stats);
+    // stats.pid = data_index;
+    // stats.iid = inst_index;
+    // stats.days = r_sum(stats.days, stats.times.length);
+    // stats.up = r_sum(stats.up, data_index.length * stats.times.length);
+    // stats.down = r_sum(stats.down, data_index.length * stats.times.length);
+    // stats.events = r_sum(stats.events, data_index.length * stats.times.length);
+    // stats.locat = vars.data.wudi_points.raw.data[inst_index].slice(6, 8);
+
+
+
+    return {head:'Nº'+data_index,text:labels};
 }
 
 function interactionAction() {
@@ -1313,6 +1407,12 @@ function refresh_sectors(){
     return true;
 }
 
+function run_optics(){
+    camera_scale = 1 - (camera_distance / vars.max_zoom);
+    const zg = Math.floor(Math.log(camera_distance)) + 1;
+    grid_resolution = z_mants[zg];
+}
+
 function event_handler(type, evt_object){
     run_camera();
 
@@ -1455,9 +1555,11 @@ function event_handler(type, evt_object){
             vars.info.drag_position(delta_x, delta_y);
             vars.selecta.moved = true;
         }
-        if(scale_z){
+        if (scale_z){
             if (cam_base_pos.z < vars.min_zoom) {
                 cam_base_pos.z = vars.min_zoom;
+            } else if (cam_base_pos.z > vars.max_zoom) {
+                cam_base_pos.z = vars.max_zoom;
             } else {
                 cam_base_pos.multiplyScalar(scale_z);
                 vk.subVectors(mouse_plane_pos, user_position.actual);
@@ -1467,9 +1569,7 @@ function event_handler(type, evt_object){
         }
     }
 
-    camera_scale = 1 - (camera_distance / reset_default_z);
-    const zg = Math.floor(Math.log(camera_distance)) + 1;
-    grid_resolution = z_mants[zg];
+    run_optics();
 
 
 
@@ -1544,18 +1644,42 @@ function event_handler(type, evt_object){
 
 }
 
+function control_recenter_map(){
+    cam_base_pos.set(0, 0, vars.max_zoom);
+    cam_pos.set(0, 0, 0);
+    user_position.actual.set(0, 0, 0);
+    user_position.round.set(0, 0, 0);
+    cube.userData.originalMatrix.decompose(cube.position, cube.quaternion, cube.scale);
+    cube.matrix.copy(cube.userData.originalMatrix);
+
+    run_camera();
+    run_optics();
+    adaptive_scaling_wudi();
+    run_ticks();
+    refresh_sectors();
+}
+
+function control_camera_behavior(){
+    vars.view.camera_auto_affine = !vars.view.camera_auto_affine;
+    this.classList.toggle('control-toggle');
+}
+function control_navigation_state(){
+    vars.view.navigation_active = !vars.view.navigation_active;
+    this.classList.toggle('control-toggle');
+
+    // display_array[+vars.view.navigation_active];
+    // q_nav_bar.classList.toggle('hidden');
+    q_nav_bar.style.display = 'block';
+    //alert(display_array[+vars.view.navigation_active]);
+    window_redraw();
+}
+
+
 function keyAction(raw) {
     active_keys = raw;
-    //console.log(raw);
 
     if (raw.includes('Space')) {
-        cam_base_pos.set(0, 0, 10);
-        cam_pos.set(0, 0, 0);
-        user_position.actual.set(0, 0, 0);
-        cube.userData.originalMatrix.decompose(cube.position, cube.quaternion, cube.scale);
-        cube.matrix.copy(cube.userData.originalMatrix);
-        run_camera();
-        run_ticks();
+        control_recenter_map();
     }
 
     if (raw.includes('Tab')) {
@@ -2069,8 +2193,10 @@ function wudi_plot(obj) {
         side: THREE.FrontSide,
         transparent: true,
         opacity: 1.0,
-        blending: THREE.AdditiveBlending, //THREE.NormalBlending, //
-        depthWrite: true
+        blending: THREE.AdditiveBlending, //AdditiveBlending, //THREE.NormalBlending, //
+        depthWrite: false,
+        depthTest: false
+
     });
 
     for (let bar of bar_instances) {
@@ -2363,12 +2489,13 @@ function wudi_set_data_selection() {
 
 function window_redraw(first_run=null) {
     console.log("window_redraw fired.");
-    window.scrollTo(0, 0);
+    //window.scrollTo(0, 0);
 
     const w = window.innerWidth;
     const h = window.innerHeight;
 
     q_nav_bar.style.height = vars.view.q_nav_bar_height+'px';
+    q_nav_bar.style.display = display_array[+vars.view.navigation_active];
 
     let bars_height = 0;
     const bars = [...document.querySelectorAll('.bar')];
@@ -2376,8 +2503,10 @@ function window_redraw(first_run=null) {
 
     bars.map(b => {
         const bbox = b.getBoundingClientRect();//offsetHeight;//
-        if(b.style.display !== 'none') bars_height += bbox.height;
-        b.classList.remove('hidden');
+        if(b.style.display !== 'none') {
+            bars_height += bbox.height;
+            b.classList.remove('hidden');
+        }
         //console.log(b, bbox);
     });
 
@@ -2404,6 +2533,8 @@ function window_redraw(first_run=null) {
 
     q_nav.setup();
 
+
+
     x_major_axis.style['border-color'] = vars.colors.hex_css(vars.colors.chart_tick);
     x_major_axis.style.opacity = '0.25';
     x_major_axis.style.left = '0px';
@@ -2424,7 +2555,7 @@ function window_redraw(first_run=null) {
     const i_height = title_box.getBoundingClientRect();
     intro_box.style.bottom = i_height.height+vars.view.title_bottom_offset+'px';
 
-    [...document.querySelectorAll('.box-wrapper')].map(wp => {
+    [...document.querySelectorAll('.is-overlay')].map(wp => {
         wp.style.backgroundColor = vars.colors.hex_css(vars.colors.window, vars.colors.info_bk_opacity);
     });
 
@@ -2547,6 +2678,8 @@ function init() {
     visible_dimensions = visibleAtZDepth(-default_z, camera);
     cam_base_pos.z = ((default_z / visible_dimensions.w) * vars.map.dims.w) + 2.0;
     reset_default_z = cam_base_pos.z;
+    vars.max_zoom = reset_default_z;
+    ///alert(reset_default_z);
 
     let zg = Math.floor(Math.log(cam_base_pos.z)) + 1;
     grid_resolution = z_mants[zg];
@@ -3227,8 +3360,6 @@ async function window_dom_prepare(){
     const page_handle_svg = document.getElementById('h-bar');
     page_handle.appendChild(page_handle_svg);
 
-
-
     function close_intro(){
         intro_box.style.display = 'none';
     }
@@ -3236,6 +3367,13 @@ async function window_dom_prepare(){
     const intro_button = document.getElementById('intro-button');
     intro_button.addEventListener('mousedown', close_intro);
 
+
+    //<!--		recenter,camera-motion,instructions,navigation -->
+
+
+    document.getElementById('recenter').addEventListener('mouseup', control_recenter_map);
+    document.getElementById('camera-motion').addEventListener('mouseup', control_camera_behavior);
+    document.getElementById('navigation').addEventListener('mouseup', control_navigation_state);
 
 
 
