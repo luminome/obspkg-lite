@@ -1,4 +1,5 @@
 import {vars} from "./vars-lite";
+import {months_str} from "./obspkg-lite-util.js";
 
 const out = document.getElementById('obs');
 const dom_source = document.getElementById("graph");
@@ -13,10 +14,11 @@ const g = {
 	selected: null,
 	last_selected: null,
     vis: {
-        pad:12,
+        pad:18,
 		gutter:{left:32,bottom:24},
-        stroke: "#333333",
-        stroke_high: "#666666",
+        stroke: "#666666",
+        stroke_high: "#CCCCCC",
+		legend_text: "white",
 		stroke_data: "white",
 		// mean_color: "#FF00FF",
 		// bar_up: "#0000AA",
@@ -26,7 +28,7 @@ const g = {
         font_siz:12
     },
 	data_width:null,
-	mants: [0.1, 0.25, 0.5, 1.0, 5.0, 20.0, 50.0, 100.0],
+	mants: [0.25, 0.5, 1.0, 5.0, 25.0, 50.0, 100.0],
 	log: (og) => {
 		out.innerHTML += '</br>graph:</br>';
 		Object.entries(og).map(g => out.innerHTML += g+'</br>');
@@ -39,31 +41,48 @@ class Bar {
 		this.data = data;
 		this.color = Math.sign(data) > 0 ? g.vis.bar_up : g.vis.bar_down;
 		this.color_select = Math.sign(data) > 0 ? g.vis.bar_up_select : g.vis.bar_down_select;
-		this.rect = {x:(x),y:(y),x2:(x+w),y2:(y+h),w:(w),h:(h)};
+		this.rect = {x:(x),y:(y),x2:(x+w),y2:(y+h),w:(w-1),h:(h)};
+		this.special = null;
+		this.updown = Math.sign(data);
 		//this.rect = {x:parseInt(x),y:parseInt(y),x2:parseInt(x+w),y2:parseInt(y+h),w:parseInt(w),h:parseInt(h)};
 		return this;
 	}
 
-	draw = (_ctx, select = null) => {
+	draw = (_ctx, select = null, special = null) => {
 		_ctx.lineWidth = 0;
 		_ctx.strokeStyle = null;
-		_ctx.fillStyle = select ? this.color_select : this.color;
+		_ctx.fillStyle = select || this.special ? this.color_select : this.color;
 		_ctx.clearRect(this.rect.x, this.rect.y, this.rect.w, this.rect.h);
 		_ctx.fillRect(this.rect.x, this.rect.y, this.rect.w, this.rect.h);
+		if(this.special !== null){
+			_ctx.fillStyle = '#FFFFFF55';
+			//_ctx.clearRect(this.rect.x, this.rect.y, this.rect.w, this.rect.h);
+			// if(this.updown === 'down') _ctx.fillRect(this.rect.x, this.rect.y-this.special, this.rect.w, this.rect.h+this.special);
+			// if(this.updown === 'up') _ctx.fillRect(this.rect.x, this.rect.y+this.special, this.rect.w, this.rect.h-this.special);
+			_ctx.fillRect(this.rect.x, this.rect.y-this.special, this.rect.w, this.rect.h+this.special);
+			// _ctx.fillStyle = '#FFFFFF11';
+			// _ctx.fillRect(this.rect.x, this.rect.y, this.rect.w, (this.updown*-1)*this.rect.y);
+		}
+
+
 		return this;
 	}
 }
 
-function get_range(m){
+function get_range(m, axis){
 	const diff = (m[1]-m[0]);//*2.0;
-	let zg = Math.ceil(Math.log(diff));// + 1;
+	let zg = Math.ceil(Math.log(diff))-1;// + 1;
 
 	const gr = zg < 0 ? g.mants[0] : g.mants[zg];
 
 
-	const hi = m[1] === 0 ? 0.0 : Math.ceil(m[1]/gr)*gr;
-	const lo = m[0] === 0 ? 0.0 : Math.ceil(Math.abs(m[0])*10)/-10;
-	const range = Math.ceil((hi-lo)/gr);
+	let hi = m[1] === 0 ? 0.0 : Math.ceil(m[1]/gr)*gr;
+	let lo = m[0] === 0 ? 0.0 : Math.ceil(Math.abs(m[0])*10)/-10;
+	if(hi % 2 !== 0 && axis === 'y' && zg > 1) hi+=gr;
+	if(lo % 2 !== 0 && axis === 'y' && zg > 1) lo-=gr;
+
+	let range = Math.ceil((hi-lo)/gr);
+	//range += (axis === 'y' && range % 2 !== 0) ? 1 : 0;
 
 	g.log({d:diff, g:gr, z:zg, hi:hi, lo:lo});
 
@@ -77,9 +96,9 @@ function get_range(m){
 
 function make_axes_and_grid(_ctx, data){
 
-	const x_range_arr = get_range(data.xlim);
+	const x_range_arr = get_range(data.xlim, 'x');
 	x_range_arr.r.reverse();
-	const y_range_arr = get_range(data.ylim);
+	const y_range_arr = get_range(data.ylim, 'y');
 
 
 
@@ -100,7 +119,7 @@ function make_axes_and_grid(_ctx, data){
 
 
 
-    for(let xva = 0; xva < x_range_arr.r.length; xva++) {
+    for(let xva = 0; xva < x_range_arr.r.length-1; xva++) {
         const x_off = xva*x_interval_px;
         _ctx.strokeStyle = g.vis.stroke;
         _ctx.beginPath();
@@ -113,9 +132,10 @@ function make_axes_and_grid(_ctx, data){
 
 		if(xva % tick_mant === 0){
 	        _ctx.font = `${g.vis.font_siz}px heavy_data`;
-	        _ctx.textAlign = 'center';
-	        _ctx.fillStyle = g.vis.stroke_high;///"#00ff00";//+ (g.vis.font_siz / 2)
-	        _ctx.fillText(g.x_range_start+x_range_arr.r[xva], (g.vis.gutter.left+x_off), (g.h-(g.vis.gutter.bottom/2)) + (g.vis.font_siz / 2.0) );
+	        _ctx.textAlign = 'left';
+	        _ctx.fillStyle = g.vis.legend_text;///"#00ff00";//+ (g.vis.font_siz / 2)
+			const label = g.style === 'year' ? months_str[x_range_arr.r[xva]] : g.x_range_start+x_range_arr.r[xva];
+	        _ctx.fillText(label, (g.vis.gutter.left+x_off), (g.h-(g.vis.gutter.bottom/2)) + (g.vis.font_siz / 2.0) );
     	}
 	}
 
@@ -134,22 +154,22 @@ function make_axes_and_grid(_ctx, data){
 			_ctx.strokeStyle = g.vis.stroke;
 		}
 
-        _ctx.beginPath();
-        _ctx.moveTo(g.vis.gutter.left, g.vis.pad+y_off);
-        _ctx.lineTo(g.w - g.vis.pad, g.vis.pad+y_off);
-        _ctx.stroke();
-
 		const m = _ctx.measureText(y_range_arr.r[yva]);
 		const ht = (m.fontBoundingBoxAscent + m.fontBoundingBoxDescent)*0.8;
 		//g.log({ht:ht, i:y_interval_px});
 
-		if(ht > y_interval_px) tick_mant = 2;
+		if(ht+2 > y_interval_px) tick_mant = 2;
 
 		if(yva % tick_mant === 0){
+			_ctx.beginPath();
+			_ctx.moveTo(g.vis.gutter.left, g.vis.pad+y_off);
+			_ctx.lineTo(g.w - g.vis.pad, g.vis.pad+y_off);
+			_ctx.stroke();
+
 	        _ctx.font = `${g.vis.font_siz}px heavy_data`;
 	        _ctx.textAlign = 'right';
-	        _ctx.fillStyle = g.vis.stroke_high;///"#00ff00";
-	        _ctx.fillText(y_range_arr.r[yva], g.vis.gutter.left - (g.vis.font_siz / 2.0), (g.vis.pad + y_off) + (g.vis.font_siz / 2.0) );
+	        _ctx.fillStyle = g.vis.legend_text;///"#00ff00";
+	        _ctx.fillText(g.style === 'month' ? y_range_arr.r[yva]:Math.abs(y_range_arr.r[yva]), g.vis.gutter.left - (g.vis.font_siz / 2.0), (g.vis.pad + y_off) + (g.vis.font_siz / 2.0) );
 		}
     }
 
@@ -169,40 +189,59 @@ function plot(_ctx, grid, data){
 	g.bars_array = [];
 
 	///console.log('plot', data);
-
 	//const w_px_inc = Math.floor(g.g_rect.w/data.data[0].length)-2.0;
 	//const w_px_inc = (g.g_rect.w/data.data[0].length);
+	const limits = {};
+	const thr = ['up', 'down'];
+
+	if(g.style === 'month') {
+		for (let t of thr) {
+			console.log(g['wudi_th_' + t]);
+			limits[t] = ((g['wudi_th_' + t] * grid.yP) / grid.yM);
+		}
+	}
+
+	console.log(limits);
+	// console.log(data.mean);
+
 	const w_px_inc = Math.floor(grid.xP/grid.xM);//(g.g_rect.w/data.data[0].length);
 
 	for(let p = 0; p < data.data[0].length; p++) {
-        const x = (grid.x0 + Math.floor((p*grid.xP)/grid.xM));
-		if(data.mean[0] !== 0) {
+        const x = Math.floor(grid.x0 + Math.floor((p*grid.xP)/grid.xM));
+
+
+		if(data.mean[0][0] !== 0) {
+			//universal case for month
 			const up_y = Math.floor((data.data[0][p] * grid.yP) / grid.yM);
-			const up_bar = new Bar(p, data.data[0][p], x, grid.y0, w_px_inc, -up_y).draw(_ctx);
+			// console.log('u', up_y);
+			const up_bar = new Bar(p, data.data[0][p], x, grid.y0, w_px_inc, -up_y);
+			const d_limit = thr[+(up_y < 0)];
+
+
+			up_bar.special = limits.hasOwnProperty(d_limit) && Math.abs(limits[d_limit]) < Math.abs(up_y) ? limits[d_limit] : null;
+			// up_bar.updown = 'up';
+			up_bar.draw(_ctx);
 			g.bars_array.push(up_bar);
+
 		}
-		if(data.mean[1] !== 0){
-			const dn_y = Math.floor((data.data[1][p]*grid.yP)/grid.yM);
-			const dn_bar = new Bar(p, data.data[1][p], x, grid.y0, w_px_inc, -dn_y).draw(_ctx);
+
+		if(data.mean[1][0] !== 0){
+			const dn_y = Math.floor((data.data[1][p] * grid.yP)/grid.yM);
+			const dn_bar = new Bar(p, data.data[1][p], x, grid.y0, w_px_inc, -dn_y);
+			dn_bar.draw(_ctx);
 			g.bars_array.push(dn_bar);
 		}
 	}
 
 	if(g.style === 'month'){
-		const thr = ['up','down'];
 		for(let t of thr){
-
-			const th = (g['wudi_th_'+t]*grid.yP)/grid.yM;
-
+			const th = limits[t];
 			_ctx.strokeStyle = g.vis['bar_'+t];
-			_ctx.lineWidth = 1;
+			_ctx.lineWidth = 2;
 			_ctx.beginPath();
 			_ctx.moveTo(grid.x0, grid.y0 - th);
 			_ctx.lineTo(g.w-g.vis.pad, grid.y0 - th);
 			_ctx.stroke();
-
-			//console.log(t, th, _ctx.strokeStyle);
-
 		}
 	}
 	// const mean_y = (data.mean[0]*grid.yP)/grid.yM;
@@ -253,14 +292,14 @@ function graph_event(e){
 
 		let kf = '';
 		g.bars_array.filter(b => b.id === rx).map(b=>{
-			if(b.data) kf += `<div style="color:${b.color_select}">${Math.abs(b.data)}</div>`;
+			if(b.data) kf += `<div style="color:${b.color_select}">${g.style === 'month' ? b.data:Math.abs(b.data)}</div>`;
 			b.draw(_ctx,'selected');
 			//kf += `<span>${b.rect.w}</span>`;
 		})
 
 		//kf += `<span>${g.g_rect.w}</span></br><span>${u_x-g.g_rect.x}</span>`;
 
-		dom_marker_value.innerHTML = (g.x_range_start+rx)+kf;
+		dom_marker_value.innerHTML = (g.style === 'year' ? months_str[rx] : (g.x_range_start+rx)) + kf;
 		const dk = dom_marker_value.getBoundingClientRect();
 		dom_marker_value.style.top = u_y-(dk.height)+'px';
 		dom_marker_value.style.left = u_x-(dk.width/2)+'px';
@@ -328,7 +367,21 @@ function graph(graph_obj, w, h, context){
 
 	dom_source.parentNode.style.height = g.h+'px';
 
-	dom_title.innerHTML = 'point(s)'+operational_context.points.selected;
+	//TODO// DAYS PER/x
+	const points_lex = operational_context.points.selected.map(se => 'Nº'+se);
+	const is_multi = operational_context.points.selected.length;
+
+	dom_title.innerHTML = `point${is_multi > 1 ? 's':''} `+points_lex+' ';
+
+	const figure_title_equiv = {
+		all: 'days per year ',
+		year: 'days per month ',
+		month: 'daily WUDI values for ',
+	}
+
+	dom_title.innerHTML += figure_title_equiv[g.style];
+
+	dom_title.innerHTML += graph_obj.main_title + (is_multi > 1 ? ' (daily average)' : '');
 
     const ctx = dom_source.getContext( "2d", { alpha: false });
     ctx.clearRect( 0, 0, g.w, g.h );
@@ -337,13 +390,13 @@ function graph(graph_obj, w, h, context){
 
     const grid = make_axes_and_grid(ctx, graph_obj);
 	g.grid = grid;
-	console.log(grid);
+	//console.log(grid);
 
 	plot(ctx, grid, graph_obj);
 
 	dom_source.addEventListener('mousemove', graph_event);
 
-	dom_close.addEventListener('mousedown', operational_context.points_deselect);
+	// dom_close.addEventListener('mouseup', operational_context.points_deselect);
 
 }
 

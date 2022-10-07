@@ -14,6 +14,7 @@ const deg_to_km = (v) => (v * km_deg);
 
 const norm_val = (val, mi, ma) => (val - mi) / (ma - mi);
 
+const months_str = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 const find_scale = (data, index) => {
     const group = data.reduce((sv, e, i) => {
@@ -49,7 +50,7 @@ const shuffle_array = (array) => {
 
 const to_lexical_range = (numbers, type=null) => {
 	//http://jsfiddle.net/sandro_paganotti/4zx73csv/1/
-	const months_str = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
     const sorted = numbers.sort(function(a,b){return a-b;});
     const first = sorted.shift();
     return sorted.reduce(function(ranges, num){
@@ -69,5 +70,5 @@ const to_lexical_range = (numbers, type=null) => {
 }
 
 
-export {max_min, deg_to_km, norm_val, title_case, shuffle_array, to_lexical_range, naturalize_on_loop, find_scale};
+export {months_str, max_min, deg_to_km, norm_val, title_case, shuffle_array, to_lexical_range, naturalize_on_loop, find_scale};
 

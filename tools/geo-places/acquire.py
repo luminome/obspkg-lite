@@ -31,7 +31,7 @@ SELECT DISTINCT ?townLabel ?countryLabel ?area ?population ?elevation
   }
   
   SERVICE wikibase:label {
-    bd:serviceParam wikibase:language "fr". 
+    bd:serviceParam wikibase:language "en". 
     wd:%(q)s rdfs:label ?townLabel.
     ?country rdfs:label ?countryLabel.
     ?region rdfs:label ?regionLabel.
@@ -43,17 +43,19 @@ SELECT DISTINCT ?townLabel ?countryLabel ?area ?population ?elevation
 
 # with open('location_collection.json', 'w') as f:
 #     source_locations = json.load(f.read())
-with open('location_collection_super.json', 'r') as f:
+with open('locations_super.json', 'r') as f:
     source_locations = json.load(f)
 
 
 if __name__ == '__main__':
 
-    #print(query % {'q': 'test'})
-    print(len(source_locations.keys()))
+    # print(query % {'q': 'test'})
+    # print(len(source_locations.keys()))
     data_flat_list = []
 
     for i, loc in enumerate(source_locations):
+        print(i, loc)
+
         if 'tags' in source_locations[loc]:
             tmp = source_locations[loc]
             tmp['node'] = loc
@@ -93,7 +95,7 @@ if __name__ == '__main__':
                     print(tmp)
 
             data_flat_list.append(tmp)
+            print(tmp)
 
-
-    with open('locations_super.json', 'w') as f:
-        json.dump(data_flat_list, f, indent=1, cls=DecimalEncoder)
+    # with open('locations_super.json', 'w') as f:
+    #     json.dump(data_flat_list, f, indent=1, cls=DecimalEncoder)

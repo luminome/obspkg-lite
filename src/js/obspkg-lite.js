@@ -96,12 +96,13 @@ vars.info = {
 vars.info.init();
 
 vars.selecta = {
+    hover_intersections: [],
     intersect: null,
     focus_obj: null,
     moved: null,
     wudi: {
         times: {years: ['all'], months: ['all'], has_default: 'all', selected: [], loaded: [], required: []},
-        points: {hover: [], selected: []},
+        points: {canonical_selection: [], hover: [], selected: [], dom_handles:[]},
         points_in_view: [],
         times_select: function (type, element = null) {
             this.times.required = [];
@@ -132,6 +133,8 @@ vars.selecta = {
 
             this.times.required = this.times.required.filter((t) => !this.times.loaded.includes(t));
 
+            //console.log('this.times', this.times);
+
             wudi_get_data(this.times.required);
 
             obs_handler({'T': Object.entries(this.times)});
@@ -141,7 +144,18 @@ vars.selecta = {
             if (this.times.years[0] !== 'all') {
                 const years_grp = [...this.times.years];
                 const months_grp = [...this.times.months];
-                title.innerHTML = util.to_lexical_range(years_grp) + ' ' + util.to_lexical_range(months_grp, 'mo');
+
+                //Y: u/d days per year
+                //M: u/d days (August) 2003
+                //Ds: daily WUDI values
+                //Y: u/d days month of x
+
+                const n_months = util.to_lexical_range(months_grp, 'mo');//.toString();//.trim();
+                ///alert(`-${months}-${util.to_lexical_range(years_grp)}`);
+                //alert(months.length);
+                // console.log(n_months);
+                title.innerHTML = n_months[0] !== undefined ? n_months + ' ' + util.to_lexical_range(years_grp) : util.to_lexical_range(years_grp);
+
                 document.getElementById('months_container').style.display = 'flex';
                 //document.getElementById('years_container').style.height = '24px';
                 //if(vars.view.init_state)
@@ -159,7 +173,11 @@ vars.selecta = {
             vars.selecta.wudi.points.selected.map(pt => {
                 wudi_point_select_state(pt, false, true);
             });
+            vars.selecta.wudi.points.dom_handles.map(dh => {
+                dh.dom_delete();
+            });
             vars.selecta.wudi.points.selected = [];
+            vars.selecta.wudi.points.dom_handles = [];
             graph_bar.style.display = 'none';
             window_redraw();
             return false;
@@ -171,16 +189,24 @@ vars.selecta = {
             if (pos === -1) {
                 this.points.selected.push(pid);
                 //wudi_point_select_state(vars.selecta.wudi.points.hover[0], true, true);
-                wudi_point_select_state(pid, true, true);
+                //wudi_point_select_state(pid, true, true);
                 //move_map_to_point(pid);
-                move_to_point(pid);
+                //move_to_point(pid);
+                const rpt = new wudiSelectionDomMark(pid);
+                this.points.dom_handles.push(rpt);
+                rpt.draw();
+                //
             } else {
                 this.points.selected.splice(pos, 1);
+                this.points.dom_handles[pos].dom_delete();
+                this.points.dom_handles.splice(pos, 1);
                 //wudi_point_select_state(vars.selecta.wudi.points.hover[0], false, true);
-                wudi_point_select_state(pid, false, true);
+                //wudi_point_select_state(pid, false, true);
             }
             //#// where to put graph option?
-            wudi_get_point_detail(this.points.selected);
+            wudi_get_point_detail(this.points.selected).then(r => {
+                return r;
+            })
             //wudi_get_point_detail(this.points.selected);
             //obs_handler({'T':Object.entries(this.points.selected)});
         }
@@ -210,6 +236,7 @@ class Sector {
         this.objects = {};
         this.enabled = vars.sector_draw ? vars.layers.allow : [];
         this.meta = null;
+        this.disabled = [];
         this.init();
     }
 
@@ -221,7 +248,7 @@ class Sector {
             const material = new THREE.ShaderMaterial({
                 uniforms: {
                   level: {
-                    value: 20,
+                    value: vars.line_strings_engage_distance,
                   },
                   color: {
                     value: new THREE.Color(vars.mats.line_strings.dict.color) //;//.fromArray(datum.color[0]),
@@ -251,6 +278,8 @@ class Sector {
             }
             lines_group.name = 'line_strings';
             lines_group.userData.level = object.level;
+            lines_group.userData.enabled = true;
+            lines_group.userData.type = 'line_strings';
             this.group.add(lines_group);
         }
 
@@ -263,18 +292,21 @@ class Sector {
                     value: vars.depth_engage_distance
                   },
                   color: {
-                    value: new THREE.Color(vars.colors.contours.base),
-                  }
+                    value: new THREE.Color(vars.mats.contours.dict.color),  //new THREE.Color(vars.colors.contours.base),
+                  },
+                    baseColor: {
+                        value: new THREE.Color(vars.colors.window)
+                    }
                 },
                 vertexShader: document.getElementById('bathos-vertex-Shader').textContent,
                 fragmentShader: document.getElementById('bathos-fragment-Shader').textContent,
-                transparent: true,
-                blending: THREE.NormalBlending, ///AdditiveBlending,
-                depthTest: false,
-                depthWrite: false,
+                // transparent: true,
+                // blending: THREE.AdditiveBlending, ///AdditiveBlending,
+                // depthTest: false,
+                // depthWrite: false,
             });
 
-
+            const contours = new THREE.Group();
             object.raw.map(obj => {
                 const contour_depth = new THREE.Group();
                 const coord_arrays = coords_from_array(obj['line_strings'], obj['d'] / -vars.depth_max);
@@ -300,27 +332,25 @@ class Sector {
                 contour_depth.userData.depth = obj['d'];
                 contour_depth.userData.level = object.level;
                 contour_depth.position.set(0,0,-0.0025);
-                this.group.add(contour_depth);
+                contours.add(contour_depth);
             });
+            contours.name = 'contours';
+            contours.userData.level = object.level;
+            contours.userData.enabled = true;
+            contours.userData.type = 'contours';
+            this.group.add(contours);
+
         }
 
         if (object.name === 'mpa_s'){
-            // console.log(object);
-            // const mpa_mat = new THREE.LineBasicMaterial({
-            //     color: 0xFFFFFF,
-            //     transparent: true,
-            //     opacity:1.0,
-            //     blending: THREE.NormalBlending, ///AdditiveBlending,
-            //     depthTest: false,
-            //     depthWrite: false,
-            // });
+
             const mpa_mat = new THREE[vars.mats.mpaMaterial.type](vars.mats.mpaMaterial.dict);
             mpa_mat.blending = THREE.AdditiveBlending;
 
 
-
+            const mpa_s = new THREE.Group();
             object.raw.map(obj => {
-                //const mpa_s = new THREE.Group();
+                //
                 const shape = shape_from_array(obj['line_strings'][0]);
 
                 const geometry = new THREE.ShapeBufferGeometry(shape);
@@ -329,116 +359,69 @@ class Sector {
                 const figure = vars.data.protected_regions.raw[obj['id'] + 1];
                 const t_color = figure[2] === 'Designated' ? vars.colors.mpa_s_designated: vars.colors.mpa_s_proposed;
 
-                t_mat.color = new THREE.Color().fromArray(t_color);//.get_value();
+                t_mat.color = new THREE.Color().fromArray(t_color);
                 t_mat.opacity = t_color[3];
 
                 const mesh = new THREE.Mesh(geometry, t_mat);
                 mesh.userData.index = obj['id'];
                 mesh.name = 'mpa_s-'+obj['id'];
-
-                // mpa_s.add(mesh);
-                // console.log(obj);
-                // console.log(coord_arrays);
-                // for (let vertices of coord_arrays) {
-                //     // const colors = new Float32Array(vertices.length * 3);
-                //     // for (let i = 0; i<colors.length; i++) {
-                //     //     colors[i] = 1.0-(obj['d'] / vars.depth_max);
-                //     // }
-                //
-                //     const outline = new THREE.Shape(exterior_points);
-                //
-                //     const geometry = new THREE.BufferGeometry();
-                //     geometry.setAttribute('position', new THREE.BufferAttribute(Float32Array.from(vertices), 3));
-                //     geometry.deleteAttribute('uv');
-                //     geometry.deleteAttribute('normal');
-                //     //geometry.computeVertexNormals();
-                //     ///geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3, true));
-                //     const contour = new THREE.Line(geometry, mpa_mat);
-                //     mpa_s.add(contour);
-                // }
-                //mpa_s.name = 'mpa_s';
-                //mpa_s.userData.depth = obj['d'];
                 mesh.userData.level = object.level;
-
-                //mpa_s.position.set(0,0,-0.0025);
+                mesh.userData.type = 'mpa_s';
+                mesh.userData.enabled = vars.mpa_s_visible;
                 this.group.add(mesh);
             });
 
+            // mpa_s.name = 'mpa_s';//+obj['id'];
+            // mpa_s.userData.level = object.level;
+            // this.group.add(mpa_s);
         }
 
         if (object.name === 'polygons'){
 
             const polygons_material = new THREE.ShaderMaterial({
                 uniforms: {
-                  level: {
-                    value: 10,
-                  },
-                  color: {
-                    value: new THREE.Color(vars.mats.polygonsMaterial.dict.color) //;//.fromArray(datum.color[0]),
-                  }
+                    level: {
+                    value: vars.polygons_engage_distance,
+                    },
+                    auxCameraPosition: {
+                      value: camera_map_local
+                    },
+                    color: {
+                        value: new THREE.Color(vars.mats.polygonsMaterial.dict.color)
+                    },
+                    baseColor: {
+                        value: new THREE.Color(vars.colors.window)
+                    }
                 },
                 vertexShader: document.getElementById('map-polygons-vertex-Shader').textContent,
                 fragmentShader: document.getElementById('map-polygons-fragment-Shader').textContent,
                 side: THREE.FrontSide,
-                transparent: true,
-                blending: THREE.AdditiveBlending,
-                depthTest: false,
-                depthWrite: false,
+                // transparent: true,
+                // blending: THREE.AdditiveBlending,
+                // depthTest: false,
+                depthWrite: true,
             });
 
+            const polygons = new THREE.Group();
+
             object.raw.map(obj => {
-                //const mpa_s = new THREE.Group();
                 for(let poly of obj){
-
-
                     const shape = shape_from_array(poly);
-
                     const geometry = new THREE.ShapeBufferGeometry(shape);
-
-                    //const t_mat = mpa_mat.clone();
-                    // const figure = vars.data.protected_regions.raw[obj['id'] + 1];
-                    // const t_color = figure[2] === 'Designated' ? vars.colors.mpa_s_designated: vars.colors.mpa_s_proposed;
-                    //
-                    // t_mat.color = new THREE.Color().fromArray(t_color);//.get_value();
-                    // t_mat.opacity = t_color[3];
-
                     const mesh = new THREE.Mesh(geometry, polygons_material);
-                    //mesh.userData.index = obj['id'];
-                    //mesh.name = 'mpa_s-'+obj['id'];
-
-                    // mpa_s.add(mesh);
-                    // console.log(obj);
-                    // console.log(coord_arrays);
-                    // for (let vertices of coord_arrays) {
-                    //     // const colors = new Float32Array(vertices.length * 3);
-                    //     // for (let i = 0; i<colors.length; i++) {
-                    //     //     colors[i] = 1.0-(obj['d'] / vars.depth_max);
-                    //     // }
-                    //
-                    //     const outline = new THREE.Shape(exterior_points);
-                    //
-                    //     const geometry = new THREE.BufferGeometry();
-                    //     geometry.setAttribute('position', new THREE.BufferAttribute(Float32Array.from(vertices), 3));
-                    //     geometry.deleteAttribute('uv');
-                    //     geometry.deleteAttribute('normal');
-                    //     //geometry.computeVertexNormals();
-                    //     ///geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3, true));
-                    //     const contour = new THREE.Line(geometry, mpa_mat);
-                    //     mpa_s.add(contour);
-                    // }
-                    //mpa_s.name = 'mpa_s';
-                    //mpa_s.userData.depth = obj['d'];
-                    mesh.userData.level = object.level;
-
-                    //mpa_s.position.set(0,0,-0.0025);
-                    this.group.add(mesh);
-
+                    polygons.add(mesh);
                 }
             });
 
+            polygons.userData.level = object.level;
+            polygons.userData.enabled = true;
+            polygons.userData.type = 'polygons';
+            polygons.name = object.name;
+            this.group.add(polygons);
+
         }
 
-
+        return true;
     }
 
     self_destruct() {
@@ -459,13 +442,26 @@ class Sector {
                 } else {
                     delete this.meta[k[0]];
                 }
-
             });
 
-        //const recap = Object.keys(this.meta);//.map(m => );
-        //if ((recap.length === 1 && recap[0] === 'polygons') || !recap.length) this.self_destruct();
+        // const recap = Object.keys(this.meta);//.map(m => );
+        // if ((recap.length === 1 && recap[0] === 'polygons') || !recap.length) this.self_destruct();
 
         return true;
+    }
+
+    test_validate(){
+
+        return this.group.children.filter(r => r.visible).map(res => {
+            return res.name+' '+res.userData.level;
+        });
+        //
+        // const summary = [this.level, this.max_level];
+        // for (let obj of Object.keys(this.meta)) {
+        //     summary.push(obj);
+        //     summary.push(Object.entries(this.meta[obj]))
+        // }
+        // return summary;
     }
 
     load_layers(obj_list) {
@@ -473,8 +469,8 @@ class Sector {
             this.draw(obj);
             //console.log(obj.name, obj.level);
             this.meta[obj.name][obj.level] = 'loaded';
-            this.max_level = obj.level;
-            // this.meta[obj.name].max_loaded = obj.level;
+            this.meta[obj.name].max_loaded = obj.level;
+            this.max_level = obj.level > this.max_level ? obj.level : this.max_level;
             this.update();
         }
     }
@@ -493,12 +489,12 @@ class Sector {
                 fetchAll(objects_list, loader_notify).then(object_list => this.load_layers(object_list));
             }
         }
-        // const objects_list = this.get_src(this.level);
-        // if(objects_list.length) fetchAll(objects_list).then(object_list => this.load_layers(object_list));
+       // const objects_list = this.get_src(this.level);
+       //  if(objects_list.length) fetchAll(objects_list).then(object_list => this.load_layers(object_list));
     }
 
     init() {
-        const material = new THREE.LineBasicMaterial({color: 0xff00ff, transparent: true, opacity: 0.0, blending: THREE.AdditiveBlending});
+        const material = new THREE.LineBasicMaterial({color: 0xffffff, transparent: true, opacity: 0.125, blending: THREE.AdditiveBlending});
         const geometry = new THREE.BufferGeometry().setFromPoints(this.bounds);
         geometry.setIndex([0, 1, 2, 2, 3, 0]);
         geometry.computeVertexNormals();
@@ -506,10 +502,15 @@ class Sector {
         geometry.boundingBox.getCenter(this.center);
 
         const plane_line = new THREE.Mesh(geometry, material);
-        plane_line.name = this.id + `(${this.loc.toString()})`;
+        plane_line.name = 'plane_line';//-'+this.id;// + `(${this.loc.toString()})`;
+        plane_line.userData.index = this.id;
         plane_line.userData.center = this.center;
+        //plane_line.name =
+        if(vars.DEBUG) {
+            this.group.add(plane_line);
+        }
 
-        //this.group.add(plane_line);
+        this.group.userData.center = this.center;
         this.group.userData.owner = this;
         this.objects.plane = plane_line;
 
@@ -532,10 +533,12 @@ class Sector {
 
             const c_level = this.max_level >= LV;
             this.level = LV;
-            this.objects.plane.material.setValues({opacity:(this.level/vars.levels)*1.0});
-
-            this.objects.plane.name = `${this.id}-(${this.level})`;
-            this.objects.plane.userData.level = this.level;
+            if(vars.DEBUG) {
+                this.objects.plane.material.setValues({opacity: (this.level / vars.levels) * 0.125});
+                //this.objects.plane.name = 'plane_line-'+this.id;// + `(${this.loc.toString()})`;`plane_line-${this.id}-(${this.level})`;
+                this.objects.plane.userData.level = this.level;//+' '+this.max_level;
+                this.objects.plane.userData.aux = [this.max_level];
+            }
             this.check_layers();
             if(c_level) this.update();
         }
@@ -543,16 +546,38 @@ class Sector {
 
     update() {
         this.group.children.forEach(res => {
-            //console.log(this.meta, res);
-            //if(this.meta[res.name][res.userData.level] === 'loaded'){
+            if(this.disabled.includes(res.userData.type)) {
+                res.visible = false;
+                return;
+            }
+            if(this.meta.hasOwnProperty(res.name) && this.meta[res.name][this.level] === null) return;
             res.visible = (res.userData.level === this.level);
-            if(res.name === 'contours' && res.userData.level < 1) res.visible = false;
-            // }else{
-            //     res.visible = (res.userData.level === this.level-1);
-            // }
+            //if(res.name === 'contours' && res.userData.level < 1) res.visible = false;
         });
     }
 
+    toggle_attribute(attribute_name, set_state){
+
+        const pos = this.disabled.indexOf(attribute_name);
+        if(pos === -1){
+            this.disabled.push(attribute_name);
+        }else{
+            this.disabled.splice(pos, 1);
+        }
+
+        this.update();
+
+        //
+        //
+        // console.log('this.disabled', this.disabled, attribute_name);
+        //
+        // this.group.children.forEach(res => {
+        //     if(res.name.indexOf(attribute_name) !== -1){
+        //         res.userData.enabled = set_state;
+        //         res.visible = set_state;
+        //     }
+        // });
+    }
 }
 
 class domTimeElement {
@@ -567,6 +592,7 @@ class domTimeElement {
         this.init();
         this.set_state(this.selected);
     }
+
 
     init() {
         const el = document.getElementById('time_element_temp').cloneNode(true);
@@ -595,6 +621,66 @@ class domTimeElement {
 
 }
 
+class wudiSelectionDomMark {
+    //list of objects tied to selecta.wudi;
+    constructor(pid){
+        this.pid = pid;
+        this.world_pos = new THREE.Vector3();
+        this.point_data = null;
+        this.pos = new THREE.Vector3();
+        this.dom_element = null;
+        this.init();
+    }
+
+    init(){
+        //alert(vars.data.wudi_index);
+        const ref_point = vars.data.wudi_index.indexOf(this.pid);
+        this.point_data = vars.data.wudi_points.raw.data[ref_point];
+
+        vw.set(this.point_data[1],this.point_data[0],0.0);
+        vk.set(this.point_data[5],this.point_data[4],0.0);
+        vu.subVectors(vk,vw).multiplyScalar(0.5).add(vw);
+
+        this.world_pos.copy(vu);
+        map_container.localToWorld(this.world_pos);
+
+        const el = document.getElementById('wudi-selection-temp').cloneNode(true);
+        el.classList.remove('hidden');
+        el.setAttribute('data-pid', this.pid);
+
+        const el_label = el.getElementsByClassName('label')[0];
+        const el_marker = el.getElementsByClassName('marker')[0];
+
+        el_label.innerHTML = "Nº"+this.pid;
+        plot.appendChild(el);
+
+        const dk = el_label.getBoundingClientRect();
+        el_label.style.left = (dk.width/-2)+'px';
+        el_marker.style.height = vars.wudi_selecta_stem_pixels+'px';
+
+
+        this.dom_element = el;
+
+    }
+
+
+    dom_delete(){
+        plot.removeChild(this.dom_element);
+    }
+
+    draw(){
+        this.pos.copy(this.world_pos);
+        projected(this.pos);
+
+        this.dom_element.style.left = (this.pos.x)+'px';
+        this.dom_element.style.top = (this.pos.y-vars.wudi_selecta_stem_pixels)+'px';
+
+    }
+}
+
+
+
+
 vars.dom_time = {
     years: [],
     months: [],
@@ -612,7 +698,8 @@ vars.dom_time = {
             const test_time = new domTimeElement(0, 'months', 'MONTHS', 'all', true);
             this.months.push(test_time);
             for (let t = 1; t < 13; t++) {
-                const label = String(t).padStart(2, '0');
+                // const label = String(t).padStart(2, '0');
+                const label = util.months_str[t-1];//String(t).padStart(2, '0');
                 const test_time = new domTimeElement(t, 'months', label, t);
                 this.months.push(test_time);
             }
@@ -622,22 +709,26 @@ vars.dom_time = {
     }
 }
 
-
+let pki = 0 ;
 
 vars.user.mouse.raw = new THREE.Vector3(0, 0, 0);
 vars.sectors_loaded = false;
 vars.loader_notify = {ct: 0, list: []};
 
-//const bounds = document.getElementById('bounds');
+const bounds = document.getElementById('bounds');
 const plot = document.getElementById('plot');
+const plot_ticks = document.getElementById('plot-ticks');
+const plot_controls = document.getElementById('plot-controls');
 const obs = document.getElementById('obs');
 const title = document.getElementById('title');
-const title_box = document.getElementById('title-box');
+const title_bar = document.getElementById('title-bar');
 const intro_box = document.getElementById('intro-box');
 const x_major_axis = document.getElementById('x-axis');
 const y_major_axis = document.getElementById('y-axis');
 const graph_bar = document.getElementById("graph-obj-bar");
 const q_nav_bar = document.getElementById("q-nav-bar");
+const output = document.getElementById("output");
+const page_handle = document.getElementById("page-handle-icon");
 
 let camera, scene, renderer, stats, gridHelper, cube;
 let map_container, map_plane, visible_dimensions, camera_distance, root_plane, pos_mark_1, pos_mark_2, pos_mark_3, pos_mark_4,
@@ -674,6 +765,7 @@ const ray_caster = new THREE.Raycaster();
 const cam_base_pos = new THREE.Vector3(0, 0, default_z);
 const cam_pos = new THREE.Vector3(0, 0, 0);
 const camera_projected = new THREE.Vector3(0, 0, 0);
+const camera_map_local = new THREE.Vector3(0, 0, 0);
 const vk = new THREE.Vector3(0, 0, 0);
 const vw = new THREE.Vector3(0, 0, 0);
 const vu = new THREE.Vector3(0, 0, 0);
@@ -683,6 +775,7 @@ const axis_dir_x = new THREE.Vector3(0, 0, 1);
 const axis_dir_y = new THREE.Vector3(-1, 0, 0);
 
 const mu = new THREE.Matrix4();
+const mu_i = new THREE.Matrix4();
 
 const qu = new THREE.Quaternion();
 
@@ -833,12 +926,29 @@ const mod_HSL = (rgb_color, L_value) => {
 }
 
 const element_info_filter = {
+    plane_line: (index = null) => {
+        const sector = map_sectors_group.children[index].userData.owner;
+        // const plane = scene.getObjectByName('plane_line-' + index);
+        // const ske = plane.parent.userData.owner;
+        if(vars.DEBUG){
+            return {
+                text: sector.test_validate(), ///['plane' + index, plane.userData.level, plane.userData.aux],
+                index: index,
+                name: 'plane_line'+'-'+index
+            }
+        }else{
+            return null;
+        }
+
+    },
     mpa_s: (index = null) => {
         const figure = vars.data.protected_regions.raw[parseInt(index) + 1];
         //console.log(index+1, figure, vars.data.protected_regions);
         return {
             head: `${util.title_case(figure[0])}`,
-            text: [figure[2] + ' ' + figure[1], figure[7], figure[12] + '—' + figure[13], figure[5] + 'km^2', `(${index}) `]
+            text: [figure[2] + ' ' + figure[1], figure[7], figure[12] + '—' + figure[13], figure[5] + 'km^2', `(${index}) `],
+            index: index,
+            name: 'mpa_s'+'-'+index
         }
     },
     // protected_regions: (index = null) => {
@@ -848,20 +958,24 @@ const element_info_filter = {
     //         text: [figure[3] + ' ' + figure[2], figure[8], figure[13] + '—' + figure[14], figure[6] + 'km^2', `(${index}) `]
     //     }
     // },
-    iso_bath: (index = null) => {
+    isobath: (index = null) => {
         return {
-            text: 'isobath 100m ' + index
+            text: 'isobath 100m ' + index,
+            index: index,
+            name: 'isobath'+'-'+index
         }
     },
     wudi_points: (index = null) => {
         const data_index = vars.data.wudi_index[index];
-        if (vars.selecta.wudi.points.hover.length) wudi_point_select_state(vars.selecta.wudi.points.hover[0], false);
-        wudi_point_select_state(data_index, true);
+        // if (vars.selecta.wudi.points.hover.length) wudi_point_select_state(vars.selecta.wudi.points.hover[0], false);
+        // wudi_point_select_state(data_index, true);
         vars.selecta.wudi.points.hover = [data_index];
         const point_info = get_point_selection_state([data_index], index);
         return {
             head: point_info.head,
-            text: point_info.text
+            text: point_info.text,
+            index: index,
+            name: 'wudi_points'+'-'+index
         }
     },
     wudi_up: (index = null) => {
@@ -872,14 +986,18 @@ const element_info_filter = {
     },
     eco_regions: (index = null) => {
         return {
-            text: 'eco_region (general) ' + index
+            text: 'eco_region (general) ' + index,
+            index: index,
+            name: 'eco_regions'+'-'+index
         }
     },
     places_data: (index = null) => {
         const figure = vars.data.places_data.raw.data[index];
         return {
             head: `${util.title_case(figure[4])}`,
-            text: [...figure.slice(5,figure.length-1).filter(m => m !== null)]
+            text: [...figure.slice(5,figure.length-1).filter(m => m !== null)],
+            index: index,
+            name: 'places_data'+'-'+index
         }
     }
 }
@@ -957,7 +1075,8 @@ function make_ticks_divs() {
         mark.innerHTML = '0.0';
         mark.style.color = vars.colors.hex_css(vars.colors.chart_tick);
         mark.style.backgroundColor = vars.colors.hex_css(vars.colors.window);
-        document.body.appendChild(mark);
+        //document.body.appendChild(mark);
+        plot_ticks.appendChild(mark);
         marks.push(mark);
     }
     return marks;
@@ -1063,7 +1182,8 @@ function apply_adaptive_scale(inst, v, v_lim, index, sign, a_lim) {
         inst.setColorAt(index, utility_color.clone());
         inst.userData.td.color_default[index].color = utility_color.toArray();
     }
-    return true;
+
+    return vu.z;
 }
 
 function adaptive_scaling_wudi() {
@@ -1075,14 +1195,14 @@ function adaptive_scaling_wudi() {
         const wudi_down = scene.getObjectByName('wudi_down');
 
         const test = wudi.children[0].userData.td;
-        let index, data_index;
+        let data_index;
         let cherf = 0;
         const visible = {set: [], up: [], down: []};
 
         for (let c = 0; c < test.position.length; c++) {
             data_index = vars.data.wudi_index[c];
             //const r_index = wudi_up.userData.td.index.indexOf(index);
-            vw.fromArray(test.position[c]);
+            vw.fromArray(test.mid_position[c]);
             map_container.localToWorld(vw);
             //#//TODO make depend on distance from view also.
             //#//ALERT TO HOW u_me vs. u_max is leveraged here.
@@ -1092,11 +1212,12 @@ function adaptive_scaling_wudi() {
                 visible.down.push([vars.data.wudi_data.current[data_index][4]]);
                 cherf++;
             }else{
-                if (wudi_up.userData.td.color_default[c] && wudi_up.userData.td.color_default[c].selected) {
-                    //deselect point!
-                    //console.log(data_index,c);
-                    vars.selecta.wudi.point_select(data_index);
-                }
+                if(!mover.is_rotating && vars.selecta.wudi.points.selected.includes(data_index)) vars.selecta.wudi.point_select(data_index);
+                // if (wudi_up.userData.td.color_default[c] && wudi_up.userData.td.color_default[c].selected) {
+                //     //deselect point!
+                //     //console.log(data_index,c);
+                //     if(!mover.is_rotating && vars.selecta.wudi.points.selected.includes(data_index)) vars.selecta.wudi.point_select(data_index);
+                // }
             }
         }
 
@@ -1104,10 +1225,16 @@ function adaptive_scaling_wudi() {
         const lim = [Math.max(...visible.up), Math.min(...visible.down)];
         lim.push(lim[0]+Math.abs(lim[1]));
         //console.log("visible.set", visible.set);
+        // obs_handler({LMS: vars.selecta.wudi.points.hover});
+
         for (let v of visible.set) {
             //DEBUG /// if (v[0] === 1085) console.log(visible.up[v[2]][0], visible.down[v[2]][0], lim, v[0]);
-            apply_adaptive_scale(wudi_up, visible.up[v[2]][0], lim[0], v[0], 1.0, lim[2]);
-            apply_adaptive_scale(wudi_down, visible.down[v[2]][0], lim[1], v[0], -1.0, lim[2]);
+            const w_up = apply_adaptive_scale(wudi_up, visible.up[v[2]][0], lim[0], v[0], 1.0, lim[2]);
+            const w_down = apply_adaptive_scale(wudi_down, visible.down[v[2]][0], lim[1], v[0], -1.0, lim[2]);
+
+            if(v[1] === vars.selecta.wudi.points.canonical_selection[0]){
+                wudi_dub_selecta.rescale(v[0],w_up,w_down);
+            } //obs_handler({LIM: v});
         }
 
         //obs_handler({LIM: lim});
@@ -1141,13 +1268,17 @@ function move_map_to_point(pid){
 
 function move_to_point(target_pid){
     const dub_select = wudi_dub_selecta.set_from_point(target_pid);
-    mover.set_target(user_position.actual, dub_select[0]);
+    const needs_zoom = camera_scale < 0.5 ? cam_base_pos.z*0.8 : null;
+
+    mover.set_target(user_position.actual, dub_select[0], needs_zoom);
     if(vars.view.camera_auto_affine){
         mover.set_rotation_target(cube, camera_projected, user_position.actual, dub_select[0], dub_select[1]);
     }
 }
 
 function wudi_point_select_state(index, state, set_select = null) {
+    return;
+
     const wudi_up = scene.getObjectByName('wudi_up');
     const wudi_down = scene.getObjectByName('wudi_down');
     const r_index = wudi_up.userData.td.index.indexOf(index);
@@ -1190,8 +1321,11 @@ function get_point_selection_state(data_index, inst_index) {
 
     const pt = vars.data.wudi_points.raw.data[inst_index];//.slice(6,8);
 
+    vars.selecta.wudi.points.canonical_selection = data_index;
+
     wudi_dub_selecta.set_from_point(data_index[0]);
-    q_nav.set_geo_region('g-'+pt[6], pt[8]);
+    //wudi_sub_selecta.set_from_point(data_index[0]);
+    if(!q_nav.hover_state) q_nav.set_geo_region('g-'+pt[6], pt[8]);
 
     let stats = null;
     // if(vars.debug_tool_state) {
@@ -1235,7 +1369,7 @@ function get_point_selection_state(data_index, inst_index) {
     const labels = [title.innerHTML];
 
     for(let u of wudi_type_array){
-        console.log(u);
+        //console.log(u);
         const col = utility_color.fromArray(vars.colors[u.item]).getHex();
         const stat = r_sum(stats[u.label], data_index.length * stats.times.length);
         labels.push(`<span style="font-family:heavy_data_bold, sans-serif; color:${vars.colors.hex_css(col)}">${stat} ${u.label}-days</span>`);
@@ -1264,6 +1398,12 @@ function interactionAction() {
     const intersects = ray_caster.intersectObjects(scene.children, true);
 
 
+    //if the intersection already exists, do nothing.
+    //if it doesn't exist, initialize/call the stuff.
+    //if the running list of intersections doesn't contain this intersection, get rid of it.
+
+
+
     function make_clean(ints) {
         let len = ints.length;
         let ids = [];
@@ -1276,24 +1416,33 @@ function interactionAction() {
                 name = ints[i].object.id;
                 if (ints[i].hasOwnProperty('instanceId')) instance_id = ints[i].instanceId;
                 if (ids.indexOf(name) === -1 && ids.indexOf(instance_id) === -1) {
-                    let index = null;
-                    if (instance_id != null) {
-                        index = instance_id;
-                    } else {
-                        index = ints[i].object.userData.index;
-                    }
-
+                    const index = instance_id === null ? ints[i].object.userData.index : instance_id;
                     const is_wudi = ints[i].object.name.indexOf('wudi') !== -1;
 
                     if(( is_wudi && !wudi_polled ) || !is_wudi) {
-                        const chk_name = ints[i].object.name.indexOf('mpa_s') !== -1 ? 'mpa_s' : ints[i].object.name;
-                        const ref = element_info_filter.hasOwnProperty(chk_name) ? element_info_filter[chk_name](index) : null;
-                        if (ref) {
-                            ref.index = index;
-                            result.push(ref);
+                            //let chk_name = ints[i].object.name;
+                            let chk_name = ints[i].object.name.indexOf('mpa_s') !== -1 ? 'mpa_s' : ints[i].object.name;
+                            if (chk_name === 'wudi_up' || chk_name === 'wudi_down') chk_name = 'wudi_points';
+                            //if(chk_name.indexOf('plane_line') !== -1) chk_name = 'plane_line';
+                            //result[chk_name+'-'+index] = {part:chk_name, index:index};//({name:chk_name+'-'+index, part:chk_name, index:index});
+                            result.push({name: chk_name + '-' + index, part: chk_name, index: index});
 
                             if (is_wudi) wudi_polled = true;
-                        }
+
+                        // const hk = vars.selecta.hover_intersections.indexOf(chk_name+':'+index);
+                        // if(hk === -1){
+                        //     vars.selecta.hover_intersections.push(chk_name+':'+index);
+                        // }else{
+                        //     vars.selecta.hover_intersections.splice(hk,1);
+                        // }
+
+                        // const ref = element_info_filter.hasOwnProperty(chk_name) ? element_info_filter[chk_name](index) : null;
+                        // if (ref) {
+                        //     ref.name = chk_name+':'+index;
+                        //     ref.index = index;
+                        //     result.push(ref);
+                        //     if (is_wudi) wudi_polled = true;
+                        // }
 
                     }
                     ids.push(instance_id ? instance_id : name);
@@ -1302,17 +1451,35 @@ function interactionAction() {
                 instance_id = null;
             }
         }
-        result.sort((a, b) => a.index > b.index ? 1 : -1);
+        //result.sort((a, b) => a.index > b.index ? 1 : -1);
         return result;
     }
 
-    const has_intersections = make_clean(intersects);
-    vars.selecta.intersect = has_intersections.length > 0;
+    //TODO#// make only once for the
 
+    const has_intersections = make_clean(intersects);
+    const fired_info = vars.selecta.hover_intersections.map(f => f.name);
+
+    const has_info = has_intersections.map(ck => {
+        const hk = fired_info.indexOf(ck.name);
+        if(hk === -1) {
+            const fe = element_info_filter.hasOwnProperty(ck.part) ? element_info_filter[ck.part](ck.index) : null;
+            if(fe) vars.selecta.hover_intersections.push(fe);
+        }
+        return ck.name;
+    });
+
+    vars.selecta.hover_intersections.map((mp,i) => {
+        if(!has_info.includes(mp.name)){
+            vars.selecta.hover_intersections.splice(i, 1);
+        }
+    });
+
+    vars.selecta.intersect = has_intersections.length > 0;
 
     if (vars.selecta.intersect) {
         vars.info.set_state(true);
-        vars.info.set_text(has_intersections);
+        vars.info.set_text(vars.selecta.hover_intersections);
         vars.info.set_position(vars.user.mouse.screen.x, vars.user.mouse.screen.y, 'mouse');
         vars.selecta.focus_obj = 'intersection';
     }
@@ -1372,7 +1539,8 @@ function refresh_sectors(){
     camera_projected.copy(vk);
 
     if(map_sectors_group.children.length) map_sectors_group.children.forEach(s => {
-        vw.copy(s.userData.owner.objects.plane.userData.center);
+        vw.copy(s.userData.center);//userData.owner.objects.plane.userData.center);
+
         map_sectors_group.localToWorld(vw);
         //vu.sub(camera.up);
         vc.copy(user_position.actual).sub(camera_projected);
@@ -1402,9 +1570,13 @@ function refresh_sectors(){
     //
     // const places = scene.getObjectByName('places_data');
     // const protected_reg = scene.getObjectByName('protected_regions');
-
-
     return true;
+}
+
+function control_appearance_sectors(att, state){
+    if(map_sectors_group.children.length) map_sectors_group.children.forEach(s => {
+        s.userData.owner.toggle_attribute(att, state);
+    });
 }
 
 function run_optics(){
@@ -1506,17 +1678,19 @@ function event_handler(type, evt_object){
                 roto_x = evt_object.delta.x / 200.0;
                 roto_y = evt_object.delta.y / 200.0;
             }else{
-                delta_x = evt_object.delta.x;
-                delta_y = evt_object.delta.y;
+                if(action === 'drag'){
+                    delta_x = evt_object.delta.x;// === 0 ? null : evt_object.delta.x;
+                    delta_y = evt_object.delta.y;// === 0 ? null : evt_object.delta.y;
+                }
             }
         }
         if (action === 'scroll'){
-            scale_z = 1 + (evt_object.wheel_delta.y / 200.0);
+            scale_z = 1 + (evt_object.wheel_delta.y / 400.0);
         }
         if (action === 'cancel'){
             //obs_handler({cancel:evt_object.evt.target.parentNode.id});
             grid_lines.visible = false;
-            return false;
+            //return false;
         }else{
             //obs_handler({capture:evt_object.evt.target.parentNode.id});
             grid_lines.visible = true;
@@ -1549,6 +1723,7 @@ function event_handler(type, evt_object){
             vars.selecta.moved = true;
         }
         if (delta_x !== null && delta_y !== null) {
+            //#//TODO what is this? onDrag?
             mover.cancel();
             newMouseDown.copy(rayIntersectionWithXZPlane(m_ray_origin, m_ray_dir, 0.0));
             user_position.actual.copy(mouseDownCameraPosition.sub(newMouseDown.sub(lastMouseDown)));
@@ -1556,6 +1731,7 @@ function event_handler(type, evt_object){
             vars.selecta.moved = true;
         }
         if (scale_z){
+            mover.cancel();
             if (cam_base_pos.z < vars.min_zoom) {
                 cam_base_pos.z = vars.min_zoom;
             } else if (cam_base_pos.z > vars.max_zoom) {
@@ -1576,6 +1752,12 @@ function event_handler(type, evt_object){
     if (action === 'move' || action === 'touch-hover') {
         // if(evt_object.hasOwnProperty('evt')) obs_handler({id:evt_object.evt.target});
         interactionAction();
+
+        // vk.copy(camera.up);//camera.position);
+        // map_container.worldToLocal(vk);
+        // //wudi_sub_selecta.object.lookAt(mouse_plane_pos);//user_position.actual);//vk);
+        // //wudi_sub_selecta.object.up.copy(camera.up.clone().applyQuaternion(cube.quaternion));
+        // wudi_sub_selecta.object.up.copy(vk);
     }
 
     //mover.reset_to(user_position.actual);
@@ -1616,10 +1798,12 @@ function event_handler(type, evt_object){
         if (vars.selecta.wudi.points.hover.length) {
             vars.selecta.wudi.point_select(vars.selecta.wudi.points.hover[0]);
             vars.selecta.wudi.points.hover = [];
+        }else{
+            mover.set_target(user_position.actual, mouse_plane_pos);
         }
         vars.user.mouse.clicked = true;
-        //user_position.actual.copy(mouse_plane_pos);
-        mover.set_target(user_position.actual, mouse_plane_pos);
+        // user_position.actual.copy(mouse_plane_pos);
+
     }
 
 
@@ -1642,6 +1826,7 @@ function event_handler(type, evt_object){
         });
     }
 
+    q_nav.hover_state = false;
 }
 
 function control_recenter_map(){
@@ -1663,6 +1848,7 @@ function control_camera_behavior(){
     vars.view.camera_auto_affine = !vars.view.camera_auto_affine;
     this.classList.toggle('control-toggle');
 }
+
 function control_navigation_state(){
     vars.view.navigation_active = !vars.view.navigation_active;
     this.classList.toggle('control-toggle');
@@ -1674,6 +1860,18 @@ function control_navigation_state(){
     window_redraw();
 }
 
+function control_instructions_state(){
+    vars.view.instructions_active = !vars.view.instructions_active;
+    this.classList.toggle('control-toggle');
+    const instructions_slide = document.getElementById('intro-instructions');
+    instructions_slide.style.display = display_array[+vars.view.instructions_active];//'block';
+}
+
+function control_mpa_s_state(){
+    vars.mpa_s_visible = !vars.mpa_s_visible;
+    this.classList.toggle('control-toggle');
+    control_appearance_sectors('mpa_s', vars.mpa_s_visible );
+}
 
 function keyAction(raw) {
     active_keys = raw;
@@ -1747,7 +1945,10 @@ function run_camera() {
     // root_plane.projectPoint(vc, vu);
     // vk.subVectors(user_position.actual, vu).multiplyScalar(0.5 / vars.degree_scale);
     // camera_projected.copy(vk);
-
+    // camera_map_local.copy(camera.position);
+    // // camera_map_local.setY(camera.position.z);
+    // // camera_map_local.setZ(camera.position.y);
+    // map_container.worldToLocal(camera_map_local);
 }
 
 function run_ticks_axes(axis, tick_index, swap = null) {
@@ -1780,6 +1981,10 @@ function run_ticks_axes(axis, tick_index, swap = null) {
 }
 
 function run_ticks() {
+    vars.selecta.wudi.points.dom_handles.map(dh => {
+        dh.draw();
+    })
+
     let swap = false;
     vw.set(0, 0, Math.sign(camera_projected.z));
     vk.set(Math.sign(camera_projected.x), 0, 0);
@@ -1837,11 +2042,12 @@ function run_ticks() {
 }
 
 function animate(f) {
-    requestAnimationFrame(animate);
+    vars.animationFrame = window.requestAnimationFrame(animate);
     render(f);
 }
 
 function render(a) {
+    if(vars.suspend) return;
     //#//yes yer doing it.
     vars.info.update_position();
     mover.ctr.set(a);
@@ -2080,7 +2286,11 @@ function plot_data(obj) {
                     group.add(element);
 
                 } else if (obj.style === 'multi_line') {
-                    const material = new THREE.LineBasicMaterial({color: vars.colors[obj.name].select[0]});
+                    const material = new THREE.LineBasicMaterial({
+                        color: utility_color.fromArray(vars.colors[obj.name]).clone(),
+                        opacity:vars.colors[obj.name][3],
+                        transparent: true
+                    });
                     let element;
                     const batch = coords_from_array(l_obj, -100 / vars.depth_max);//.flat(1);
                     for (let vertices of batch) {
@@ -2119,6 +2329,7 @@ function wudi_plot(obj) {
         visible: true,
         color: data.map(v => [0.9, 0.5, 0.9]),
         position: data.map((v) => [v[3], v[2], 0.0]),
+        mid_position: data.map((v) => [v[3], v[2], 0.0]),
         raw: data.map(v => 0.0),
         index: data.map(v => v[8] - 1),
     }
@@ -2162,7 +2373,7 @@ function wudi_plot(obj) {
         //{name: 'wudi_meta', len: data.length, base_color: [0, 0, 0], visible: false, sign: 1}
     ];
 
-    const bar_attributes = ['color', 'position', 'rotation', 'scale', 'value', 'raw', 'index', 'color_default'];
+    const bar_attributes = ['color', 'position', 'mid_position', 'rotation', 'scale', 'value', 'raw', 'index', 'color_default'];
 
     for (let bar of bar_instances) {
         for (let a of bar_attributes) bar[a] = [];
@@ -2170,8 +2381,10 @@ function wudi_plot(obj) {
         for (let i = 0; i < data.length; i++) {
             const A = new THREE.Vector3(data[i][1], data[i][0], 0.0);
             const B = new THREE.Vector3(data[i][5], data[i][4], 0.0);
+            const M = new THREE.Vector3(data[i][3], data[i][2], 0.0);
             const angle = Math.atan2(B.y - A.y, B.x - A.x);
             bar.position.push([A.x, A.y, A.z]);
+            bar.mid_position.push([M.x, M.y, M.z]);
             bar.rotation.push(angle.toFixed(5));
             bar.scale.push(A.distanceTo(B));
             bar.color.push([0.0, 0.0, 0.0]);
@@ -2232,7 +2445,146 @@ function wudi_get_data(times_arr) {
     return true;
 }
 
-function wudi_get_point_detail(points_selected) {
+function download(content, mimeType, filename){
+    const a = document.createElement('a') // Create "a" element
+    const blob = new Blob([content], {type: mimeType}) // Create a blob (file-like object)
+    const url = URL.createObjectURL(blob) // Create an object URL from blob
+    a.setAttribute('href', url) // Set "a" element link
+    a.setAttribute('download', filename) // Set download filename
+    a.setAttribute('size', blob.size.toString()) // Set download filename
+    a.classList.add('download-link');
+    //a.click() // Start downloading
+    a.innerHTML = `download ${filename}`;
+    return a;
+}
+
+function generate_output(block){
+
+    const wudi_textual_output = [];
+    const wudi_geodata_output = [];
+    const wudi_temporal_output = [];
+    const point_data = vars.data.wudi_points.raw;
+
+    const output_text = document.getElementById('output-text');
+    output_text.innerHTML = '';
+
+    const geodata_header = point_data.keys.slice(0,6);
+    geodata_header.unshift('point_id');
+    wudi_geodata_output.push(geodata_header);
+
+    const temporal_header_equiv = {
+		all: ['time', 'point_id', 'up_days', 'down_days'],
+		year: ['time', 'point_id', 'up_days', 'down_days'],
+		month: ['time', 'point_id', 'wudi_value', 'qualifies']
+	}
+
+    let wudi_data_header = null;
+    let point_traces = [];
+
+    for (let point of block) {
+
+        if(!point_traces.includes(point.id) && point.id !== 'AVG'){
+            const values = point_data.data[point.id].slice(0,6);
+            values.unshift(point.id);
+            point_traces.push(point.id);
+            wudi_geodata_output.push(values);
+        }
+
+        if(!wudi_data_header){
+            wudi_data_header = temporal_header_equiv[point.style];
+            wudi_temporal_output.push(wudi_data_header);
+        }
+
+        for(let pt of point.ref_data.data){
+            let pt_lex = null;
+            let qual = null;
+
+            if(point.style === 'month'){
+                if(pt[1] > vars.wudi_UPWthr) qual = 'up';
+                if(pt[1] < vars.wudi_DNWthr) qual = 'down';
+                pt_lex = [pt[0], point.id, pt[1], qual];
+            }else{
+                pt_lex = [pt[0], point.id, pt[1], Math.abs(pt[2])];
+            }
+            wudi_temporal_output.push(pt_lex);
+        }
+    }
+
+    const date = new Date(Date.now()).toISOString().slice(0, 19).replace('T', ' ');
+
+    wudi_textual_output.push('Wind-based Upwelling & Downwelling Index (WUDI) data base for Mediterranean shorelines (Bensoussan N., Pinazo C., Rossi V. (2022)).');
+    wudi_textual_output.push(`Accessed on ${date}`);
+    wudi_textual_output.push(`Data points selected: ${point_traces.map(p =>'Nº'+p)}`);
+    wudi_textual_output.push(`Temporal series selected: ${title.innerHTML}`);
+
+    function make_html_table(table_data){
+        const shlex = [];
+        for(let row of table_data){
+            const parts = row.map(r => `<div class="output-cell">${r}</div>`);
+            shlex.push(`<div class="output-row">${parts.join('')}</div>`);
+        }
+        return `<div class="output-table">${shlex.join('\n')}</div>`
+    }
+
+    const wudi_textual = wudi_textual_output.join('\n');
+    const wudi_geodata = wudi_geodata_output.join('\n');
+    const wudi_timeseries = wudi_temporal_output.join('\n');
+
+
+    //download(smack,'data:text/plain;charset=utf-8,' + encodeURIComponent(smack), 'test.csv');
+    const download_textual_button = download(wudi_textual, 'data:text/plain;charset=utf-8', 'wudi-points-readme.txt');
+    const download_geodata_button = download(wudi_geodata, 'data:text/plain;charset=utf-8', 'wudi-points-geodata.csv');
+    const download_temporal_button = download(wudi_timeseries, 'data:text/plain;charset=utf-8', 'wudi-points-timeseries.csv');
+
+    const dl_buttons = [download_textual_button,download_geodata_button,download_temporal_button];
+
+    const output_sections = [
+        ['selected wudi points information', wudi_textual, 'raw-text', download_textual_button],
+        ['selected wudi points geodata', make_html_table(wudi_geodata_output), '', download_geodata_button],
+        ['selected wudi points information', make_html_table(wudi_temporal_output), '', download_temporal_button],
+    ];
+
+
+
+    function get_download(){
+        [...document.querySelectorAll('.download-link')].map(a =>{
+            a.click();
+        });
+    }
+
+    function get_download_button(){
+        const dl = document.createElement('div');
+        dl.classList.add('output-section');
+        dl.classList.add('output-download-link');
+
+        let bytes = 0;
+        dl_buttons.map(a =>{
+            bytes += parseInt(a.getAttribute('size'));
+        })
+
+        const al = document.createElement('a');
+        al.setAttribute('href','#');
+        al.innerHTML = 'download selected point data ('+(bytes/1000).toFixed(2)+'k)';
+        al.addEventListener('mouseup', get_download);
+
+        dl.appendChild(al);
+        return dl
+    }
+
+    output_text.appendChild(get_download_button());
+    output_sections.map(outs =>{
+        const section = document.createElement('div');
+        section.classList.add('output-section');
+        section.appendChild(outs[3]);
+        section.innerHTML += `<div class="output-section-title">${outs[0]}</div>`;
+        section.innerHTML += `<div class="output-section-content ${outs[2]}">${outs[1]}</div>`;
+        output_text.appendChild(section);
+    })
+
+
+}
+
+async function wudi_get_point_detail(points_selected) {
     const post_obj_list = [];
     for (let t of vars.selecta.wudi.times.selected) {
         const request_points_selected = [];
@@ -2254,13 +2606,15 @@ function wudi_get_point_detail(points_selected) {
         fetchPOST(post_obj_list).then(object_list => wudi_set_chart_daily(object_list));
     } else {
         wudi_graph_chart_daily();
+
+
     }
 
     return true;
 }
 
 //#//GRAPH:
-function wudi_graph_chart_daily() {
+async function wudi_graph_chart_daily() {
     const style_current = graph_bar.style.display;
 
     /*
@@ -2269,26 +2623,33 @@ function wudi_graph_chart_daily() {
     * Mont: 1 Value  (31)
     * */
 
-    //#//NEEDS TO BE TWO VALUES
+    //#//NEW GET DL HERE NEEDS TO BE TWO VALUES
 
     if(vars.selecta.wudi.points.selected.length) {
         const diagonal = vars.selecta.wudi.times.selected.map(t => {
             return Math.max(...vars.selecta.wudi.points.selected.map(p => vars.wudi_point_cache[`${p}-${t}`].meta));
         });
 
+        console.log('selected points',vars.selecta.wudi.points.selected);
+        //console.log('selected points cache',vars.wudi_point_cache);
+
         // up down flat
+        const cache_for_output = [];
         const max_len = Math.max(...diagonal);
         const aggregate = [];
         let mean = [0, 0];
         for(let g=0; g<max_len; g++) aggregate.push([0,0]);
         let res_count = 0;
-
         let ref_style = null;
+
+        const time_keys = [];
 
         for (let t of vars.selecta.wudi.times.selected) {
             for (let p of vars.selecta.wudi.points.selected) {
                 const time_slot = `${p}-${t}`;
                 const reference = vars.wudi_point_cache[time_slot];
+                //console.log(t,p,reference);
+
                 ref_style = reference.style;
                 reference.data.map((d, i) => {
                     if(reference.style === 'month'){
@@ -2300,22 +2661,38 @@ function wudi_graph_chart_daily() {
                         aggregate[i][1] += d[2];
                         mean[1] += d[2];
                     }
+
+                    time_keys.push(d[0]);
                 });
                 res_count++;
+                cache_for_output.push({id:p, tid:time_slot, ref_data:reference, style:ref_style});
             }
         }
 
-        // console.log('aggregate', aggregate);
-        // console.log('mean', mean);
-        // console.log('res_count', res_count);
-        console.log('ref_style', ref_style);
+
 
         mean[0] /= res_count;
         mean[1] /= res_count;
 
         const aggregate_avg = [0,0];
-        aggregate_avg[0] = aggregate.map(a => Math.round((a[0] / res_count) * 1000) / 1000);
-        aggregate_avg[1] = aggregate.map(a => Math.round((a[1] / res_count) * 1000) / 1000);
+        aggregate_avg[0] = aggregate.map(a => Math.round((a[0] / res_count) * 10000) / 10000);
+        aggregate_avg[1] = aggregate.map(a => Math.round((a[1] / res_count) * 10000) / 10000);
+
+        if(vars.selecta.wudi.points.selected.length > 1){
+            const rdat = [];
+            for(let ac = 0; ac < aggregate.length; ac++){
+                rdat.push([time_keys[ac], aggregate_avg[0][ac], aggregate_avg[1][ac]]);
+            }
+
+            cache_for_output.push({id:'AVG', tid:0, ref_data:{data:rdat, id:'all'}, style:ref_style});
+        }
+        generate_output(cache_for_output);
+
+
+
+
+
+
 
         const up_col = utility_color.fromArray(vars.colors.upwelling).getHex();
         const dn_col = utility_color.fromArray(vars.colors.downwelling).getHex();
@@ -2340,9 +2717,10 @@ function wudi_graph_chart_daily() {
             graph_style: ref_style,
             wudi_th_up: vars.wudi_UPWthr,
             wudi_th_down: vars.wudi_DNWthr,
+            main_title: title.innerHTML
         }
 
-        console.log(graph_obj, vars.selecta.wudi);
+        ///console.log(graph_obj, vars.selecta.wudi);
 
         graph(graph_obj, vars.view.width, vars.view.graph_obj_height, vars.selecta.wudi);
 
@@ -2355,10 +2733,10 @@ function wudi_graph_chart_daily() {
     }
 
     if(style_current !== graph_bar.style.display) window_redraw();
-
+    return true;
 }
 
-function wudi_set_chart_daily(result_obj) {
+async function wudi_set_chart_daily(result_obj) {
 
     // return;
     console.log('result_obj', result_obj);
@@ -2371,21 +2749,28 @@ function wudi_set_chart_daily(result_obj) {
         const general_length = asset_raw_length / request_length;/// > general_length ? asset_raw_length/request_length : general_length;
         const subset_arrays = array_chuk(obj.raw.data, general_length);
 
-        console.log('subset_arrays', subset_arrays);
+        //console.log('subset_arrays', subset_arrays);
 
         subset_arrays.map((v, n) => {
             const time_slot = `${obj.special[n]}-${obj.tim}`;
-            vars.wudi_point_cache[time_slot] = {'data': v, 'meta': v.length, 'style':vars.graph_styles[obj.tim.length]};
+            vars.wudi_point_cache[time_slot] = {'data': v, 'meta': v.length, 'id':obj.special[n], 'style':vars.graph_styles[obj.tim.length]};
         })
     });
 
-    wudi_graph_chart_daily();
+    await wudi_graph_chart_daily().then(r => {
+        // return;
+        // console.log(r, 'points_selected', vars.selecta.wudi.points.canonical_selection);
+        const p_hover = vars.selecta.wudi.points.canonical_selection[0];
+        if(vars.selecta.wudi.points.selected.includes(p_hover)) move_to_point(p_hover);
+    });
+    //
+    // wudi_graph_chart_daily();
 }
 
 function wudi_set_data(obj_list) {
     if (!vars.data.hasOwnProperty('wudi_data')) vars.data.wudi_data = {points_count: 0, current: []};
     obj_list.forEach(obj => {
-        //console.log(obj);
+
         //#//updates and draws the instances
         const data = obj.raw.data;
         vars.data.wudi_data.points_count = data.length;
@@ -2393,6 +2778,10 @@ function wudi_set_data(obj_list) {
         const time_slot = obj.tim === '40' ? 'all' : obj.tim.toString();
         vars.selecta.wudi.times.loaded.push(time_slot);
         vars.data.wudi_data[time_slot] = {'data': data, 'meta': meta};
+
+        // console.log('obj', obj);
+        // console.log('this', time_slot, vars.data.wudi_data[time_slot]);
+
     });
     //run averager here:
     return wudi_set_data_selection();
@@ -2435,8 +2824,8 @@ function wudi_set_data_selection() {
         }
     }
     Object.keys(meta_avg).map(k => meta_avg[k] = Math.round(meta_avg[k] / times_count));
-    //const rel_meta = [meta_avg.u_mx, meta_avg.d_mx, 1, meta_avg.u_me, meta_avg.d_me];
-    const rel_meta = [meta_avg.u_me, meta_avg.d_me, 1, meta_avg.u_mx, meta_avg.d_mx];
+    const rel_meta = [meta_avg.u_mx, meta_avg.d_mx, 1, meta_avg.u_me, meta_avg.d_me];
+    //const rel_meta = [meta_avg.u_me, meta_avg.d_me, 1, meta_avg.u_mx, meta_avg.d_mx];
 
     for (let i = 0; i < points_count; i++) {
         for (let d = 0; d < 5; d++) {
@@ -2511,9 +2900,12 @@ function window_redraw(first_run=null) {
     });
 
 
+    const handle_box = page_handle.getBoundingClientRect();
+
+    bounds.style.height = h-handle_box.height + 'px';
 
     ww = w;
-    wh = ((h - vars.view.bottom_buffer) - bars_height);
+    wh = ((h - vars.view.bottom_buffer) - bars_height) - handle_box.height;
 
     plot.style.width = ww + 'px';
     plot.style.height = wh + 'px';
@@ -2524,10 +2916,20 @@ function window_redraw(first_run=null) {
     //console.log(ww, wh, bars_height);
 
     if (camera) {
+        // visible_dimensions = visibleAtZDepth(-default_z, camera);
+        // cam_base_pos.z = ((default_z / visible_dimensions.w) * vars.map.dims.w) + 2.0;
+        // reset_default_z = cam_base_pos.z;
+        // vars.max_zoom = reset_default_z;
+        // ///alert(reset_default_z);
+        //
+        // let zg = Math.floor(Math.log(cam_base_pos.z)) + 1;
+        // grid_resolution = z_mants[zg];
+
         camera.aspect = ww / wh;
         camera.updateProjectionMatrix();
         renderer.setSize(ww, wh);
         run_camera();
+        run_optics();
         run_ticks();
     }
 
@@ -2549,17 +2951,38 @@ function window_redraw(first_run=null) {
     y_major_axis.style.height = vars.view.height+'px';
     y_major_axis.style.width = '1px';
 
-    title_box.style.bottom = vars.view.title_bottom_offset+'px';
-    title_box.classList.remove('hidden');
-
-    const i_height = title_box.getBoundingClientRect();
-    intro_box.style.bottom = i_height.height+vars.view.title_bottom_offset+'px';
-
-    [...document.querySelectorAll('.is-overlay')].map(wp => {
-        wp.style.backgroundColor = vars.colors.hex_css(vars.colors.window, vars.colors.info_bk_opacity);
-    });
+    // vars.view.title_bottom_offset = Math.round(vars.view.height/6);
+    //
+    // title_box.style.bottom = vars.view.title_bottom_offset+'px';
+    // title_box.classList.remove('hidden');
 
 
+    //
+    // bounds.style.height = h-handle_box.height + 'px';
+
+
+
+
+
+
+
+
+
+    intro_box_reposition();
+}
+
+function intro_box_reposition(){
+    const bounds_pos = bounds.getBoundingClientRect();
+    const title_pos = title_bar.getBoundingClientRect();
+    const i_box = intro_box.getBoundingClientRect();
+    //
+    // alert(bounds_pos.top);
+
+    let i_offset = title_pos.top-bounds_pos.top-i_box.height;
+    if(i_offset < bounds_pos.top) i_offset = 12;
+
+    intro_box.style.top = i_offset+'px';
+    intro_box.classList.remove('hidden');
 }
 
 function loader_notify(count, message = null) {
@@ -2599,6 +3022,8 @@ function init() {
     });
     renderer.setPixelRatio(1);
     renderer.setSize(ww, wh);
+
+    renderer.setClearColor(utility_color.fromArray([1.0, 0, 0]), 1.0);
 
     root_plane = new THREE.Plane(y_up);
 
@@ -2707,6 +3132,8 @@ const wudi_dub_selecta = {
     geom: null,
     mark: [],
     dub_line: null,
+    dub_box: null,
+    dub_pos: new THREE.Vector3(),
     make: (e) => {
         wudi_dub_selecta.geom = new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(wudi_dub_selecta.buff, 3));
         wudi_dub_selecta.dub_line = new THREE.LineSegments(wudi_dub_selecta.geom, wudi_dub_selecta.line_material);
@@ -2718,9 +3145,75 @@ const wudi_dub_selecta = {
             wudi_dub_selecta.mark.push(ref_marker);
             wudi_dub_selecta.object.add(ref_marker);
         }
+
+        //const box_geometry = new THREE.BoxBufferGeometry(1, vars.bar_scale_width, 1);
+
+        // const presto = new Float32Array([
+        //     -0.1,0,0,
+        //     -0.1,0,1.1,
+        //     1.1,0,1.1,
+        //     1.1,0,0,
+        //     -0.1,0,0
+        // ]);
+
+        const presto = new Float32Array([
+            -0.5,0.1,-0.5,
+            0.5,0.1,-0.5,
+            0.5,0.1,0.5,
+            -0.5,0.1,0.5,
+            -0.4,0.1,-0.4,
+            0.4,0.1,-0.4,
+            0.4,0.1,0.4,
+            -0.4,0.1,0.4,
+            -0.5,-0.1,-0.5,
+            0.5,-0.1,-0.5,
+            0.5,-0.1,0.5,
+            -0.5,-0.1,0.5,
+            -0.4,-0.1,-0.4,
+            0.4,-0.1,-0.4,
+            0.4,-0.1,0.4,
+            -0.4,-0.1,0.4
+        ]);
+
+        // const ref_mat = new THREE.PointsMaterial({color: vars.colors.dub_selecta, size:0.05});
+        // const box_geometry = new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(presto, 3));
+        // const ref_mat = new THREE.LineBasicMaterial({color: vars.colors.dub_selecta, linewidth:10});
+        // const box_geometry = new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(presto, 3));
+        //box_geometry.translate(0.5, 0.0, 0.5);
+        const ref_mat = new THREE.MeshBasicMaterial({
+            color: 0xFFFFFF,
+            transparent: true,
+            opacity: 0.5,
+            blending: THREE.NormalBlending,  //SubtractiveBlending,//AdditiveBlending, //AdditiveBlending, //THREE.NormalBlending, //
+            depthWrite: false,
+            depthTest: false
+        });
+
+        const box_geometry = new THREE.BoxBufferGeometry(1, vars.bar_scale_width, 1);
+        box_geometry.deleteAttribute('uv');
+        box_geometry.deleteAttribute('normal');
+        box_geometry.translate(0.5, 0.0, 0.5);
+        // wudi_dub_selecta.dub_box = new THREE.Line(box_geometry, wudi_dub_selecta.line_material);
+        wudi_dub_selecta.dub_box = new THREE.Mesh(box_geometry, ref_mat);
+        // wudi_dub_selecta.dub_box = new THREE.Points(box_geometry, ref_mat);
+        // wudi_dub_selecta.dub_box = new THREE.Mesh(box_geometry, ref_mat);
+        // before doing any updates, ensure the local matrix is set from postion/quaternion/scale:
+        wudi_dub_selecta.dub_box.updateMatrix();
+        wudi_dub_selecta.dub_box.userData.originalMatrix = wudi_dub_selecta.dub_box.matrix.clone();
+
+        map_container.add(wudi_dub_selecta.dub_box);
         wudi_dub_selecta.object.add(wudi_dub_selecta.dub_line);
         wudi_dub_selecta.object.visible = false;
+
         scene.add(wudi_dub_selecta.object);
+    },
+    rescale:(index, up, down) =>{
+        const wudi_up = scene.getObjectByName('wudi_up');
+        wudi_up.getMatrixAt(index, mu);
+        mu.decompose(vw, qu, vu);
+        wudi_dub_selecta.dub_box.position.set(vw.x, vw.y, down*-1);
+        wudi_dub_selecta.dub_box.setRotationFromQuaternion(qu);
+        wudi_dub_selecta.dub_box.scale.set(vu.x,vu.y,up+down);
     },
     set: (p1, p2) =>{
         wudi_dub_selecta.object.visible = true;
@@ -2736,27 +3229,50 @@ const wudi_dub_selecta = {
     set_from_point: (pid) =>{
         const t_ref = scene.getObjectByName('ref_mark');
         const ref_point = vars.data.wudi_index.indexOf(pid);
+
+        const wudi_down = scene.getObjectByName('wudi_down');
+        wudi_down.getMatrixAt(ref_point, mu);
+        mu.decompose(vw, qu, vu);
+        const down = vu.z;
+
+        const wudi_up = scene.getObjectByName('wudi_up');
+        wudi_up.getMatrixAt(ref_point, mu);
+        mu.decompose(vw, qu, vu);
+        const up = vu.z;
+
+        wudi_dub_selecta.dub_box.position.set(vw.x, vw.y, down*-1);
+        wudi_dub_selecta.dub_box.setRotationFromQuaternion(qu);
+        wudi_dub_selecta.dub_box.scale.set(vu.x,vu.y,up+down);
+
         const pt = vars.data.wudi_points.raw.data[ref_point];
+
         vw.set(pt[1],pt[0],0.0);
         vk.set(pt[5],pt[4],0.0);
         vu.subVectors(vk,vw);
-        vc.crossVectors(vu,z_in).negate();//.normalize().multiplyScalar(0.5);
+        vc.crossVectors(vu,z_in).normalize().multiplyScalar(-0.1);
         vc.add(vu.multiplyScalar(0.5).add(vw));
-
+        //
         map_container.localToWorld(vc);
-        t_ref.position.copy(vc);
+        // t_ref.position.copy(vc);
+        // t_ref.visible = true;
         map_container.localToWorld(vw);
         map_container.localToWorld(vk);
-        wudi_dub_selecta.set(vw,vk);
 
         vw.set(pt[3],pt[2],0.0);
-        return [vc, vw];
+        vu.copy(vw);
+        map_container.localToWorld(vu);
+        wudi_dub_selecta.dub_pos.copy(vw);
+
+        return [vc.clone(), vw.clone()];
     },
 }
 
 const mover = {
     name: 'synthetic_displacement',
     d: new THREE.Vector3(),
+    d_mem: 0,
+    z_amt: 0,
+    z_sta: 0,
     ac: new THREE.Vector3(),
     vl: new THREE.Vector3(),
     pos: new THREE.Vector3(),
@@ -2764,7 +3280,7 @@ const mover = {
     tgt: new THREE.Vector3(),
     move_vector: null,
     attenuation: 1.0,
-    speed: 0.01,
+    speed: 0.0009,
     vd: 0,
     rv: 0,
     is_moving: false,
@@ -2775,7 +3291,11 @@ const mover = {
         control: null,
         position: null,
         offset: new THREE.Vector3(),
-        target: new THREE.Vector3()
+        target: new THREE.Vector3(),
+        amount: null,
+        delta: 0,
+        last: 0,
+        direction: 1
     },
     ctr: {
         t: 0.0,
@@ -2785,6 +3305,7 @@ const mover = {
             if(mover.is_rotating || mover.is_moving){
                 mover.stopped = false;
                 run_camera();
+                run_optics();
                 run_ticks();
                 refresh_sectors();
                 adaptive_scaling_wudi();
@@ -2814,14 +3335,28 @@ const mover = {
         this.d.set(0,0,0);
         this.vl.set(0,0,0);
     },
-    set_target(control_vector, target_pos){
+    set_target(control_vector, target_pos, zoom=null){
+
         this.pos.copy(control_vector);
         this.move_vector = control_vector; //inherit
         this.tgt.copy(target_pos);
-        this.is_moving = true;
+        vw.subVectors(this.tgt, this.pos);
+        this.d_mem = vw.length();
 
+        this.speed = this.d_mem/1000;
+
+        if(zoom) {
+            this.z_sta = cam_base_pos.z;
+            this.z_amt = zoom;
+        }else{
+            this.z_sta = null;
+        }
+
+        this.is_moving = true;
+        //obs_handler({z: z_start, d: this.d_mem});
     },
     set_rotation_target(object, control_position, pos, target_offset, target_pos){
+        //mover.set_rotation_target(cube, camera_projected, user_position.actual, dub_select[0], dub_select[1]);
         ///cube, camera.position, user_position, target_position(wudi point).
         this.roto.object = object;
         this.roto.control = control_position;
@@ -2829,14 +3364,12 @@ const mover = {
         this.roto.offset.copy(target_offset);
         this.roto.target.copy(target_pos);
         this.is_rotating = true;
-    },
-    rotate(){
+
         vk.subVectors(this.roto.position, this.roto.control);
         vw.subVectors(this.roto.position, vk).normalize();
         // //#//yellow.
         // arrow_helper_4.position.copy(this.roto.position);
         // arrow_helper_4.setDirection(vw);
-
 
         vc.copy(this.roto.target);
         map_container.localToWorld(vc);
@@ -2844,15 +3377,56 @@ const mover = {
         vu.copy(this.roto.offset);
         vk.subVectors(vc, vu).normalize();
 
+        //vk.add(this.roto.position);
+
         // //#//RED.
-        // arrow_helper_3.position.copy(vu);
+        // arrow_helper_3.position.copy(vc);
         // arrow_helper_3.setDirection(vk);
 
+
         let r = vw.angleTo(vk);
-        if(Math.abs(r) < 0.1) this.is_rotating = false;
-        if (vk.dot(cam_right) > 0) r *= -1;
-        obs_handler({r: r.toFixed(3)});
-        this.roto.object.rotateOnWorldAxis(y_up, r/10);
+        // if (vk.dot(cam_right) >= 0) r *= -1.0;
+        this.roto.direction = (vk.dot(cam_right) >= 0) ? -1 : 1;
+        // console.log('rotation:', r);
+        this.roto.amount = r;//Math.PI/2;//r;90º
+        this.roto.delta = 0;
+        this.roto.last = 0;
+    },
+    rotate(){
+
+        const m = this.d.length();
+        const d = (this.roto.amount*(1-(m/this.d_mem)));
+        const r = d-this.roto.last;
+        this.roto.object.rotateOnWorldAxis(y_up, r*this.roto.direction);
+        this.roto.last = d;
+
+        //obs_handler({amt:this.roto.amount, d:d,r: r.toFixed(3)});
+        //
+        // vk.subVectors(this.roto.position, this.roto.control);
+        // vw.subVectors(this.roto.position, vk).normalize();
+        // // //#//yellow.
+        // // arrow_helper_4.position.copy(this.roto.position);
+        // // arrow_helper_4.setDirection(vw);
+        //
+        // vc.copy(this.roto.target);
+        // map_container.localToWorld(vc);
+        // //because target is a projection.
+        // vu.copy(this.roto.offset);
+        // vk.subVectors(vc, vu);//.normalize();
+        //
+        // // //#//RED.
+        // // arrow_helper_3.position.copy(vu);
+        // // arrow_helper_3.setDirection(vk);
+        //
+        // let r = vw.angleTo(vk);
+        // if(Math.abs(r) < 0.1) {
+        //     this.is_rotating = false;
+        //     return;
+        // }
+        // if (vk.dot(cam_right) > 0) r *= -1.0;
+        // // r *= 0.9;
+        // //obs_handler({r: r.toFixed(3)});
+        // this.roto.object.rotateOnWorldAxis(y_up, r/30);
 
     },
     move(){
@@ -2864,11 +3438,17 @@ const mover = {
         this.vd =  delta_p / t_delta;
         const r = 1 - (this.vd * t_delta) / m;
         this.ac.copy(this.d).normalize().multiplyScalar(this.speed);
-        if (r>0) this.vl.add(this.ac).multiplyScalar(r);
-        if (m < 0.05) this.is_moving = false;
+        if (r > 0) this.vl.add(this.ac).multiplyScalar(r);
+        if (m < this.speed) {//0.0001){
+            this.is_rotating = false;
+            this.is_moving = false;
+        }
         this.del_pos.copy(this.pos);
         this.pos.add(this.vl);
-
+        //this.d.multiplyScalar(0.99999);
+        if(this.z_sta !== null) cam_base_pos.z = this.z_sta-(this.z_amt*(1-(m/this.d_mem)));
+        //obs_handler({d:1-(m/this.d_mem).toFixed(3)});
+        //obs_handler({d: m});
     }
 }
 
@@ -2876,6 +3456,12 @@ const q_nav = {
     q_nav_event: (e) => {
         const rel = e.target.nodeName === 'polygon' ? e.target.parentNode : e.target;
 
+        q_nav.hover_state = (rel.getAttribute('meta') === 'wudi_points');
+        const relevant = element_info_filter[rel.getAttribute('meta')](rel.getAttribute('index'));
+
+        vars.info.set_state(true);
+        vars.info.set_text([relevant]);
+        vars.info.set_position(e.pageX, e.pageY-100, null);
 
         if(rel.getAttribute('meta') === 'mpa_s'){
             const t_elem = scene.getObjectByName('mpa_s-'+rel.getAttribute('index'));
@@ -2883,12 +3469,14 @@ const q_nav = {
                 console.log(rel);
                 return false;
             }
-
             t_elem.geometry.computeBoundingBox();
             t_elem.geometry.boundingBox.getCenter(vc);
+
         }else if(rel.getAttribute('meta') === 'places_data'){
             const places_inst = scene.getObjectByName('places_data').children[0];
             vc.fromArray(places_inst.userData.td.position[rel.getAttribute('index')]);
+        }else if(rel.getAttribute('meta') === 'wudi_points') {
+            vc.copy(wudi_dub_selecta.dub_pos);
         }
 
         map_container.localToWorld(vc);
@@ -2896,20 +3484,16 @@ const q_nav = {
         grid_lines.position.copy(vc);
 
 
-
-
         //console.log(rel.getAttribute('meta'), rel.getAttribute('index'));
         //map_container
-        const relevant = element_info_filter[rel.getAttribute('meta')](rel.getAttribute('index'));
 
-        vars.info.set_state(true);
-        vars.info.set_text([relevant]);
-        vars.info.set_position(e.pageX, e.pageY-100, null);
+
 
         //grid_lines
 
         obs_handler(relevant);//{s:rel.getAttribute('meta'), i:rel.getAttribute('index')});
     },
+    hover_state: false,
     area_strip: q_nav_bar.querySelector('.area-strip'),
     base_position: q_nav_bar.querySelector('.base-position'),
     label: q_nav_bar.querySelector('.label'),
@@ -2948,6 +3532,7 @@ const q_nav = {
         }else{
             const container = document.createElement("div");
             container.classList.add("area-div-container");
+            container.classList.add("row");
 
             container.setAttribute('id', 'sg-'+reg_id);
             const places_instance = scene.getObjectByName('places_data').children[0];
@@ -2964,9 +3549,11 @@ const q_nav = {
                 return Math.ceil(24*scale)+4;
             }
 
+            // console.log(start_index, vars.data.wudi_index)
+
             for(let c = 0; c<items;c++){
-                const r_div = document.createElement("div");
-                r_div.classList.add("area-div");
+
+                // r_div.classList.add("column-label");
 
                 let index = null;
                 if(reg_id === 'g-1'){
@@ -2975,17 +3562,56 @@ const q_nav = {
                     index = start_index+c;
                 }
 
+                const r_div = document.createElement("div");
+                r_div.classList.add("area-div");
+                r_div.classList.add("row-stack");
+                r_div.setAttribute('meta','wudi_points');//
+                r_div.setAttribute('index', vars.data.wudi_index.indexOf(index));//
+                r_div.addEventListener('mouseover', q_nav.q_nav_event, false);
+
+
+
                 const plb = vars.data.wudi_assoc.raw.data[index];
                 //console.log('plb',plb);
 
                 const _has_protected = plb[1] !== null;
                 const _has_inside_protected = plb[3] !== null;
                 const _has_place = plb[4] === null ? false: vars.data.places_data.lookup_table.hasOwnProperty(plb[4]);
+
                 const allowed = true;
                 let r_height = 0;
+                let in_area = null;
 
                 if(allowed) {
-                    if (_has_protected) {
+                    if (_has_inside_protected) {
+
+                        if (Array.isArray(plb[3])) {
+                            in_area = plb[3][0];
+                        } else {
+                            in_area = plb[3];
+                        }
+
+                        const protected_scale = protected_instance.userData.td.sample_raw[in_area];
+                        const hexa = svg_hexagon.cloneNode(true);
+                        ///const circle = svg_inside_circle.cloneNode(true);
+                        hexa.removeAttribute('id');
+                        hexa.classList.add('svg-minimized');
+                        hexa.classList.add('area-acg-protected-inside');
+
+                        hexa.setAttribute('index',in_area);//
+                        hexa.setAttribute('meta','mpa_s');//
+
+                        hexa.style.fill = vars.colors.hex_css(protected_color);
+
+                        r_height += transform_hexagon(hexa, protected_scale / 4);
+                        //circle.querySelector('circle').setAttribute('r', (60 / 4) * protected_scale);
+
+                        hexa.addEventListener('mouseover', q_nav.q_nav_event, false);
+                        r_div.appendChild(hexa);
+                    }
+
+                    if (_has_protected && (plb[1] !== parseInt(in_area))) {
+                        // console.log(in_area, plb);
                         const protected_scale = protected_instance.userData.td.sample_raw[plb[1]];
                         const hexa = svg_hexagon.cloneNode(true);
                         hexa.removeAttribute('id');
@@ -3002,32 +3628,7 @@ const q_nav = {
                         r_div.appendChild(hexa);
                     }
 
-                    if (_has_inside_protected) {
-                        let has = null
-                        if (Array.isArray(plb[3])) {
-                            has = plb[3][0];
-                        } else {
-                            has = plb[3];
-                        }
 
-                        const protected_scale = protected_instance.userData.td.sample_raw[has];
-                        const hexa = svg_hexagon.cloneNode(true);
-                        ///const circle = svg_inside_circle.cloneNode(true);
-                        hexa.removeAttribute('id');
-                        hexa.classList.add('svg-minimized');
-                        hexa.classList.add('area-acg-protected-inside');
-
-                        hexa.setAttribute('index',has);//
-                        hexa.setAttribute('meta','mpa_s');//
-
-                        hexa.style.fill = vars.colors.hex_css(protected_color);
-
-                        r_height += transform_hexagon(hexa, protected_scale / 4);
-                        //circle.querySelector('circle').setAttribute('r', (60 / 4) * protected_scale);
-
-                        hexa.addEventListener('mouseover', q_nav.q_nav_event, false);
-                        r_div.appendChild(hexa);
-                    }
 
                     if (_has_place) {
                         const place_data_index = vars.data.places_data.lookup_table[plb[4]];
@@ -3052,8 +3653,12 @@ const q_nav = {
 
 
 
-                r_div.style.left = c*vars.q_nav.segment_width+'px';
-                r_div.style.top = (20-(r_height/2))+'px';///   c*vars.q_nav.segment_width+'px';
+                // r_div.style.left = c*vars.q_nav.segment_width+'px';
+                // r_div.style.top = (20-(r_height/2))+'px';///   c*vars.q_nav.segment_width+'px';
+                // r_div.addEventListener('mouseover', q_nav.q_nav_event, false);
+                // r_div.setAttribute('index',index);//
+                // r_div.setAttribute('meta','wudi_points');//
+
                 container.appendChild(r_div);
 
             }
@@ -3092,14 +3697,14 @@ const q_nav = {
             q_nav.reposition();
             q_nav.current_position = point;
             q_nav.draw_strip(q_nav.region_id, q_nav.region_length, r[0]);
-            q_nav.optimise_strip();
+            //q_nav.optimise_strip();
         }
 
         return false;
     },
     reposition: () => {
         //console.log('q_nav called reposition');
-        q_nav.optimise_strip();
+        //q_nav.optimise_strip();
         q_nav.label.innerHTML = `${q_nav.get_point()}/${q_nav.region_length}`;
         q_nav.area_strip.style.width = (q_nav.region_width_px)+'px';
         q_nav.area_strip.style.left = ((vars.view.width/2.0)-((q_nav.offset*q_nav.region_width_px)-(vars.q_nav.segment_width/2)))+'px';
@@ -3146,8 +3751,10 @@ const q_nav = {
             q_nav.offset = util.naturalize_on_loop(r_interval/q_nav.region_length, true);
             q_nav.reposition();
             const target_pid = vars.data.geo_regions[q_nav.region_id][q_nav.get_point()-1];
+            //const target_pid = vars.data.geo_regions[q_nav.region_id][q_nav.get_point()-1];
             if(target_pid !== q_nav.last_point_selected){
-                move_to_point(target_pid);
+                move_to_point(vars.data.wudi_index.indexOf(target_pid));
+                ///move_to_point(target_pid);
                 q_nav.last_point_selected = target_pid;
             }
 
@@ -3248,7 +3855,7 @@ const post_obj_list = [
 const obj_list = [
     {url: './data/v2-raw-protected-14.txt', type: 'csv_text', name: 'protected_regions', style: 'point', columns: 14, geom_index: 11},
     //{url: './data/raw-georegions-11.txt', type: 'csv_text', name: 'eco_regions', columns: 11, style: 'line', geom_index: 10, is_complex: true},
-    {url: './data/raw-isobath-100m-1.txt', type: 'csv_text', name: 'iso_bath', columns: 1, style: 'multi_line', geom_index: 0}
+    {url: './data/raw-isobath-100m-1.txt', type: 'csv_text', name: 'isobath', columns: 1, style: 'multi_line', geom_index: 0}
 ]
 
 let initial_load = false;
@@ -3259,6 +3866,7 @@ async function load_complete(situation) {
     console.log('all loaded');
     console.log(situation);
     adaptive_scaling_wudi();
+
 }
 
 async function load_datum(r) {
@@ -3276,11 +3884,15 @@ async function load_primary(r){
 
     q_nav.init();
     wudi_dub_selecta.make(null);
+    //wudi_sub_selecta.make(null);
 
     load_datum(r).then(r => load_complete(r));
 }
 
 async function window_dom_prepare(){
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
     const buttons = [...document.querySelectorAll(".button")];
         buttons.map(b => {
         const svg_check_zero = document.getElementById("check-box-0").cloneNode(true);
@@ -3296,10 +3908,39 @@ async function window_dom_prepare(){
         b.style.color = r_col;
     });
 
-    const dom_close = document.getElementById("graph-close");
-	const svg_check_one = document.getElementById("check-box-1").cloneNode(true);
-	svg_check_one.removeAttribute('id');
-	dom_close.appendChild(svg_check_one);
+    // const graph_controls = document.getElementById('graph-controls');
+    const graph_controls_items = {
+        'graph-close': 'check-box-1',
+        'graph-download': 'download-icon'
+    }
+
+    Object.entries(graph_controls_items).map(kv => {
+        const el = document.getElementById(kv[0]);
+        const legend_mark = document.getElementById(kv[1]);
+        const kma = legend_mark.cloneNode(true);
+        kma.removeAttribute('id');
+        el.appendChild(kma);
+    });
+
+    function scroll_to_downloads(){
+        const box = document.getElementById('output').getBoundingClientRect();
+        window.scrollTo({ top: box.top, behavior: 'smooth' });
+    }
+
+
+    document.getElementById('graph-close').addEventListener('mouseup', vars.selecta.wudi.points_deselect);
+    document.getElementById('graph-download').addEventListener('mouseup', scroll_to_downloads);
+
+    //
+    // const graph_close = document.getElementById("graph-close");
+	// const svg_check_one = document.getElementById("check-box-1").cloneNode(true);
+	// svg_check_one.removeAttribute('id');
+	// graph_close.appendChild(svg_check_one);
+    //
+    // const dom_download = document.getElementById("graph-close");
+	// const svg_check_one = document.getElementById("check-box-1").cloneNode(true);
+	// svg_check_one.removeAttribute('id');
+	// dom_close.appendChild(svg_check_one);
 
 
     axis_planes.push({
@@ -3336,49 +3977,211 @@ async function window_dom_prepare(){
     obs.classList.remove('hidden');
 
 
+    // const legend_elements = {
+    //     'place':'area-acg-place',
+    //     'mpa':'area-acg-protected',
+    //     'mpa-interior':'area-acg-protected-inside',
+    //     'legend-obs':'area-acg-obs',
+    //     'legend-obs-normal':'area-acg-obs-normal'
+    // };
+
+
     const legend_elements = {
-        'place':'area-acg-place',
-        'mpa':'area-acg-protected',
-        'mpa-interior':'area-acg-protected-inside',
-        'legend-obs':'area-acg-obs',
-        'legend-obs-normal':'area-acg-obs-normal'
+        'places':'basic-hexagon',
+        'mpa_s_designated':'mpa-shape',
+        'mpa_s_proposed':'mpa-shape',
+        'isobath':'isobath-shape'
     };
 
-    const legend_mark = document.getElementById('basic-hexagon');
+
 
     Object.entries(legend_elements).map(kv => {
         const el = document.getElementById(kv[0]);
+        const legend_mark = document.getElementById(kv[1]);
         const kma = legend_mark.cloneNode(true);
         kma.removeAttribute('id');
-        kma.classList.add(kv[1]);
+
         kma.style.width = '24px';
         kma.style.height = '24px';
+
+        // const f_col = utility_color.fromArray(vars.colors[kv[0]]).getHex();
+        // console.log(kv[0], vars.colors.hex_css(f_col, true));
+        //
+
+        kma.style.fill = vars.colors.rgba_arr_to_css(vars.colors[kv[0]]);
+
         el.appendChild(kma);
     });
 
-    const page_handle = document.getElementById('page-handle-icon');
-    const page_handle_svg = document.getElementById('h-bar');
-    page_handle.appendChild(page_handle_svg);
 
-    function close_intro(){
-        intro_box.style.display = 'none';
-    }
+
+
+
+
+
+
+
+    //const page_handle = document.getElementById('page-handle-icon');
+    const h_bars = [{t:'up',s:'none'},{t:'down',s:'block'}].map(t=>{
+        const page_handle_svg = document.getElementById('h-bar-'+t.t);
+        page_handle_svg.style.display = t.s;
+        page_handle.appendChild(page_handle_svg);
+    });
 
     const intro_button = document.getElementById('intro-button');
-    intro_button.addEventListener('mousedown', close_intro);
+    intro_button.param = 'intro';
+    intro_button.addEventListener('mouseup', window_state_control);
 
+    const instructions_button = document.getElementById('instructions-button');
+    instructions_button.param = 'instructions';
+    instructions_button.addEventListener('mouseup', window_state_control);
 
+    // const instructions_control = document.getElementById('instructions');
+    // instructions_control.param = 'intro';
+    // instructions_control.addEventListener('mouseup', window_state_control);
     //<!--		recenter,camera-motion,instructions,navigation -->
 
+
+    plot_controls.classList.add('hidden');
 
     document.getElementById('recenter').addEventListener('mouseup', control_recenter_map);
     document.getElementById('camera-motion').addEventListener('mouseup', control_camera_behavior);
     document.getElementById('navigation').addEventListener('mouseup', control_navigation_state);
+    document.getElementById('instructions').addEventListener('mouseup', control_instructions_state);
+    document.getElementById('mpa_s').addEventListener('mouseup', control_mpa_s_state);
 
 
+
+    function window_scroll_control(e){
+        const h_state = window.scrollY > 0;
+        vars.suspend = h_state;
+        set_handle_sate(h_state);
+        if(vars.state_interacted) {
+            //document.getElementById('bounds-overlay').style.display = display_array[+(h_state)];
+            document.getElementById('bounds-overlay').fader(+(h_state), vars.suspend);///style.display = display_array[+(h_state)];
+        }
+    }
+
+    function set_handle_sate(h_state){
+
+        const states = ['down','up'];
+        const t_s = states[+h_state];
+
+        states.map(t=>{
+            const page_handle_svg = document.getElementById('h-bar-'+t);
+            page_handle_svg.style.display = t === t_s ? 'block' : 'none';
+        });
+    }
+
+    function window_handle_control(e){
+        if(e.target.id === 'bounds-overlay' && !vars.state_interacted) return;
+
+        const h_state = window.scrollY === 0;
+        //set_handle_sate(h_state);
+
+        if(!h_state){
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }else{
+            const handle_box = page_handle.getBoundingClientRect();
+            window.scrollTo({ top: handle_box.top, behavior: 'smooth' });
+        }
+        e.preventDefault();
+    }
+
+    window.onscroll = window_scroll_control;//function() {window_scroll_control()};
+    page_handle.addEventListener('mouseup', window_handle_control, false);
+
+    const bounds_overlay = document.getElementById('bounds-overlay');//.style.display = 'none';
+    bounds_overlay.addEventListener('mouseup', window_handle_control, false);
+
+    bounds_overlay.fader = function(f){
+        const s = this.style;
+        s.display = "block";
+        s.opacity = 1;//Math.abs(f-1);
+        function fadeout(){(s.opacity -= .1) < 0? s.display="none" : requestAnimationFrame(fadeout)}
+        function fadein(){(s.opacity += .1) > 1? s.display="block" : requestAnimationFrame(fadein)}
+        (f === 0) ? fadeout() : fadein();
+    }
+
+    const instructions_slide = document.getElementById('instructions-slide');
+    [...plot_controls.querySelectorAll('.control-button')].map(cd =>{
+        const control_item = cd.cloneNode(true);
+
+        const target = instructions_slide.querySelectorAll('.icon-'+control_item.id)[0];
+        control_item.className = "";
+        control_item.classList.add('instructions-icon');
+        control_item.removeAttribute('id');
+        target.prepend(control_item);
+    })
+//     bounds_overlay.fader = (f) => {
+//         const s = this.parent.style;
+//         alert(s,f);
+// // s.opacity = 1;
+// // (function fade(){(s.opacity-=.1)<0?s.display="none":setTimeout(fade,40)})();
+//     }
+
+
+
+    vars.state_interacted = false;
+
+    [...document.querySelectorAll('.is-overlay')].map(wp => {
+        wp.style.backgroundColor = vars.colors.hex_css(vars.colors.window, vars.colors.info_bk_opacity);
+    });
 
     return true;
 }
+
+async function window_state_control(e){
+
+    const from_control = e.target;// e.target.closest('.control-button') ? e.target.closest('.control-button') : e.target;
+
+    function state_one(){
+        const intro_slide = document.getElementById('intro');
+        intro_slide.style.display = 'none';
+
+        const instructions_slide = document.getElementById('intro-instructions');
+        instructions_slide.style.display = 'block';
+
+        plot_controls.classList.remove('hidden');
+        intro_box_reposition();
+    }
+
+    function state_two(){
+        // const intro_slide = document.getElementById('intro');
+        // intro_slide.style.display = 'none';
+
+        const instructions_slide = document.getElementById('intro-instructions');
+        instructions_slide.style.display = 'none';
+
+        const instructions_control = document.getElementById('instructions');
+        instructions_control.classList.remove('active');
+
+
+        const instructions_button = document.getElementById('instructions-button');
+        instructions_button.style.display = 'none';
+
+        // bounds_overlay.fader('hi');
+        //document.getElementById('bounds-overlay').style.display = 'none';
+        document.getElementById('bounds-overlay').fader(0);
+        // plot_controls.classList.remove('hidden');
+        vars.state_interacted = true;
+    }
+
+    switch (from_control.param) {
+        case 'intro':
+            state_one();
+            break
+        case 'instructions':
+            state_two();
+            break
+        default:
+            console.log(e.target.closest('.control-button'));
+            alert(e.target.param);
+    }
+
+    return true;
+}
+
 
 window.addEventListener('DOMContentLoaded', (event) => {
     console.log('dom loaded. continuing');

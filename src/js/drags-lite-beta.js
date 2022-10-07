@@ -314,8 +314,6 @@ export function dragControls(dome_element, dragAction) {
     dome_element.addEventListener('mouseleave', pointer_cancel, Modernizr.passiveeventlisteners ? {passive: true} : false);
     dome_element.addEventListener('contextmenu', pointer_context, Modernizr.passiveeventlisteners ? {passive: true} : false);
 
-    /// Modernizr.passiveeventlisteners ? {passive: true} : false
-
     //touch
     dome_element.addEventListener('touchmove', touch_move, false);
     dome_element.addEventListener('touchstart', touch_down, false);
