@@ -4,7 +4,10 @@
 <head>
 	<title>obspkg-lite-sac</title>
 	<meta charset="utf-8">
-	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+	<meta name="viewport" content="width=device-width, viewport-fit=cover, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+<!--	<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">-->
+	<meta name="apple-mobile-web-app-capable" content="yes" />
+	<meta name="apple-mobile-web-app-status-bar-style" content="dark-content">
 	<link type="text/css" rel="stylesheet" href="./css/basic.css">
 	<link type="text/css" rel="stylesheet" href="./css/window.css">
 </head>
@@ -86,7 +89,9 @@
 	l-25.2,18.3l-23.4-17.1l13.1-47.4L118.6,57.5z"/>
 				</svg></div>
 		</div>
+
 	</div>
+
 
 
 	<div id="title-bar" class="bar hidden">
@@ -136,7 +141,13 @@
 
 	<div id="bounds-overlay"></div>
 
-	<div id="intro-box" class="hidden">
+
+
+
+</div><!-- bounds -->
+
+<div id="intro-box" class="intro-box">
+	<div class="intro-wrapper">
 		<div id="intro">
 			<div class="box-wrapper is-overlay">
 				<div class="entry_page_intro wrapper-text">
@@ -151,39 +162,57 @@
 
 					<div class="instructions-text">INSTRUCTIONS:</div>
 
-					<div class="instructions-header"><h2>PAN</h2><span>move the map along x or y axis</span></div>
+					<div class="instructions-header"><h2>PAN</h2></div>
 					<div class="instructions-text">Click/Tap and drag the map to pan.
-					Click/Tap anywhere on map to center to that position.
+						Click/Tap anywhere on map to center to that position.
 					</div>
-					<div class="instructions-header"><h2>ZOOM</h2><span>change the scale of the map</span></div>
+					<div class="instructions-header"><h2>ZOOM</h2></div>
 					<div class="instructions-text">Use mouse scroll-wheel.
-						trackpad/mobile: use two fingers and pinch.
-					(press the space key to re-center).
+						Trackpad/mobile: use two fingers and pinch.
 					</div>
-					<div class="instructions-header"><h2>ROTATE</h2><span>change three-dimensional viewing position</span></div>
-					<div class="instructions-text">Right-Click+drag or Shift+Click+drag to change the viewing angle.
-					trackpad/mobile: use two fingers and rotate.
+					<div class="instructions-header"><h2>3d ROTATE</h2></div>
+					<div class="instructions-text">Right-Click+drag or Shift+Click+drag.
+						Trackpad/mobile: use two fingers and rotate/slide.
 					</div>
-					<div class="instructions-header"><h2>SELECT</h2><span>obtain information about specific points</span></div>
+					<div class="instructions-header"><h2>SELECT</h2></div>
 					<div class="instructions-text">Click a point on the coastline to see a graph of its data.
 						Click years/months to view data for selected time range.
-						trackpad/mobile: tap-and-hold for info, tap again to select.
+						Trackpad/mobile: tap-and-hold for info, tap again to select.
 						You can select multiple points and multiple times. The graph will show averaged data.
 					</div>
-					<div class="instructions-simple icon-recenter">Recenter the map (undo zoom, rotation, and position changes)</div>
+					<div class="instructions-simple icon-recenter">Recenter the map (space-bar)</div>
 					<div class="instructions-simple icon-camera-motion">Rotate the view when selecting a point</div>
 					<div class="instructions-simple icon-instructions">Show/Hide these instructions</div>
 					<div class="instructions-simple icon-navigation">Show/Hide secondary navigation bar</div>
 					<div class="instructions-simple icon-mpa_s">Show/Hide marine protected areas</div>
-
+					<hr/>
+					<div class="legend-items">
+						<div class="instructions-text">MAP LEGEND:</div>
+						<!--place:basic-hexagon,mpa-designated:mpa-shape,mpa-proposed:mpa-shape,isobath:isobath-shape-->
+						<div>
+							<div id="places"></div>
+							<div>City or Town</div>
+						</div>
+						<div>
+							<div id="mpa_s_designated"></div>
+							<div>Designated Marine Protected Area</div>
+						</div>
+						<div>
+							<div id="mpa_s_proposed"></div>
+							<div>Proposed Marine Protected Area</div>
+						</div>
+						<div>
+							<div id="isobath"></div>
+							<div>100m isobath</div>
+						</div>
+					</div>
 				</div>
 				<div id="instructions-button">OK</div>
 			</div>
 		</div>
 	</div>
+</div>
 
-
-</div><!-- bounds -->
 
 <div id="page-handle-icon" ></div>
 <!--<div id="dmark-seven" class="dmark">0.0</div>-->
@@ -191,47 +220,7 @@
 
 <div class="page-text">
 
-	<div class="legend-items">
-		<!--place:basic-hexagon,mpa-designated:mpa-shape,mpa-proposed:mpa-shape,isobath:isobath-shape-->
-		<div>
-			<div id="places"></div>
-			<div>City or Town</div>
-		</div>
-		<div>
-			<div id="mpa_s_designated"></div>
-			<div>Designated Marine Protected Area</div>
-		</div>
-		<div>
-			<div id="mpa_s_proposed"></div>
-			<div>Proposed Marine Protected Area</div>
-		</div>
-		<div>
-			<div id="isobath"></div>
-			<div>100m isobath</div>
-		</div>
 
-
-<!--		<div>-->
-<!--			<div id="legend-obs"></div>-->
-<!--			<div>Point d'observation.</div>-->
-<!--		</div>-->
-<!--		<div>-->
-<!--			<div id="legend-obs-normal" class="legend-item-svg"></div>-->
-<!--			<div>Normale du point d'observation.</div>-->
-<!--		</div>-->
-<!--		<div>-->
-<!--			<div id="place"></div>-->
-<!--			<div>City(Ville) a proximité de 25km du point d'observation.</div>-->
-<!--		</div>-->
-<!--		<div>-->
-<!--			<div id="mpa"></div>-->
-<!--			<div>Zone Marine Protegée (MPA) proximité de 25km du point d'observation.</div>-->
-<!--		</div>-->
-<!--		<div>-->
-<!--			<div id="mpa-interior"></div>-->
-<!--			<div>Zone Marine Protegée (MPA) qui contient le point d'observation.</div>-->
-<!--		</div>-->
-	</div>
 
 
 	<div class="section essential">
@@ -244,18 +233,23 @@
 
 		<p>A climatological database of wind-driven events was constructed for the 1979-2020 period, allowing the calculation of robust statistics on their annual and seasonal occurrence along the various shoreline portions. Here you can explore 42 years of statistics and access to WUDI intensity (cross-shore Ekman transport) for any event.</p>
 
-		upwelling.png downwelling.png
+		<div id="illustrations" class="img-grid">
+			<div class="img-col"><div class="label">upwelling illustration (svg)</div><img src="../static/img/tidal-post-v2-01.svg" alt=""/></div>
+			<div class="img-col"><div class="label">downwelling illustration (svg)</div><img src="../static/img/tidal-post-v2-02.svg" alt=""/></div>
+		</div>
+
 	</div>
 
 	<div class="section">
 		<h1>Credits and Support</h1>
 		<p>These results are parts of the action “Developing Downstream applications and services on BIO-PHYsical characterization of the seascape for COASTal management” (BIOPHYCOAST) funded by the European Commission through the program “Caroline Herschel” for Copernicus user uptake.</p>
-		<div id="logo-cluster">
-			<a class="logo"><img src="../static/img/European_Commission.svg.png"/></a>
-			<a class="logo"><img src="../static/img/logo_Copernicus.jpg"/></a>
-			<a class="logo"><img src="../static/img/logo_mio.png"/></a>
-			<a class="logo"><img src="../static/img/logo_cnrs.png"/></a>
+		<div id="logo-cluster" class="logos-grid">
+			<div class="logos-col"><a class="logo" href="https://ec.europa.eu/info/index_en" target="new"><img src="../static/img/European_Commission.svg.png"/></a></div>
+			<div class="logos-col"><a class="logo" href="https://www.copernicus.eu/en" target="new"><img src="../static/img/logo_Copernicus.jpg"/></a></div>
+			<div class="logos-col"><a class="logo" href="https://www.mio.osupytheas.fr/en" target="new"><img src="../static/img/logo_mio.png"/></a></div>
+			<div class="logos-col"><a class="logo" href="https://www.cnrs.fr/en" target="new"><img src="../static/img/logo_cnrs.png"/></a></div>
 		</div>
+
 
 	</div>
 
@@ -264,7 +258,10 @@
 		<h1>WUDI calculations are based on:</h1>
 		<p>• Hourly wind data at 10m height and 20 km spatial resolution from the ERA5 reanalysis available from the Copernicus Climate Data Store.</p>
 		<p>• EMODnet bathymetry at high resolution (115 m) available here considering the 20 m isobath obtained by interpolation of the original data.</p>
-		<p>• Marine Protected Areas information were obtained from the MAPAMED data base 2021 (https://www.mapamed.org/)</p>
+		<p>• Marine Protected Areas information were obtained from the MAPAMED data base 2021 <a href="https://www.mapamed.org/">(https://www.mapamed.org/)</a></p>
+		<p>• Population centers geolocation data from OpenStreetMap.org <a href="https://openstreetmap.org/copyright">(https://openstreetmap.org/copyright)</a></p>
+		<p>• Population centers supplemental data from Wikidata.org <a href="https://www.wikidata.org/wiki/Wikidata:Main_Page">(https://www.wikidata.org)</a></p>
+
 		<p>For more information review: Odic M, Bensoussan N., Pinazo C., Taupier-Letage I., Rossi V. (2022). Sporadic Wind-Driven Upwelling/Downwelling and Associated Cooling/Warming along the North-West Mediterranean Coastlines. Continental Shelf Research. In press.</p>
 
 	</div>
@@ -274,14 +271,45 @@
 		<p>For more information or any specific request concerning the WUDI data base, please contact:</p>
 		<a href="mailto:rossi@mio.osupytheas.fr">Dr. Vincent Rossi (rossi@mio.osupytheas.fr)</a> and/or
 		<a href="mailto:nbensoussan@gmail.com">Dr. Nathaniel Bensoussan (nbensoussan@gmail.com)</a>
-
-
 	</div>
 	<div id="output" class="section">
 		<h1>Download Data</h1>
 		<div id="output-text">No points selected.</div>
 		<a href="#top">back to top of page</a>
 	</div>
+	<div id="credit">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 width="1024px" height="1024px" viewBox="0 0 1024 1024" xml:space="preserve">
+<style type="text/css">
+	.st-cred{fill:#FFFFFF;}
+</style>
+<path class="st-cred" d="M280.8,403.8c-30.9,0-55.2,5.9-72.4,17.4c-17.4,11.7-26.6,29.2-26.6,50.6c0,16.7,6,30.7,17.9,41.8c0,0,0,0,0,0
+	c17.6,16,35.4,17.5,82.9,21.5c17.2,1.5,30.3,2.9,38,5.4c8.1,2.5,8.1,5.3,8.1,7.2c0,13.6-22.9,18.4-42.5,18.4
+	c-23.8,0-42-4.6-55.9-14.2c0,0,0,0,0,0c-5.1-3.4-6.7-5.3-8.6-7.5l0,0l-6.1-7.2c-0.8-0.9-1.9-1.4-3.1-1.4c-0.5,0-1,0.1-1.5,0.3
+	l-46.4,19.2c-1.1,0.5-2,1.4-2.3,2.6c-0.3,1.2-0.1,2.4,0.5,3.4l9.1,13.2c0,0,0,0,0,0c5.8,8.4,21.3,30.7,63.2,41.2
+	c13.2,3.4,33,5.7,49.3,5.7c43.8,0,74.3-11.8,90.6-34.9c8-11.3,12-24.4,12-39c0-15.3-4.9-29.1-14.1-39.7
+	c-9.3-10.7-22.4-18.2-39.1-22.1c-9-2.1-17.9-3.2-24.6-3.8c-7-0.8-14.4-1.5-24-2.2l-0.6-0.1c-7.4-0.7-15.1-1.3-22.7-2.1
+	c-10.4-1.1-18.5-2.2-20.7-4.7c0,0-0.1-0.1-0.1-0.1c-0.4-0.5-0.7-1.1-0.7-1.8c0-0.9,0-3.8,6.2-6.8c6.5-3.3,20.4-5.4,34.6-5.4
+	c18.9,0,33.3,3.8,44.2,11.5c2.3,1.7,3.6,3,6.3,5.7c0.8,0.8,1.8,1.2,2.9,1.2c0.4,0,0.8-0.1,1.2-0.2l49.5-16.2
+	c1.2-0.4,2.1-1.3,2.5-2.5c0.4-1.2,0.2-2.5-0.5-3.6l-5.6-8.1c0,0,0,0,0-0.1c-6.2-8.7-11.5-14.7-21.9-21.8
+	C339.4,410.5,313.5,403.8,280.8,403.8L280.8,403.8z M528.1,408H486c-1.5,0-2.9,0.8-3.6,2.2L378.7,611.3c-0.6,1.2-0.6,2.7,0.1,3.9
+	c0.7,1.2,2,1.9,3.4,1.9h57.1c1.5,0,2.9-0.9,3.6-2.2l20.2-40.9h86.4l20.2,40.9c0.7,1.4,2.1,2.2,3.6,2.2h57.8c1.4,0,2.7-0.7,3.4-1.9
+	c0.7-1.2,0.8-2.7,0.1-3.9l-103-201.1C531,408.9,529.6,408,528.1,408L528.1,408z M490.6,519.8l15.8-30.9l15.5,30.9H490.6L490.6,519.8
+	z M512,68.4c-244.7,0-443.8,199.1-443.8,443.8C68.2,756.9,267.3,956,512,956c140.3,0,269.4-64.2,354.1-176.3c0.6-0.8,0.9-1.9,0.8-3
+	c-0.1-1.1-0.7-2-1.5-2.6l-36.6-27.7c-0.7-0.5-1.6-0.8-2.4-0.8c-1.2,0-2.4,0.5-3.2,1.6C748.7,845.7,635.3,902.1,512,902.1
+	c-215,0-389.9-174.9-389.9-389.9c0-215,174.9-389.9,389.9-389.9c215,0,389.9,174.9,389.9,389.9c0,16.9-1.1,33.9-3.3,50.7
+	c-7,59.5-33.8,82.3-56.6,83.7c-1.9,0.1-3.7,0.2-5.4,0.2c-10.4,0-18.7-2.2-26-6.8c-8.5-5.4-15.6-14.3-21.2-26.7
+	c9.8-3.2,18.6-7.3,26.4-12.2c21.3-13.4,29.8-28.5,36.7-40.7l0-0.1l8.7-15.4c0.6-1.1,0.7-2.5,0.2-3.6c-0.5-1.2-1.6-2-2.8-2.3
+	L805.1,528c-0.3-0.1-0.5-0.1-0.8-0.1c-1.5,0-2.9,0.9-3.6,2.3l-4.4,9.2c-1.9,4.1-6.3,10.2-12.7,14.9c0,0-0.1,0.1-0.1,0.1
+	c-5.4,4.3-18.3,11.4-43.8,11.4h-1.4c-30,0-44.9-10.4-51.1-16.7c-9-10.2-13.6-23.1-13.6-38.4c0-20.2,8.1-34.8,23.9-43.3
+	c13.9-7.4,30.6-8.5,39.3-8.5c19.6,0,34.8,5.3,42.4,10.3c7.4,4.9,10,9.4,13.6,15.7l0.1,0.1l4.7,8.3c0.7,1.3,2.1,2,3.5,2
+	c0.3,0,0.6,0,0.9-0.1l53.5-11.9c1.3-0.3,2.3-1.1,2.8-2.3c0.5-1.2,0.4-2.5-0.2-3.6l-9.1-15.4c-5-8.4-15.4-26-37.6-39.9
+	c-27.5-17.1-62-18.9-75.6-18.9c-51.4,0-75.4,19.1-83.3,25.5c-26,19.6-39.2,47.5-39.2,82.9c0,32.7,11.7,60.4,33.8,80.1
+	c21.6,19.2,52,29.5,87.8,29.8c9.9,28.6,25,49.7,44.9,63c16.3,10.8,35.6,16.3,57.4,16.3c2.7,0,5.5-0.1,8.3-0.3
+	c44.5-2.8,95.8-38.6,106.7-130.9c2.4-18.9,3.7-38.2,3.7-57.3C955.8,267.5,756.7,68.4,512,68.4L512,68.4z"/>
+</svg>
+	<span>Data modeling and illustrations by Scott André Campbell <a class="darklink" href="https://scottandrecampbell.com">website</a> ©2022 in Python, JavaScript, and <a class="darklink"  href="https://threejs.org/">Three.js</a></span>
+</div>
 </div>
 
 <div id="svg-elements" style="display:none;">
@@ -479,39 +507,7 @@
 		#//if( vOpacity < 0.05) discard;
 	}
 </script>
-<div id="credit">
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
-	 width="1024px" height="1024px" viewBox="0 0 1024 1024" xml:space="preserve">
-<style type="text/css">
-	.st-cred{fill:#FFFFFF;}
-</style>
-<path class="st-cred" d="M280.8,403.8c-30.9,0-55.2,5.9-72.4,17.4c-17.4,11.7-26.6,29.2-26.6,50.6c0,16.7,6,30.7,17.9,41.8c0,0,0,0,0,0
-	c17.6,16,35.4,17.5,82.9,21.5c17.2,1.5,30.3,2.9,38,5.4c8.1,2.5,8.1,5.3,8.1,7.2c0,13.6-22.9,18.4-42.5,18.4
-	c-23.8,0-42-4.6-55.9-14.2c0,0,0,0,0,0c-5.1-3.4-6.7-5.3-8.6-7.5l0,0l-6.1-7.2c-0.8-0.9-1.9-1.4-3.1-1.4c-0.5,0-1,0.1-1.5,0.3
-	l-46.4,19.2c-1.1,0.5-2,1.4-2.3,2.6c-0.3,1.2-0.1,2.4,0.5,3.4l9.1,13.2c0,0,0,0,0,0c5.8,8.4,21.3,30.7,63.2,41.2
-	c13.2,3.4,33,5.7,49.3,5.7c43.8,0,74.3-11.8,90.6-34.9c8-11.3,12-24.4,12-39c0-15.3-4.9-29.1-14.1-39.7
-	c-9.3-10.7-22.4-18.2-39.1-22.1c-9-2.1-17.9-3.2-24.6-3.8c-7-0.8-14.4-1.5-24-2.2l-0.6-0.1c-7.4-0.7-15.1-1.3-22.7-2.1
-	c-10.4-1.1-18.5-2.2-20.7-4.7c0,0-0.1-0.1-0.1-0.1c-0.4-0.5-0.7-1.1-0.7-1.8c0-0.9,0-3.8,6.2-6.8c6.5-3.3,20.4-5.4,34.6-5.4
-	c18.9,0,33.3,3.8,44.2,11.5c2.3,1.7,3.6,3,6.3,5.7c0.8,0.8,1.8,1.2,2.9,1.2c0.4,0,0.8-0.1,1.2-0.2l49.5-16.2
-	c1.2-0.4,2.1-1.3,2.5-2.5c0.4-1.2,0.2-2.5-0.5-3.6l-5.6-8.1c0,0,0,0,0-0.1c-6.2-8.7-11.5-14.7-21.9-21.8
-	C339.4,410.5,313.5,403.8,280.8,403.8L280.8,403.8z M528.1,408H486c-1.5,0-2.9,0.8-3.6,2.2L378.7,611.3c-0.6,1.2-0.6,2.7,0.1,3.9
-	c0.7,1.2,2,1.9,3.4,1.9h57.1c1.5,0,2.9-0.9,3.6-2.2l20.2-40.9h86.4l20.2,40.9c0.7,1.4,2.1,2.2,3.6,2.2h57.8c1.4,0,2.7-0.7,3.4-1.9
-	c0.7-1.2,0.8-2.7,0.1-3.9l-103-201.1C531,408.9,529.6,408,528.1,408L528.1,408z M490.6,519.8l15.8-30.9l15.5,30.9H490.6L490.6,519.8
-	z M512,68.4c-244.7,0-443.8,199.1-443.8,443.8C68.2,756.9,267.3,956,512,956c140.3,0,269.4-64.2,354.1-176.3c0.6-0.8,0.9-1.9,0.8-3
-	c-0.1-1.1-0.7-2-1.5-2.6l-36.6-27.7c-0.7-0.5-1.6-0.8-2.4-0.8c-1.2,0-2.4,0.5-3.2,1.6C748.7,845.7,635.3,902.1,512,902.1
-	c-215,0-389.9-174.9-389.9-389.9c0-215,174.9-389.9,389.9-389.9c215,0,389.9,174.9,389.9,389.9c0,16.9-1.1,33.9-3.3,50.7
-	c-7,59.5-33.8,82.3-56.6,83.7c-1.9,0.1-3.7,0.2-5.4,0.2c-10.4,0-18.7-2.2-26-6.8c-8.5-5.4-15.6-14.3-21.2-26.7
-	c9.8-3.2,18.6-7.3,26.4-12.2c21.3-13.4,29.8-28.5,36.7-40.7l0-0.1l8.7-15.4c0.6-1.1,0.7-2.5,0.2-3.6c-0.5-1.2-1.6-2-2.8-2.3
-	L805.1,528c-0.3-0.1-0.5-0.1-0.8-0.1c-1.5,0-2.9,0.9-3.6,2.3l-4.4,9.2c-1.9,4.1-6.3,10.2-12.7,14.9c0,0-0.1,0.1-0.1,0.1
-	c-5.4,4.3-18.3,11.4-43.8,11.4h-1.4c-30,0-44.9-10.4-51.1-16.7c-9-10.2-13.6-23.1-13.6-38.4c0-20.2,8.1-34.8,23.9-43.3
-	c13.9-7.4,30.6-8.5,39.3-8.5c19.6,0,34.8,5.3,42.4,10.3c7.4,4.9,10,9.4,13.6,15.7l0.1,0.1l4.7,8.3c0.7,1.3,2.1,2,3.5,2
-	c0.3,0,0.6,0,0.9-0.1l53.5-11.9c1.3-0.3,2.3-1.1,2.8-2.3c0.5-1.2,0.4-2.5-0.2-3.6l-9.1-15.4c-5-8.4-15.4-26-37.6-39.9
-	c-27.5-17.1-62-18.9-75.6-18.9c-51.4,0-75.4,19.1-83.3,25.5c-26,19.6-39.2,47.5-39.2,82.9c0,32.7,11.7,60.4,33.8,80.1
-	c21.6,19.2,52,29.5,87.8,29.8c9.9,28.6,25,49.7,44.9,63c16.3,10.8,35.6,16.3,57.4,16.3c2.7,0,5.5-0.1,8.3-0.3
-	c44.5-2.8,95.8-38.6,106.7-130.9c2.4-18.9,3.7-38.2,3.7-57.3C955.8,267.5,756.7,68.4,512,68.4L512,68.4z"/>
-</svg>
-	<span>Data visualized by Scott André Campbell <a href="https://scottandrecampbell.com">website</a> ©2022</span>
-</div>
+
 
 </body>
 </html>

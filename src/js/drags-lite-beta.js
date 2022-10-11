@@ -21,9 +21,11 @@ export function dragControls(dome_element, dragAction) {
         dist_delta: 0,
         angle_delta: 0,
         lag: 0,
+        set_pos(x,y) {
+            t_meta.origin.x = x;
+            t_meta.origin.y = y;
+        },
         reset() {
-            // t_meta.origin.x = 0;
-            // t_meta.origin.y = 0;
             t_meta.delta.x = 0;
             t_meta.delta.y = 0;
             t_meta.dist = 0;
@@ -96,6 +98,9 @@ export function dragControls(dome_element, dragAction) {
 
 
     function touch_relay(evt, method = null) {
+        //evt.preventDefault();
+        //evt.stopPropagation();
+
         const touches = ongoingTouches.map(t => {
             return {
                 id: t.identifier,
@@ -129,6 +134,7 @@ export function dragControls(dome_element, dragAction) {
         //
 
         evt.preventDefault();
+        //evt.stopPropagation();
         const touches = evt.changedTouches;
 
         for (let i = 0; i < touches.length; i++) {
@@ -153,15 +159,15 @@ export function dragControls(dome_element, dragAction) {
             }
         }
 
-
-
-
         touch_relay(evt, 'drag');
     }
 
     function touch_down(evt) {
         alarm.setup();
         evt.preventDefault();
+        //evt.stopPropagation();
+
+
         const touches = evt.changedTouches;
         //new Date().toISOString()
         for (let i = 0; i < touches.length; i++) {
@@ -188,6 +194,8 @@ export function dragControls(dome_element, dragAction) {
     function touch_up(evt) {
         alarm.cancel();
         evt.preventDefault();
+        //evt.stopPropagation();
+
 
         const touches = evt.changedTouches;
 
@@ -202,9 +210,11 @@ export function dragControls(dome_element, dragAction) {
             //console.log(evt); this is not in evt but in changedTouches.
             if (!t_meta.hover_state && (Math.abs(final.pageX - t_meta.origin.x) <= t_meta.buffer) && (Math.abs(final.pageY - t_meta.origin.y) <= t_meta.buffer)) {
                 t_meta.reset();
+                t_meta.set_pos(final.pageX, final.pageY);
                 touch_relay(evt, 'touch-click');
             } else {
                 t_meta.reset();
+                t_meta.set_pos(final.pageX, final.pageY);
                 touch_relay(evt, 'up');
             }
         } else {

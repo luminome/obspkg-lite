@@ -18,6 +18,8 @@ document.body.style['background-color'] = vars.colors.hex_css(vars.colors.window
 vars.data = {};
 
 vars.info = {
+    lock_position: new THREE.Vector3(),
+    target_lock:false,
     world_position: new THREE.Vector3(),
     screen_position: {
         a: new THREE.Vector2(),
@@ -56,8 +58,37 @@ vars.info = {
         } else {
             //default to right center of mouse
             //const pos_x = this.rect.width
-            this.screen_position.a.set(x + (this.rect.width / 2) + 10, y);
-            this.screen_position.b.copy(this.screen_position.a);
+            if(this.target_lock){
+                this.dom_element.style['pointer-events'] = 'all';
+                this.dom_element.classList.add('select');
+                x = this.lock_position.x;
+                y = this.lock_position.y;
+            }else{
+                this.dom_element.classList.remove('select');
+                this.dom_element.style['pointer-events'] = 'none';
+            }
+            let px, py;
+            const offset = 10;
+            if(y - (this.rect.height / 2) < 0){
+                //too far up
+                px = x;
+                py =  y + (this.rect.height / 2) + offset;
+            }else if (y + (this.rect.height / 2) > vars.view.height) {
+                //too far down
+                px = x;
+                py = y - (this.rect.height / 2) - offset;
+            }else if (x + this.rect.width + offset > vars.view.width) {
+                //too far right
+                px = x - (this.rect.width / 2) - offset;
+                py = y;
+            }else{
+                px = x + (this.rect.width / 2) + offset;
+                py = y;
+            }
+
+            this.screen_position.a.set(px,py);
+            this.screen_position.b.set(px,py);
+
         }
         // this.dom_element.style.left = (this.screen_position.a.x - (this.rect.width / 2)).toFixed(2) + 'px';
         // this.dom_element.style.top = (this.screen_position.a.y - (this.rect.height / 2)).toFixed(2) + 'px';
@@ -71,6 +102,7 @@ vars.info = {
         this.screen_position.b.copy(this.screen_position.a);
     },
     set_state: function (bool) {
+
         this.dom_element.style.display = bool ? 'block' : 'none';
     },
     set_text: function (text_dict, mode = null) {
@@ -78,16 +110,40 @@ vars.info = {
         for (let d of text_dict) {
             const part = this.temp_element.cloneNode(true);
             part.classList.remove('info-temp');
-            [['.info-head', d.head], ['.info-text', d.hasOwnProperty('text') ? d.text : null]].forEach(t => {
-                if (t[1]) part.querySelector(t[0]).innerHTML = Array.isArray(t[1]) ? t[1].join('</br>') : t[1].toString();
-                part.querySelector(t[0]).style.display = t[1] ? 'block' : 'none';
-            });
+            if(d.hasOwnProperty('table')){
+                part.querySelector('.info-head').innerHTML = d.head;
+                part.querySelector('.info-text').classList.add('info-table');
+                d.table.map(r => {
+                    const row = document.createElement('div');
+                    r.map(tx => {
+                        const txt_div = document.createElement('div');
+                        txt_div.className = 'info-cell';
+                        txt_div.innerHTML = `<span>${tx}</span>`;
+                        row.appendChild(txt_div);
+                    });
+                    row.className = 'info-row';
+                    part.querySelector('.info-text').appendChild(row);
+                })
+            }else{
+                [['.info-head', d.head], ['.info-text', d.hasOwnProperty('text') ? d.text : null]].forEach(t => {
+                    if (t[1]) part.querySelector(t[0]).innerHTML = Array.isArray(t[1]) ? t[1].map(t_l => {
+                        return `<span>${t_l}</span>`
+                    }).join(''): t[1].toString();
+                    part.querySelector(t[0]).style.display = t[1] ? 'block' : 'none';
+                });
+            }
             this.display_element.appendChild(part);
         }
         this.rect = this.dom_element.getBoundingClientRect();
     },
     update_position: function () {
-        this.screen_position.b.lerp(this.screen_position.a, 0.3);
+        // if(this.target_lock){
+        //     vu.copy(this.lock_position);
+        //     projected(vu);
+        //     this.screen_position.a.set(vu.x,vu.y);
+        // }
+
+        //this.screen_position.b.lerp(this.screen_position.a, 0.3);
         this.dom_element.style.left = (this.screen_position.b.x - (this.rect.width / 2)).toFixed(2) + 'px';
         this.dom_element.style.top = (this.screen_position.b.y - (this.rect.height / 2)).toFixed(2) + 'px';
     },
@@ -100,6 +156,10 @@ vars.selecta = {
     intersect: null,
     focus_obj: null,
     moved: null,
+    touch: {
+        select: false,
+        clicked: null,
+    },
     wudi: {
         times: {years: ['all'], months: ['all'], has_default: 'all', selected: [], loaded: [], required: []},
         points: {canonical_selection: [], hover: [], selected: [], dom_handles:[]},
@@ -347,28 +407,33 @@ class Sector {
             const mpa_mat = new THREE[vars.mats.mpaMaterial.type](vars.mats.mpaMaterial.dict);
             mpa_mat.blending = THREE.AdditiveBlending;
 
-
-            const mpa_s = new THREE.Group();
             object.raw.map(obj => {
-                //
-                const shape = shape_from_array(obj['line_strings'][0]);
+                const this_mpa_s = new THREE.Group();
+                const ref = vars.refs.mpa_s[obj['id']];
 
-                const geometry = new THREE.ShapeBufferGeometry(shape);
+                obj['line_strings'].map((mpa,n) =>{
+                    const shape = shape_from_array(mpa);
+                    const geometry = new THREE.ShapeBufferGeometry(shape);
+                    const t_mat = mpa_mat.clone();
+                    const t_color = ref.STATUS_ENG === 'Designated' ? vars.colors.mpa_s_designated: vars.colors.mpa_s_proposed;
+                    t_mat.color = new THREE.Color().fromArray(t_color);
+                    t_mat.opacity = t_color[3];
+                    const mesh = new THREE.Mesh(geometry, t_mat);
+                    mesh.userData.is_part = true;
+                    mesh.name = obj['id']+'_'+n;
+                    this_mpa_s.add(mesh);
+                })
 
-                const t_mat = mpa_mat.clone();
-                const figure = vars.data.protected_regions.raw[obj['id'] + 1];
-                const t_color = figure[2] === 'Designated' ? vars.colors.mpa_s_designated: vars.colors.mpa_s_proposed;
+                const outlines = coords_from_array([obj['line_strings']]);
+                this_mpa_s.userData.mpa_s_outlines = outlines;
+                this_mpa_s.userData.area = ref.REP_AREA ? ref.REP_AREA: 0.0;
+                this_mpa_s.userData.index = obj['id'];
+                this_mpa_s.userData.level = object.level;
+                this_mpa_s.name = 'mpa_s-'+obj['id'];
+                this_mpa_s.userData.type = 'mpa_s';
+                this.group.add(this_mpa_s);
+                // this.group.add(mesh);
 
-                t_mat.color = new THREE.Color().fromArray(t_color);
-                t_mat.opacity = t_color[3];
-
-                const mesh = new THREE.Mesh(geometry, t_mat);
-                mesh.userData.index = obj['id'];
-                mesh.name = 'mpa_s-'+obj['id'];
-                mesh.userData.level = object.level;
-                mesh.userData.type = 'mpa_s';
-                mesh.userData.enabled = vars.mpa_s_visible;
-                this.group.add(mesh);
             });
 
             // mpa_s.name = 'mpa_s';//+obj['id'];
@@ -401,7 +466,6 @@ class Sector {
                 // depthTest: false,
                 depthWrite: true,
             });
-
             const polygons = new THREE.Group();
 
             object.raw.map(obj => {
@@ -418,7 +482,7 @@ class Sector {
             polygons.userData.type = 'polygons';
             polygons.name = object.name;
             this.group.add(polygons);
-
+            this.group.position.setZ(-0.001);
         }
 
         return true;
@@ -678,7 +742,18 @@ class wudiSelectionDomMark {
     }
 }
 
-
+class dataClass {
+    constructor(pid){
+        this.id = pid;
+        return this;
+    }
+    set(keys, values){
+        for(let i=0; i<keys.length;i++){
+            this[keys[i]] = values[i];
+        }
+        return this;
+    }
+}
 
 
 vars.dom_time = {
@@ -689,7 +764,7 @@ vars.dom_time = {
             const test_time = new domTimeElement(0, 'years', 'YEARS', 'all', true);
             this.years.push(test_time);
             for (let t = 1980; t < 2021; t++) {
-                const label = "'" + t.toString().substr(2, 2);
+                const label = t.toString().substr(2, 2);
                 const test_time = new domTimeElement(t, 'years', label, t);
                 this.years.push(test_time);
             }
@@ -809,6 +884,8 @@ const camera_frustum = new THREE.Frustum();
 const camera_frustum_m = new THREE.Matrix4();
 const axis_markers_count = 21;
 
+const m_selection_outlines = new THREE.Group();
+
 const touches_mid = {
     x:null,
     y:null,
@@ -925,6 +1002,27 @@ const mod_HSL = (rgb_color, L_value) => {
     rgb_color.setHSL(hsl.h, 1.0, L_value);
 }
 
+
+const element_info_filter_secondary = {
+    mpa_s: (index = null) => {
+        const ref = vars.refs.mpa_s[parseInt(index)];
+        const readable = vars.keys_table.mpa_s(ref);
+        return {
+            head: ref.NAME,
+            table: Object.entries(readable).filter(m => m[1] !== null),
+        }
+    },
+    places_data: (index = null) => {
+        const ref = vars.refs.places_data[parseInt(index)];
+        const ref_geo = vars.refs.geonames[ref.geo] !== undefined ? vars.refs.geonames[ref.geo].GEONAME : null;
+        const readable = vars.keys_table.places_data(ref, ref_geo);
+        return {
+            head: ref.name,
+            table: Object.entries(readable).filter(m => m[1] !== null),
+        }
+    }
+}
+
 const element_info_filter = {
     plane_line: (index = null) => {
         const sector = map_sectors_group.children[index].userData.owner;
@@ -942,27 +1040,28 @@ const element_info_filter = {
 
     },
     mpa_s: (index = null) => {
-        const figure = vars.data.protected_regions.raw[parseInt(index) + 1];
-        //console.log(index+1, figure, vars.data.protected_regions);
+
+        const ref = vars.refs.mpa_s[parseInt(index)];
+        const name = Array.isArray(ref.NAME) ? ref.NAME : util.title_case(ref.NAME);
+
+        //console.log(figure);
+        //console.log(index+1, figure, vars.data.mpa_s);
         return {
-            head: `${util.title_case(figure[0])}`,
-            text: [figure[2] + ' ' + figure[1], figure[7], figure[12] + '—' + figure[13], figure[5] + 'km^2', `(${index}) `],
+            head: name,
+            text: [ref.COUNTRY, ref.STATUS_ENG+'—'+ref.STATUS_YR, ref.DESIG_ENG],
             index: index,
-            name: 'mpa_s'+'-'+index
+            name: 'mpa_s'+'-'+index,
+            area: ref.REP_AREA ? ref.REP_AREA : 0,
+            type: 'mpa_s'
         }
     },
-    // protected_regions: (index = null) => {
-    //     const figure = vars.data.protected_regions.raw[index + 1];
-    //     return {
-    //         head: `${util.title_case(figure[1])}`,
-    //         text: [figure[3] + ' ' + figure[2], figure[8], figure[13] + '—' + figure[14], figure[6] + 'km^2', `(${index}) `]
-    //     }
-    // },
     isobath: (index = null) => {
         return {
-            text: 'isobath 100m ' + index,
+            text: 'isobath 100m',  // + index,
             index: index,
-            name: 'isobath'+'-'+index
+            name: 'isobath'+'-'+index,
+            area: 10000000,
+            type: 'isobath'
         }
     },
     wudi_points: (index = null) => {
@@ -971,11 +1070,14 @@ const element_info_filter = {
         // wudi_point_select_state(data_index, true);
         vars.selecta.wudi.points.hover = [data_index];
         const point_info = get_point_selection_state([data_index], index);
+
         return {
             head: point_info.head,
             text: point_info.text,
             index: index,
-            name: 'wudi_points'+'-'+index
+            name: 'wudi_points'+'-'+index,
+            area: 0,
+            type: 'wudi_points'
         }
     },
     wudi_up: (index = null) => {
@@ -984,24 +1086,29 @@ const element_info_filter = {
     wudi_down: (index = null) => {
         return element_info_filter.wudi_points(index);
     },
-    eco_regions: (index = null) => {
-        return {
-            text: 'eco_region (general) ' + index,
-            index: index,
-            name: 'eco_regions'+'-'+index
-        }
-    },
     places_data: (index = null) => {
-        const figure = vars.data.places_data.raw.data[index];
+
+        const ref = vars.refs.places_data[parseInt(index)];
+        const ref_name = Array.isArray(ref.name) ? util.title_case(ref.name[0]) : util.title_case(ref.name);
+        const ref_geo = vars.refs.geonames[ref.geo] !== undefined ? vars.refs.geonames[ref.geo].GEONAME : null;
+
+        const ref_data = [
+            ref.countryLabel,
+            (ref_geo === ref.countryLabel || ref.geo === 1) ? null : ref_geo,
+            (ref.countryLabel === ref.regionLabels) ? null : ref.regionLabels,
+            `${ref.type} pop. ${ref.population}`
+        ]
+
         return {
-            head: `${util.title_case(figure[4])}`,
-            text: [...figure.slice(5,figure.length-1).filter(m => m !== null)],
+            head: ref_name,
+            text: ref_data.filter(m => m !== null),
             index: index,
-            name: 'places_data'+'-'+index
+            name: 'places_data'+'-'+index,
+            area: ref.area ? ref.area : 0,
+            type: 'places_data'
         }
     }
 }
-
 
 function dom_button_check_box_set_state(id, state){
     const button = document.getElementById(id);
@@ -1099,7 +1206,7 @@ function make_grid_lines() {
 }
 
 function make_hexagonal_shape(scale = 1.0) {
-    const v = new Float32Array(18);
+    const v = new Float32Array(21);
     let int = ((Math.PI * 2) / 6);
     for (let i = 0; i < v.length; i += 3) {
         v[i] = (Math.cos((i / 3) * int)) * scale;
@@ -1366,7 +1473,8 @@ function get_point_selection_state(data_index, inst_index) {
         }
     });
 
-    const labels = [title.innerHTML];
+    const ref = vars.refs.wudi_points[inst_index];
+    const labels = [`(${vars.refs.geonames[ref.geo].GEONAME})`, title.innerHTML];
 
     for(let u of wudi_type_array){
         //console.log(u);
@@ -1393,16 +1501,8 @@ function get_point_selection_state(data_index, inst_index) {
 }
 
 function interactionAction() {
-    //basic touches called by translateAction -> move
     ray_caster.setFromCamera(vars.user.mouse.raw, camera);
     const intersects = ray_caster.intersectObjects(scene.children, true);
-
-
-    //if the intersection already exists, do nothing.
-    //if it doesn't exist, initialize/call the stuff.
-    //if the running list of intersections doesn't contain this intersection, get rid of it.
-
-
 
     function make_clean(ints) {
         let len = ints.length;
@@ -1412,42 +1512,23 @@ function interactionAction() {
         let name = null;
         let instance_id = null;
         for (let i = 0; i < len; i++) {
-            if (ints[i].object.name.length && ints[i].object.visible) {
-                name = ints[i].object.id;
+
+            const t_obj = ints[i].object.userData.hasOwnProperty('is_part') ? ints[i].object.parent : ints[i].object;
+
+            if (t_obj.name.length && t_obj.visible) {
+                name = t_obj.id;
                 if (ints[i].hasOwnProperty('instanceId')) instance_id = ints[i].instanceId;
                 if (ids.indexOf(name) === -1 && ids.indexOf(instance_id) === -1) {
-                    const index = instance_id === null ? ints[i].object.userData.index : instance_id;
-                    const is_wudi = ints[i].object.name.indexOf('wudi') !== -1;
-
+                    const index = instance_id === null ? t_obj.userData.index : instance_id;
+                    const is_wudi = t_obj.name.indexOf('wudi') !== -1;
                     if(( is_wudi && !wudi_polled ) || !is_wudi) {
-                            //let chk_name = ints[i].object.name;
-                            let chk_name = ints[i].object.name.indexOf('mpa_s') !== -1 ? 'mpa_s' : ints[i].object.name;
-                            if (chk_name === 'wudi_up' || chk_name === 'wudi_down') chk_name = 'wudi_points';
-                            //if(chk_name.indexOf('plane_line') !== -1) chk_name = 'plane_line';
-                            //result[chk_name+'-'+index] = {part:chk_name, index:index};//({name:chk_name+'-'+index, part:chk_name, index:index});
-                            result.push({name: chk_name + '-' + index, part: chk_name, index: index});
-
-                            if (is_wudi) wudi_polled = true;
-
-                        // const hk = vars.selecta.hover_intersections.indexOf(chk_name+':'+index);
-                        // if(hk === -1){
-                        //     vars.selecta.hover_intersections.push(chk_name+':'+index);
-                        // }else{
-                        //     vars.selecta.hover_intersections.splice(hk,1);
-                        // }
-
-                        // const ref = element_info_filter.hasOwnProperty(chk_name) ? element_info_filter[chk_name](index) : null;
-                        // if (ref) {
-                        //     ref.name = chk_name+':'+index;
-                        //     ref.index = index;
-                        //     result.push(ref);
-                        //     if (is_wudi) wudi_polled = true;
-                        // }
-
+                        let chk_name = t_obj.name.indexOf('mpa_s') !== -1 ? 'mpa_s' : t_obj.name;
+                        if (chk_name === 'wudi_up' || chk_name === 'wudi_down') chk_name = 'wudi_points';
+                        result.push({name: chk_name + '-' + index, part: chk_name, index: index, ref_object: t_obj});
+                        if (is_wudi) wudi_polled = true;
                     }
                     ids.push(instance_id ? instance_id : name);
                 }
-
                 instance_id = null;
             }
         }
@@ -1455,80 +1536,155 @@ function interactionAction() {
         return result;
     }
 
-    //TODO#// make only once for the
-
+    let has_change = false;
     const has_intersections = make_clean(intersects);
     const fired_info = vars.selecta.hover_intersections.map(f => f.name);
+    if(fired_info.join('').indexOf('wudi') === -1) vars.selecta.wudi.points.hover = [];
 
     const has_info = has_intersections.map(ck => {
+        //console.log(ck);
         const hk = fired_info.indexOf(ck.name);
         if(hk === -1) {
+            vars.info.target_lock = false;
             const fe = element_info_filter.hasOwnProperty(ck.part) ? element_info_filter[ck.part](ck.index) : null;
-            if(fe) vars.selecta.hover_intersections.push(fe);
-        }
-        return ck.name;
-    });
-
-    vars.selecta.hover_intersections.map((mp,i) => {
-        if(!has_info.includes(mp.name)){
-            vars.selecta.hover_intersections.splice(i, 1);
-        }
-    });
-
-    vars.selecta.intersect = has_intersections.length > 0;
-
-    if (vars.selecta.intersect) {
-        vars.info.set_state(true);
-        vars.info.set_text(vars.selecta.hover_intersections);
-        vars.info.set_position(vars.user.mouse.screen.x, vars.user.mouse.screen.y, 'mouse');
-        vars.selecta.focus_obj = 'intersection';
-    }
-
-    if (vars.selecta.moved) {
-        vars.selecta.eco_region.hover = null;
-        vars.selecta.moved = false;
-    }
-
-    if (!vars.selecta.intersect) {
-        if (vars.selecta.wudi.points.hover.length) wudi_point_select_state(vars.selecta.wudi.points.hover[0], false);
-        vars.selecta.wudi.points.hover = [];
-
-        const eco_regions = scene.getObjectByName('eco_regions'); ///AREAS
-        if (eco_regions && eco_regions.children.length) {
-            const eco = eco_regions.children
-                .filter(e => e.geometry.boundingBox.containsPoint(mouse_pos_map))
-                .filter(e => point_in_poly(e, mouse_pos_map))
-            const hover = vars.selecta.eco_region.hover;
-            if (eco.length) {
-                const poly = eco[0];
-                if (poly.id !== hover) {
-                    vars.selecta.focus_obj = 'area';
-                    vars.info.set_state(true);
-                    poly.geometry.boundingBox.getCenter(vw);
-                    map_container.localToWorld(vw);
-                    projected(vw);
-                    vars.info.set_position(vw.x, vw.y);
-                    const data = poly.userData.data;
-                    vars.info.set_text([{head: data[2], text: `id:${data[0]}`}]);
-                    poly.userData.selected(true);
-                    if (hover) scene.getObjectById(hover, true).userData.selected(false);
+            if(fe) {
+                if (ck.ref_object.userData.hasOwnProperty('mpa_s_outlines')) {
+                    const ref = vars.refs[ck.part][ck.index];
+                    const m_outlines = new THREE.Group();
+                    ck.ref_object.userData.mpa_s_outlines.map(o => {
+                        const lmat = new THREE.LineBasicMaterial({color: utility_color.fromArray(vars.colors.mpa_s_designated).clone()});
+                        const geometry = new THREE.BufferGeometry();
+                        geometry.setAttribute('position', new THREE.BufferAttribute(Float32Array.from(o), 3));
+                        const p_pline = new THREE.Line(geometry, lmat);
+                        p_pline.userData.color = 'mpa_s_designated';
+                        m_outlines.add(p_pline);
+                    });
+                    m_outlines.name = ck.name;
+                    m_outlines.area = ck.ref_object.userData.area;
+                    m_outlines.userData.position = new THREE.Vector3(1.0*ref.CENTROID[0],1.0*ref.CENTROID[1],0.0);
+                    m_selection_outlines.add(m_outlines);
                 }
-                vars.selecta.eco_region.hover = poly.id;
 
-            } else {
-                if (hover) scene.getObjectById(hover, true).userData.selected(false);
-                vars.info.set_state(false);
-                vars.selecta.eco_region.hover = null;
+                if (ck.ref_object.name === 'places_data') {
+                    const ref = vars.refs[ck.part][ck.index];
+                    console.log(ref);
+                    const p_outlines = new THREE.Group();
+                    const geometry = new THREE.BufferGeometry();
+                    geometry.setAttribute('position', ck.ref_object.geometry.attributes.position);
+                    const lmat = new THREE.LineBasicMaterial({color: utility_color.fromArray(vars.colors.places).clone()});
+                    const p_pline = new THREE.Line(geometry, lmat);
+                    ck.ref_object.getMatrixAt(ck.index, mu);
+                    p_pline.applyMatrix4(mu);
+                    p_pline.area = ck.area;
+                    p_pline.userData.color = 'places';
+                    p_outlines.add(p_pline);
+                    p_outlines.userData.position = new THREE.Vector3(ref.lon, ref.lat, 0.0);
+                    p_outlines.name = ck.name;
+                    m_selection_outlines.add(p_outlines);
+                }
+                has_change = true;
+                vars.selecta.hover_intersections.push(fe);
             }
         }
 
-        if (vars.selecta.focus_obj === 'intersection') {
-            vars.info.set_state(false);
+        return ck.name;
+    });
+
+    vars.selecta.hover_intersections.map((mp, i) => {
+        if(!has_info.includes(mp.name)){
+            vars.selecta.hover_intersections.splice(i, 1);
+            const oults = m_selection_outlines.getObjectByName(mp.name);
+            m_selection_outlines.remove(oults);
+            has_change = true;
         }
+    });
+
+    if(has_change){
+        vars.selecta.hover_intersections.sort((a, b) => a.area > b.area ? 1 : -1);
+        m_selection_outlines.children.sort((a, b) => a.area > b.area ? 1 : -1).map((m_c, i) =>{
+            const k_offset = 1-(i/m_selection_outlines.children.length);
+            if(i === 0 && vars.selecta.hover_intersections[0].name !== m_c.name) ref_marker_2.visible = false;
+            m_c.children.map(m_c_c => {
+                //
+                if(i === 0 && vars.selecta.hover_intersections[0].name === m_c.name){
+                    //const t_ref = scene.getObjectByName('ref_mark_2');
+                    ref_marker_2.material.color = utility_color.fromArray(vars.colors[m_c_c.userData.color]).clone();
+                    vu.copy(m_c.userData.position);
+                    map_container.localToWorld(vu);
+                    ref_marker_2.position.copy(vu);
+                    ref_marker_2.visible = true;
+
+                }
+                m_c_c.material.color = utility_color.fromArray(vars.colors[m_c_c.userData.color]).multiplyScalar(k_offset).clone();
+            });
+        });
+    }
+
+    vars.selecta.intersect = has_intersections.length > 0;
+
+    if (vars.selecta.intersect && !vars.info.target_lock) {
+
+        vars.info.set_state(true);
+        vars.info.set_text(vars.selecta.hover_intersections);
+        vars.info.set_position(vars.user.mouse.screen.x, vars.user.mouse.screen.y, 'mouse');
+        //vars.selecta.focus_obj = 'intersection';
+    }
+
+    // if (vars.selecta.moved) {
+    //     vars.selecta.eco_region.hover = null;
+    //     vars.selecta.moved = false;
+    // }
+
+    if (!vars.selecta.intersect) {
+        // if (vars.selecta.wudi.points.hover.length) wudi_point_select_state(vars.selecta.wudi.points.hover[0], false);
+        vars.selecta.wudi.points.hover = [];
+        vars.selecta.hover_intersections = [];
+        m_selection_outlines.children.map(c_h =>{
+            m_selection_outlines.remove(c_h);
+        });
+
+
+        ///vars.info.target_lock = false;
+        // const eco_regions = scene.getObjectByName('eco_regions'); ///AREAS
+        // if (eco_regions && eco_regions.children.length) {
+        //     const eco = eco_regions.children
+        //         .filter(e => e.geometry.boundingBox.containsPoint(mouse_pos_map))
+        //         .filter(e => point_in_poly(e, mouse_pos_map))
+        //     const hover = vars.selecta.eco_region.hover;
+        //     if (eco.length) {
+        //         const poly = eco[0];
+        //         if (poly.id !== hover) {
+        //             vars.selecta.focus_obj = 'area';
+        //             vars.info.set_state(true);
+        //             poly.geometry.boundingBox.getCenter(vw);
+        //             map_container.localToWorld(vw);
+        //             projected(vw);
+        //             vars.info.set_position(vw.x, vw.y);
+        //             const data = poly.userData.data;
+        //             vars.info.set_text([{head: data[2], text: `id:${data[0]}`}]);
+        //             poly.userData.selected(true);
+        //             if (hover) scene.getObjectById(hover, true).userData.selected(false);
+        //         }
+        //         vars.selecta.eco_region.hover = poly.id;
+        //
+        //     } else {
+        //         if (hover) scene.getObjectById(hover, true).userData.selected(false);
+        //         vars.info.set_state(false);
+        //         vars.selecta.eco_region.hover = null;
+        //     }
+        // }
+
+        // if (vars.selecta.focus_obj === 'intersection') {
+        //     vars.info.set_state(false);
+        // }
+        if(vars.loaded) wudi_dub_selecta.dub_box.visible = false;
+        if(vars.loaded) ref_marker_2.visible = false;
+
+        vars.info.set_state(vars.info.target_lock);
     }
 
 
-    return true;
+    return vars.selecta.hover_intersections.length ? vars.selecta.hover_intersections[0].name : null;
 }
 
 function refresh_sectors(){
@@ -1569,7 +1725,7 @@ function refresh_sectors(){
     // }
     //
     // const places = scene.getObjectByName('places_data');
-    // const protected_reg = scene.getObjectByName('protected_regions');
+    // const protected_reg = scene.getObjectByName('mpa_s');
     return true;
 }
 
@@ -1583,6 +1739,43 @@ function run_optics(){
     camera_scale = 1 - (camera_distance / vars.max_zoom);
     const zg = Math.floor(Math.log(camera_distance)) + 1;
     grid_resolution = z_mants[zg];
+}
+
+
+function event_click_handler(){
+
+    if (vars.selecta.wudi.points.hover.length) {
+        vars.selecta.wudi.point_select(vars.selecta.wudi.points.hover[0]);
+        vars.selecta.wudi.points.hover = [];
+        vars.info.target_lock = false;
+        vars.info.set_state(false);
+    }else{
+        ///
+        // vars.info.set_position(ref_marker_2.position.x, ref_marker_2.position.y, 'area');
+        // vars.info.target_lock = true;
+        // vars.info.lock_position = ref_marker_2.position;
+        // mover.set_target(user_position.actual, mouse_plane_pos);
+        if(ref_marker_2.visible){
+            vars.info.target_lock = true;
+            vars.info.lock_position = vars.user.mouse.screen;
+            const kel = vars.selecta.hover_intersections[0];
+            const ktx = element_info_filter_secondary[kel.type](kel.index);
+            vars.info.set_state(true);
+            vars.info.set_text([ktx]);
+            vars.info.set_position(vars.user.mouse.screen.x, vars.user.mouse.screen.y, 'mouse');
+            ref_marker_2.visible = false;
+        }else{
+            vars.info.target_lock = false;
+            vars.info.set_state(false);
+            vars.selecta.hover_intersections = [];
+            mover.set_target(user_position.actual, mouse_plane_pos);
+        }
+
+        vars.selecta.wudi.points.hover = [];
+    }
+    //vars.user.mouse.clicked = true;
+    // user_position.actual.copy(mouse_plane_pos);
+
 }
 
 function event_handler(type, evt_object){
@@ -1599,8 +1792,8 @@ function event_handler(type, evt_object){
 
 
     let action, roto_x, roto_y, pos_x, pos_y, delta_x, delta_y, scale_z;
-    delta_x = null;
-    delta_y = null;
+    // delta_x = null;
+    // delta_y = null;
 
     if (type === 'init') {
         pos_x = vars.view.width / 2;
@@ -1650,6 +1843,8 @@ function event_handler(type, evt_object){
             touches_mid.x = null;
             touches_mid.y = null;
         }else{
+            // pos_x = vars.user.mouse.screen.x;//0;//evt_object.x;
+            // pos_y = vars.user.mouse.screen.y;//0;//evt_object.y;
             pos_x = evt_object.x;
             pos_y = evt_object.y;
         }
@@ -1719,16 +1914,17 @@ function event_handler(type, evt_object){
             cube.rotateOnWorldAxis(y_up, roto_x);
             cube.rotateX(roto_y);
             cube.updateMatrixWorld();
-            vars.info.set_state(false);
-            vars.selecta.moved = true;
+            // vars.info.set_state(false);
+            // vars.selecta.moved = true;
         }
-        if (delta_x !== null && delta_y !== null) {
+        if (delta_x || delta_y) {
+        //if (delta_x !== null && delta_y !== null) {
             //#//TODO what is this? onDrag?
             mover.cancel();
             newMouseDown.copy(rayIntersectionWithXZPlane(m_ray_origin, m_ray_dir, 0.0));
             user_position.actual.copy(mouseDownCameraPosition.sub(newMouseDown.sub(lastMouseDown)));
             vars.info.drag_position(delta_x, delta_y);
-            vars.selecta.moved = true;
+            // vars.selecta.moved = true;
         }
         if (scale_z){
             mover.cancel();
@@ -1745,36 +1941,24 @@ function event_handler(type, evt_object){
         }
     }
 
-    run_optics();
 
 
-
-    if (action === 'move' || action === 'touch-hover') {
-        // if(evt_object.hasOwnProperty('evt')) obs_handler({id:evt_object.evt.target});
-        interactionAction();
-
-        // vk.copy(camera.up);//camera.position);
-        // map_container.worldToLocal(vk);
-        // //wudi_sub_selecta.object.lookAt(mouse_plane_pos);//user_position.actual);//vk);
-        // //wudi_sub_selecta.object.up.copy(camera.up.clone().applyQuaternion(cube.quaternion));
-        // wudi_sub_selecta.object.up.copy(vk);
-    }
-
-    //mover.reset_to(user_position.actual);
 
 
 
 
     if (action !== 'move' && action !== 'init') {
-        ['protected_regions','places_data'].map(g =>{
-            const g_grp = scene.getObjectByName(g);
-            if(g_grp) g_grp.children[0].material.uniforms.level.value = (1.0-(camera_scale*0.8));// = true;
-        });
-        // const reg_protected = scene.getObjectByName('protected_regions');
+        // ['mpa_s','places_data'].map(g =>{
+        //     const g_grp = scene.getObjectByName(g);
+        //     if(g_grp) g_grp.children[0].material.uniforms.level.value = (1.0-(camera_scale*0.8));
+        // });
+        // const reg_protected = scene.getObjectByName('mpa_s');
         // if(reg_protected) {
         //     reg_protected.children[0].material.uniforms.level.value = ((1.0-camera_scale));// = true;
         //     //reg_protected.children[0].material.needsUpdate = true;
         // }
+        const g_grp = scene.getObjectByName('places_data');
+        if(g_grp) g_grp.children[0].material.uniforms.level.value = (1.0-(camera_scale*0.8));
 
         run_camera();
         adaptive_scaling_wudi();
@@ -1782,29 +1966,38 @@ function event_handler(type, evt_object){
         refresh_sectors();
     }
 
+
+    if (action === 'move' || action === 'touch-hover') {
+        //mouse hover and mobile pause-hover.
+        //selection phase one.
+        interactionAction();
+    }
+
+
+    if (action === 'click') event_click_handler();
+
+    if (action === 'touch-click') {
+        const manifest = interactionAction();
+        if((manifest === null) || (vars.selecta.touch.select && vars.selecta.touch.clicked === manifest)){
+            event_click_handler();
+            vars.selecta.touch.select = false;
+        }else{
+            vars.info.target_lock = false;
+            vars.selecta.touch.clicked = interactionAction();
+            vars.selecta.touch.select = true;
+        }
+    }
+
     ray_caster.setFromCamera(vars.user.mouse.raw, camera);
     ray_caster.ray.intersectPlane(root_plane, vk);
     mouse_plane_pos.set(vk.x, vk.y, vk.z);
     mouse_pos_map.set(mouse_plane_pos.x + vars.map.offset.x, Math.abs((mouse_plane_pos.z - vars.map.offset.y) + vars.view.map_vertical_deg_offset), 0.0);
 
+    run_optics();
+
     if(vars.helpers_active) pos_mark_4.position.copy(mouse_plane_pos);
+
     grid_lines.position.copy(mouse_plane_pos);
-
-    const prefig = Math.floor(Math.pow(camera_scale, vars.levels)*(vars.levels+1));
-    //Math.floor(Math.log(camera_scale)*vars.levels)*vars.levels;
-    //mover.setter.copy(user_position.actual);
-
-    if (action === 'click' || action === 'touch-click') {
-        if (vars.selecta.wudi.points.hover.length) {
-            vars.selecta.wudi.point_select(vars.selecta.wudi.points.hover[0]);
-            vars.selecta.wudi.points.hover = [];
-        }else{
-            mover.set_target(user_position.actual, mouse_plane_pos);
-        }
-        vars.user.mouse.clicked = true;
-        // user_position.actual.copy(mouse_plane_pos);
-
-    }
 
 
     if (active_keys.includes('KeyI')) {
@@ -1821,12 +2014,18 @@ function event_handler(type, evt_object){
             // GR: grid_resolution,
             // AS: (camera_distance / visible_dimensions.w).toFixed(2),
             AF: camera_scale.toFixed(2),
-            AL: prefig.toFixed(2),
+            // AL: prefig.toFixed(2),
             AC: cam_base_pos.z.toFixed(2),
         });
     }
 
     q_nav.hover_state = false;
+
+    if(type !== 'init'){
+        //evt_object.evt.stopPropagation();
+        //evt_object.evt.preventDefault();
+    }
+
 }
 
 function control_recenter_map(){
@@ -2019,7 +2218,8 @@ function run_ticks() {
 
             if (ticks.res !== null) {
                 projected(vu);
-                ticks.offset = ticks.card === 'E' ? vars.map.offset.x : -vars.map.offset.y;
+                ticks.offset = ticks.card === 'E' ? vars.map.offset.x : -vars.map.offset.y+vars.view.map_vertical_deg_offset;
+
                 plane.markers_divs[m].innerHTML = `${(ticks.n + ticks.offset).toFixed(grid_resolution < 1 ? 2 : 0)}º ${ticks.card}`;
 
                 ticks.rect = plane.markers_divs[m].getBoundingClientRect();
@@ -2138,12 +2338,14 @@ function plot_data(obj) {
         if (obj.name === 'places_data') {
             //const v = new Float32Array(18);
             ///custom json-ser from db based
+            console.log(obj);
             datum.len = vars.data[obj.name].raw.data.length;// -1;
-            const pop = util.find_scale(obj.raw.data, 7);
-            console.log(pop);
+            const pop = util.find_scale(obj.raw.data, 5);
+            //console.log(pop);
 
-
+            //vars.data[obj.name].references = [];
             vars.data[obj.name].lookup_table = {};
+
             for (let i = 0; i < datum.len; i++) {
                 datum.sample_raw.push(1.0);
             }
@@ -2151,34 +2353,34 @@ function plot_data(obj) {
             for (let i = 0; i < datum.len; i++) {
                 datum.color.push(vars.colors.places);
                 datum.position.push([vars.data[obj.name].raw.data[i][0], vars.data[obj.name].raw.data[i][1], 0.0]);
-                const kvs = vars.data[obj.name].raw.data[i][7];
+                const kvs = vars.data[obj.name].raw.data[i][5];
                 let dnorm = util.norm_val(kvs, pop.min, pop.avg);
 
-                if (dnorm > 4.0) dnorm = 4;
+                if (dnorm > 5.0) dnorm = 5;
                 if (dnorm < 1.0) dnorm = 1.0;
-                ///dnorm = 6.0;
-                ///console.warn(parseFloat(norm.toFixed(4)));
                 datum.sample_raw[i] = dnorm;
 
-                vars.data[obj.name].lookup_table[vars.data[obj.name].raw.data[i][13]] = i;
+                vars.data[obj.name].lookup_table[vars.data[obj.name].raw.data[i][16]] = i;
             }
-
+            console.log(vars.data[obj.name].references);
             //datum.len -= 1;
         }
 
-        if (obj.name === 'protected_regions') {
+        if (obj.name === 'mpa_s') {
+            console.log(obj);
             ///custom text-based
-            datum.len = vars.data[obj.name].raw.length - 1;
+            datum.len = vars.data[obj.name].raw.data.length - 1;
+            const cent = vars.data[obj.name].raw.keys.indexOf('CENTROID');
 
-            for (let i = 1; i < vars.data[obj.name].raw.length; i++) {
+            for (let i = 1; i < vars.data[obj.name].raw.data.length; i++) {
                 datum.color.push(vars.colors.mpa_s_designated);
-                datum.position.push([vars.data[obj.name].raw[i][obj.geom_index][0], vars.data[obj.name].raw[i][obj.geom_index][1], 0.0]);
+                datum.position.push([vars.data[obj.name].raw.data[i][cent][0], vars.data[obj.name].raw.data[i][cent][1], 0.0]);
                 datum.sample_raw.push(1.0);
             }
 
-            const area = util.find_scale(obj.raw, 5);
+            const area = util.find_scale(obj.raw.data, 5);
 
-            obj.raw.map((e, i) => {
+            obj.raw.data.map((e, i) => {
                 if (i > 0 && e[5] !== null) {
                     let norm =  util.norm_val(e[5], area.min, area.avg);
                     if (norm > 4.0) norm = 4.0;
@@ -2221,7 +2423,11 @@ function plot_data(obj) {
         material.needsUpdate = true;
         material.uniformsNeedUpdate = true;
 
-        //console.warn(obj.name, datum.sample_raw.length, datum.len);
+        // const array = Array.from(geometry.attributes.position);//.slice(0,18);
+        // //Float32Array
+        // const new_arr = new Uint16Array(array);
+        //
+        // //console.warn(obj.name, datum.sample_raw.length, datum.len);
 
         const instance = new THREE.InstancedMesh(geometry, material, datum.len);
         // const kbe = new THREE.InstancedBufferAttribute(new Float32Array(datum.sample_raw), 1);
@@ -2229,13 +2435,15 @@ function plot_data(obj) {
         // instance.geometry.setAttribute('s_sample', kbe);
 
         instance.geometry.computeBoundingSphere();
-
         instance.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         instance.name = obj.name;
         instance.userData.type = 'scaled_point';
-        //if (obj.name === 'protected_regions') instance.userData.type = 'scaled_point';
+
+        //if (obj.name === 'mpa_s') instance.userData.type = 'scaled_point';
         instance.userData.td = datum;
-        if (obj.name === 'protected_regions') instance.visible = false;
+
+        if (obj.name === 'mpa_s') instance.visible = false;
+
         group.add(instance);
 
     } else {
@@ -2401,17 +2609,61 @@ function wudi_plot(obj) {
     bar_geometry.deleteAttribute('uv');
     bar_geometry.deleteAttribute('normal');
 
+    console.log(bar_geometry);
+
+    ///bar_geometry.setDrawRange(0,18);
+
+    // bar_geometry.groups = bar_geometry.groups.slice(0,3);
+    // console.log(bar_geometry);
+    // const fart = [
+    //     0, 2, 1,
+    //     2, 3, 1,
+    //     8, 10, 9,
+    //     10, 11, 9,
+    //     12, 14, 13,
+    //     14, 15, 13,
+    //     16, 18, 17,
+    //     18, 19, 17,
+    //     20, 22, 21,
+    //     22, 23, 21
+    // ]
+    //
+    // const new_arr = new Uint16Array(fart);
+    // bar_geometry.index.array = new_arr;
+    // bar_geometry.index.count = 30;
+
+    // const array = Array.from(bar_geometry.index.array).slice(0,18);
+    //
+    // const new_arr = new Uint16Array(array);
+    // console.log(array);
+    // //
+    // const kfs = bar_geometry.index.array.splice(0,6);
+
+    // bar_geometry.index.array = new_arr;//setAttribute('index',kfs);
+    // bar_geometry.index.count = 18;
+
+    const bar_material_blank = new THREE.MeshBasicMaterial({
+        color: 0xFFFFFF,
+        side: THREE.FrontSide,
+        transparent: true,
+        opacity: 0.0,
+        blending: THREE.AdditiveBlending, //AdditiveBlending, //THREE.NormalBlending, //
+        depthWrite: false,
+        depthTest: false
+    });
+
     const bar_material = new THREE.MeshBasicMaterial({
         color: 0xFFFFFF,
         side: THREE.FrontSide,
+        //wireframe: true,
         transparent: true,
         opacity: 1.0,
         blending: THREE.AdditiveBlending, //AdditiveBlending, //THREE.NormalBlending, //
         depthWrite: false,
-        depthTest: false
-
+        depthTest: false,
+        //depthMode: THREE.GreaterEqualDepth ///EqualDepth //THREE.GreaterDepth
     });
-
+    //[bar_material, bar_material, bar_material, bar_material, bar_material, bar_material]
     for (let bar of bar_instances) {
         const instance = new THREE.InstancedMesh(bar_geometry, bar_material, bar.len);
         instance.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -2877,7 +3129,7 @@ function wudi_set_data_selection() {
 }
 
 function window_redraw(first_run=null) {
-    console.log("window_redraw fired.");
+    //console.log("window_redraw fired.");
     //window.scrollTo(0, 0);
 
     const w = window.innerWidth;
@@ -2909,6 +3161,7 @@ function window_redraw(first_run=null) {
 
     plot.style.width = ww + 'px';
     plot.style.height = wh + 'px';
+    intro_box.style.height = wh + 'px';
 
     vars.view.width = ww;
     vars.view.height = wh;
@@ -2928,14 +3181,18 @@ function window_redraw(first_run=null) {
         camera.aspect = ww / wh;
         camera.updateProjectionMatrix();
         renderer.setSize(ww, wh);
+
+        visible_dimensions = visibleAtZDepth(-default_z, camera);
+        //cam_base_pos.z = ((default_z / visible_dimensions.w) * vars.map.dims.w) + 2.0;
+        reset_default_z = ((default_z / visible_dimensions.w) * vars.map.dims.w) + 2.0;
+        vars.max_zoom = reset_default_z;
+
         run_camera();
         run_optics();
         run_ticks();
     }
 
     q_nav.setup();
-
-
 
     x_major_axis.style['border-color'] = vars.colors.hex_css(vars.colors.chart_tick);
     x_major_axis.style.opacity = '0.25';
@@ -2955,8 +3212,6 @@ function window_redraw(first_run=null) {
     //
     // title_box.style.bottom = vars.view.title_bottom_offset+'px';
     // title_box.classList.remove('hidden');
-
-
     //
     // bounds.style.height = h-handle_box.height + 'px';
 
@@ -2972,6 +3227,7 @@ function window_redraw(first_run=null) {
 }
 
 function intro_box_reposition(){
+    return;
     const bounds_pos = bounds.getBoundingClientRect();
     const title_pos = title_bar.getBoundingClientRect();
     const i_box = intro_box.getBoundingClientRect();
@@ -3023,7 +3279,7 @@ function init() {
     renderer.setPixelRatio(1);
     renderer.setSize(ww, wh);
 
-    renderer.setClearColor(utility_color.fromArray([1.0, 0, 0]), 1.0);
+    //renderer.setClearColor(utility_color.fromArray([1.0, 0, 0]), 1.0);
 
     root_plane = new THREE.Plane(y_up);
 
@@ -3078,6 +3334,7 @@ function init() {
     ref_marker.rotateX(Math.PI / -2);
     scene.add(ref_marker);
 
+
     ref_marker_2 = new THREE.Mesh(ref_geom, ref_mat);
     ref_marker_2.name = 'ref_mark_2';
     ref_marker_2.rotateX(Math.PI / -2);
@@ -3090,6 +3347,8 @@ function init() {
 
     map_container = make_map_container(vars.map.test_bounds);
     map_container.add(map_sectors_group);
+    map_container.add(m_selection_outlines);
+
     scene.add(map_container);
     map_plane.visible = false;
 
@@ -3136,15 +3395,15 @@ const wudi_dub_selecta = {
     dub_pos: new THREE.Vector3(),
     make: (e) => {
         wudi_dub_selecta.geom = new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(wudi_dub_selecta.buff, 3));
-        wudi_dub_selecta.dub_line = new THREE.LineSegments(wudi_dub_selecta.geom, wudi_dub_selecta.line_material);
-        for(let c=0;c<2;c++) {
-            const ref_geom = make_hexagonal_shape(0.01);
-            const ref_mat = new THREE.MeshBasicMaterial({color: vars.colors.dub_selecta});
-            ref_marker = new THREE.Mesh(ref_geom, ref_mat);
-            ref_marker.rotateX(Math.PI / -2);
-            wudi_dub_selecta.mark.push(ref_marker);
-            wudi_dub_selecta.object.add(ref_marker);
-        }
+        // wudi_dub_selecta.dub_line = new THREE.LineSegments(wudi_dub_selecta.geom, wudi_dub_selecta.line_material);
+        // for(let c=0;c<2;c++) {
+        //     const ref_geom = make_hexagonal_shape(0.01);
+        //     const ref_mat = new THREE.MeshBasicMaterial({color: vars.colors.dub_selecta});
+        //     ref_marker = new THREE.Mesh(ref_geom, ref_mat);
+        //     ref_marker.rotateX(Math.PI / -2);
+        //     wudi_dub_selecta.mark.push(ref_marker);
+        //     wudi_dub_selecta.object.add(ref_marker);
+        // }
 
         //const box_geometry = new THREE.BoxBufferGeometry(1, vars.bar_scale_width, 1);
 
@@ -3156,24 +3415,24 @@ const wudi_dub_selecta = {
         //     -0.1,0,0
         // ]);
 
-        const presto = new Float32Array([
-            -0.5,0.1,-0.5,
-            0.5,0.1,-0.5,
-            0.5,0.1,0.5,
-            -0.5,0.1,0.5,
-            -0.4,0.1,-0.4,
-            0.4,0.1,-0.4,
-            0.4,0.1,0.4,
-            -0.4,0.1,0.4,
-            -0.5,-0.1,-0.5,
-            0.5,-0.1,-0.5,
-            0.5,-0.1,0.5,
-            -0.5,-0.1,0.5,
-            -0.4,-0.1,-0.4,
-            0.4,-0.1,-0.4,
-            0.4,-0.1,0.4,
-            -0.4,-0.1,0.4
-        ]);
+        // const presto = new Float32Array([
+        //     -0.5,0.1,-0.5,
+        //     0.5,0.1,-0.5,
+        //     0.5,0.1,0.5,
+        //     -0.5,0.1,0.5,
+        //     -0.4,0.1,-0.4,
+        //     0.4,0.1,-0.4,
+        //     0.4,0.1,0.4,
+        //     -0.4,0.1,0.4,
+        //     -0.5,-0.1,-0.5,
+        //     0.5,-0.1,-0.5,
+        //     0.5,-0.1,0.5,
+        //     -0.5,-0.1,0.5,
+        //     -0.4,-0.1,-0.4,
+        //     0.4,-0.1,-0.4,
+        //     0.4,-0.1,0.4,
+        //     -0.4,-0.1,0.4
+        // ]);
 
         // const ref_mat = new THREE.PointsMaterial({color: vars.colors.dub_selecta, size:0.05});
         // const box_geometry = new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(presto, 3));
@@ -3188,7 +3447,6 @@ const wudi_dub_selecta = {
             depthWrite: false,
             depthTest: false
         });
-
         const box_geometry = new THREE.BoxBufferGeometry(1, vars.bar_scale_width, 1);
         box_geometry.deleteAttribute('uv');
         box_geometry.deleteAttribute('normal');
@@ -3202,10 +3460,11 @@ const wudi_dub_selecta = {
         wudi_dub_selecta.dub_box.userData.originalMatrix = wudi_dub_selecta.dub_box.matrix.clone();
 
         map_container.add(wudi_dub_selecta.dub_box);
-        wudi_dub_selecta.object.add(wudi_dub_selecta.dub_line);
-        wudi_dub_selecta.object.visible = false;
 
-        scene.add(wudi_dub_selecta.object);
+        // wudi_dub_selecta.object.add(wudi_dub_selecta.dub_line);
+        wudi_dub_selecta.dub_box.visible = false;
+
+        // scene.add(wudi_dub_selecta.object);
     },
     rescale:(index, up, down) =>{
         const wudi_up = scene.getObjectByName('wudi_up');
@@ -3214,20 +3473,25 @@ const wudi_dub_selecta = {
         wudi_dub_selecta.dub_box.position.set(vw.x, vw.y, down*-1);
         wudi_dub_selecta.dub_box.setRotationFromQuaternion(qu);
         wudi_dub_selecta.dub_box.scale.set(vu.x,vu.y,up+down);
+        wudi_dub_selecta.dub_box.geometry.attributes.position.needsUpdate = true;
+        wudi_dub_selecta.dub_box.geometry.computeBoundingBox();
+        wudi_dub_selecta.dub_box.geometry.computeBoundingSphere();
     },
-    set: (p1, p2) =>{
-        wudi_dub_selecta.object.visible = true;
-        const position = wudi_dub_selecta.geom.getAttribute('position');
-        position.setXYZ(0, p1.x,p1.y,p1.z);
-        position.setXYZ(1, p2.x,p2.y,p2.z);
-        wudi_dub_selecta.geom.attributes.position.needsUpdate = true;
-        wudi_dub_selecta.dub_line.geometry.computeBoundingSphere();
-        for(let c=0;c<2;c++) {
-            wudi_dub_selecta.mark[c].position.set(position.array[c * 3], position.array[c * 3 + 1], position.array[c * 3 + 2]);
-        }
-    },
+    // set: (p1, p2) =>{
+    //
+    //     const position = wudi_dub_selecta.geom.getAttribute('position');
+    //     position.setXYZ(0, p1.x,p1.y,p1.z);
+    //     position.setXYZ(1, p2.x,p2.y,p2.z);
+    //     wudi_dub_selecta.geom.attributes.position.needsUpdate = true;
+    //     wudi_dub_selecta.dub_line.geometry.computeBoundingSphere();
+    //     for(let c=0;c<2;c++) {
+    //         wudi_dub_selecta.mark[c].position.set(position.array[c * 3], position.array[c * 3 + 1], position.array[c * 3 + 2]);
+    //     }
+    // },
     set_from_point: (pid) =>{
+        wudi_dub_selecta.dub_box.visible = true;
         const t_ref = scene.getObjectByName('ref_mark');
+        t_ref.visible = false;
         const ref_point = vars.data.wudi_index.indexOf(pid);
 
         const wudi_down = scene.getObjectByName('wudi_down');
@@ -3536,7 +3800,7 @@ const q_nav = {
 
             container.setAttribute('id', 'sg-'+reg_id);
             const places_instance = scene.getObjectByName('places_data').children[0];
-            const protected_instance = scene.getObjectByName('protected_regions').children[0];
+            const protected_instance = scene.getObjectByName('mpa_s').children[0];
 
             const protected_color = utility_color.fromArray(vars.colors.mpa_s_designated).getHex();
             const places_color = utility_color.fromArray(vars.colors.places).getHex();
@@ -3802,13 +4066,40 @@ const array_chuk = (data, len) => {
 }
 
 const fetch_callback = (obj_list) => {
+
+    function make_references(obj, custom_length=null){
+        vars.refs[obj.name] = [];
+        let keys, data, count;
+
+        if(custom_length){
+            keys = obj.raw.slice(0, custom_length);
+            data = obj.raw.slice(0, obj.raw.length-1);
+            count = obj.raw.length-1;
+        }else{
+            keys = obj.raw.keys;
+            data = obj.raw.data;
+            count = obj.raw.data.length;
+        }
+
+        for (let i = 0; i < count; i++) {
+            vars.refs[obj.name].push(new dataClass(i).set(keys, data[i]));
+        }
+
+        //console.log('make_references', obj.name, vars.refs[obj.name]);
+    }
+
     obj_list.forEach(obj => {
         switch (obj.type) {
             case 'csv_text':
                 obj.raw = array_chuk(array_auto(obj.raw), obj.columns);
-                vars.data[obj.name] = obj;
-                //if(obj.name !== 'protected_regions') plot_data(obj);
-                plot_data(obj);
+
+                if(obj.style === 'data'){
+                    make_references(obj, obj.columns);
+                } else{
+                    vars.data[obj.name] = obj;
+                    plot_data(obj);
+                }
+
                 break;
             case 'json':
                 vars.data[obj.name] = obj;
@@ -3816,17 +4107,20 @@ const fetch_callback = (obj_list) => {
                 break;
             case 'json-ser':
                 //console.log('json-ser', obj.name);
-                if (obj.name === 'places_data'){
+                if (obj.name === 'places_data' || obj.name === 'mpa_s'){
                     vars.data[obj.name] = obj;
+                    make_references(obj);
                     //console.log('what places_data', obj);
                     plot_data(obj);
                 }
                 if (obj.name === 'wudi_points') {
                     vars.data[obj.name] = obj;
+                    make_references(obj);
                     wudi_plot(obj);
                 }
                 if (obj.name === 'wudi_assoc') {
                     vars.data[obj.name] = obj;
+                    make_references(obj);
                     //console.log(obj);
                 }
                 if (obj.name === 'wudi_data') {
@@ -3837,6 +4131,7 @@ const fetch_callback = (obj_list) => {
                 console.log(`callback found no data of type ${obj.type}`);
         }
     });
+    console.log(vars.refs);
     return true;
 }
 
@@ -3846,15 +4141,17 @@ for (let i = 0; i < 10; i++) {
 }
 
 const post_obj_list = [
-    {"url": "/map", "table": "places_fine", "type": "json-ser", "name": "places_data", "style":"point", "tck": [0, 0, 0]},
+    {"url": "/map", "table": "places_test", "type": "json-ser", "name": "places_data", "style":"point", "tck": [0, 0, 0], "geom_index": 11},
+    {"url": "/map", "table": "protected_regions", "type": "json-ser", "name": "mpa_s", "style":"point", "tck": [0, 0, 0]},
     {"url": "/wudi", "table": "turn_table", "type": "json-ser", "name": "wudi_points", "tck": util.shuffle_array(payload)},
     {"url": "/wudi", "table": "assoc", "type": "json-ser", "name": "wudi_assoc", "tck": util.shuffle_array(payload)},
     {"url": "/wudi", "tim": "40", "type": "json-ser", "name": "wudi_data", "tck": [0, 0, 0]},
 ]
 
 const obj_list = [
-    {url: './data/v2-raw-protected-14.txt', type: 'csv_text', name: 'protected_regions', style: 'point', columns: 14, geom_index: 11},
+    //{url: './data/v2-raw-protected-14.txt', type: 'csv_text', name: 'protected_regions', style: 'point', columns: 14, geom_index: 11},
     //{url: './data/raw-georegions-11.txt', type: 'csv_text', name: 'eco_regions', columns: 11, style: 'line', geom_index: 10, is_complex: true},
+    {url: './data/v2-raw-geonames-1.txt', type: 'csv_text', name: 'geonames', columns: 1, style: 'data', geom_index: 0},
     {url: './data/raw-isobath-100m-1.txt', type: 'csv_text', name: 'isobath', columns: 1, style: 'multi_line', geom_index: 0}
 ]
 
@@ -3863,8 +4160,10 @@ let initial_load = false;
 // 👉️ START EVERYTHING HERE
 
 async function load_complete(situation) {
+    vars.loaded = true;
     console.log('all loaded');
     console.log(situation);
+
     adaptive_scaling_wudi();
 
 }
@@ -3890,7 +4189,7 @@ async function load_primary(r){
 }
 
 async function window_dom_prepare(){
-
+    //window.scrollTo(0, 1);
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
     const buttons = [...document.querySelectorAll(".button")];
@@ -4053,6 +4352,7 @@ async function window_dom_prepare(){
 
 
     function window_scroll_control(e){
+        e.preventDefault();
         const h_state = window.scrollY > 0;
         vars.suspend = h_state;
         set_handle_sate(h_state);
@@ -4060,6 +4360,7 @@ async function window_dom_prepare(){
             //document.getElementById('bounds-overlay').style.display = display_array[+(h_state)];
             document.getElementById('bounds-overlay').fader(+(h_state), vars.suspend);///style.display = display_array[+(h_state)];
         }
+
     }
 
     function set_handle_sate(h_state){
@@ -4095,12 +4396,16 @@ async function window_dom_prepare(){
     bounds_overlay.addEventListener('mouseup', window_handle_control, false);
 
     bounds_overlay.fader = function(f){
+
         const s = this.style;
-        s.display = "block";
-        s.opacity = 1;//Math.abs(f-1);
-        function fadeout(){(s.opacity -= .1) < 0? s.display="none" : requestAnimationFrame(fadeout)}
-        function fadein(){(s.opacity += .1) > 1? s.display="block" : requestAnimationFrame(fadein)}
-        (f === 0) ? fadeout() : fadein();
+        s.display = display_array[f];
+
+
+        // s.display = "block";
+        // s.opacity = 1;//Math.abs(f-1);
+        // function fadeout(){(s.opacity -= .1) < 0? s.display="none" : requestAnimationFrame(fadeout)}
+        // function fadein(){(s.opacity += .1) > 1? s.display="block" : requestAnimationFrame(fadein)}
+        // (f === 0) ? fadeout() : fadein();
     }
 
     const instructions_slide = document.getElementById('instructions-slide');
@@ -4143,7 +4448,7 @@ async function window_state_control(e){
         instructions_slide.style.display = 'block';
 
         plot_controls.classList.remove('hidden');
-        intro_box_reposition();
+        //intro_box_reposition();
     }
 
     function state_two(){
@@ -4155,7 +4460,6 @@ async function window_state_control(e){
 
         const instructions_control = document.getElementById('instructions');
         instructions_control.classList.remove('active');
-
 
         const instructions_button = document.getElementById('instructions-button');
         instructions_button.style.display = 'none';
@@ -4185,6 +4489,7 @@ async function window_state_control(e){
 
 window.addEventListener('DOMContentLoaded', (event) => {
     console.log('dom loaded. continuing');
+    //document.requestFullscreen();
     window.addEventListener('resize', window_redraw);
     window_dom_prepare().then(r => load_primary(r));
 });

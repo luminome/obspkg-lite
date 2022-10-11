@@ -1614,6 +1614,11 @@ if __name__ == '__main__':
     # util.save_asset(v2_protected_regions, 'v2_protected_regions')
 
     df = pd.read_pickle(os.path.join(conf.assets_path, 'v2_protected_regions-DataFrame.pkl'))
+    # df = pd.read_pickle(os.path.join(conf.assets_path, 'v2_places_fine-Dataframe.pkl'))
+    for j, e in df.iterrows():
+        print(j,e)
+
+    exit()
     #df = df.replace({np.nan: None})  #//works
     #df = np.trunc(1000 * df) / 1000
     df = df.drop(columns=['geometry', 'LON', 'LAT'])
